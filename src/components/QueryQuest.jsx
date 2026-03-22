@@ -401,18 +401,18 @@ function TabBar({ active, onTabChange }) {
     { id: "profile", label: t("tab_user"), icon: "◉" },
   ];
   return (
-    <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.black, position: "sticky", bottom: 0, zIndex: 100, padding: "0 0 env(safe-area-inset-bottom, 14px)" }}>
+    <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.black, position: "sticky", bottom: 0, zIndex: 100, paddingBottom: "env(safe-area-inset-bottom, 0px)", minHeight: 0 }}>
       {tabs.map(tab => {
         const on = active === tab.id;
         return (
           <button key={tab.id} onClick={() => onTabChange(tab.id)} style={{
             flex: 1, background: "none", border: "none", cursor: "pointer",
-            padding: "14px 0 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-            position: "relative", minHeight: 62,
+            padding: "8px 0 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+            position: "relative", minHeight: 50, minWidth: 0,
           }}>
-            {on && <div style={{ position: "absolute", top: -1, left: "12%", right: "12%", height: 3, background: C.cyan, boxShadow: `0 0 12px ${C.cyan}` }} />}
-            <span style={{ fontFamily: F.mono, fontSize: 34, color: on ? C.cyan : C.dim, textShadow: on ? `0 0 12px ${C.cyan}80` : "none", transition: "all 0.2s" }}>{tab.icon}</span>
-            <span style={{ fontFamily: F.mono, fontSize: 12, letterSpacing: 1.5, color: on ? C.cyan : C.dim }}>{tab.label}</span>
+            {on && <div style={{ position: "absolute", top: -1, left: "12%", right: "12%", height: 2, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}` }} />}
+            <span style={{ fontFamily: F.mono, fontSize: 20, color: on ? C.cyan : C.dim, textShadow: on ? `0 0 10px ${C.cyan}80` : "none", transition: "all 0.2s", lineHeight: 1 }}>{tab.icon}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: on ? C.cyan : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", padding: "0 2px" }}>{tab.label}</span>
           </button>
         );
       })}
@@ -514,8 +514,8 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
         return (
           <button onClick={() => onNavigate("lesson", activeMod.id)} style={{ background: C.panel, border: `1px solid ${C.border}`, cursor: "pointer", textAlign: "left", width: "100%", padding: "18px" }}>
             <div style={{ fontFamily: F.mono, fontSize: 19, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 12 }}>┤ {t("resume")} ├</div>
-            <div style={{ fontFamily: F.mono, fontSize: 34, color: C.white, marginBottom: 6 }}>
-              mod_{String(activeMod.id).padStart(2, "0")}<span style={{ color: C.dim }}>://</span><span style={{ color: C.cyan }}>{activeMod.n}</span>
+            <div style={{ fontFamily: F.mono, color: C.white, marginBottom: 6, lineHeight: 1.2 }}>
+              <span style={{ fontSize: 27 }}>mod_{String(activeMod.id).padStart(2, "0")}<span style={{ color: C.dim }}>://</span></span><span style={{ fontSize: 30, color: C.cyan }}>{activeMod.n}</span>
             </div>
             <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, marginBottom: 14 }}>{activeMod.tp}</div>
             <ProgressBar progress={prog} />
@@ -1247,23 +1247,23 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               );
             })()}
             {/* ── Utility keys ── */}
-            <div style={{ padding: "5px 10px", background: C.panel, borderTop: `1px solid ${C.border}`, display: "flex", gap: 5, overflowX: "auto", flexShrink: 0 }}>
-              <button onClick={backspace} style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "6px 14px", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 36, fontWeight: 700 }}>⌫</button>
-              <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "6px 14px", fontFamily: F.mono, fontSize: 16, color: C.cyan, minHeight: 36, fontWeight: 700 }}>↵ ENTER</button>
-              <button onClick={() => insert("  ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 10px", fontFamily: F.mono, fontSize: 13, color: C.dim, minHeight: 36 }}>TAB</button>
-              <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 14px", fontFamily: F.mono, fontSize: 13, color: C.dim, minHeight: 36 }}>SPC</button>
+            <div style={{ padding: "3px 8px", background: C.panel, borderTop: `1px solid ${C.border}`, display: "flex", gap: 4, overflowX: "auto", flexShrink: 0 }}>
+              <button onClick={backspace} style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "4px 12px", fontFamily: F.mono, fontSize: 15, color: C.red, minHeight: 32, fontWeight: 700 }}>⌫</button>
+              <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "4px 10px", fontFamily: F.mono, fontSize: 14, color: C.cyan, minHeight: 32, fontWeight: 700 }}>↵</button>
+              <button onClick={() => insert("  ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "4px 8px", fontFamily: F.mono, fontSize: 12, color: C.dim, minHeight: 32 }}>TAB</button>
+              <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "4px 10px", fontFamily: F.mono, fontSize: 12, color: C.dim, minHeight: 32 }}>SPC</button>
               {["*",",","(",")","'","=",">","<",";","."].map(ch2 => (
-                <button key={ch2} onClick={() => insert(ch2)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 8px", fontFamily: F.mono, fontSize: 15, color: C.white, minHeight: 36 }}>{ch2}</button>
+                <button key={ch2} onClick={() => insert(ch2)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "4px 7px", fontFamily: F.mono, fontSize: 14, color: C.white, minHeight: 32 }}>{ch2}</button>
               ))}
             </div>
           </>
         )}
         {/* ── RUN button — shown when no result. When keyboard open, only show RUN (hide toolbars above) ── */}
         {!result && (
-          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 14px 6px", background: C.black, display: "flex", gap: 8, flexShrink: 0 }}>
-            <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "10px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, letterSpacing: 1, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 42, width: 56, flexShrink: 0 }}>{editing ? "⌨ ✕" : "⌨"}</button>
-            <button onClick={resetSQL} style={{ padding: "10px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 1, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 42, width: 48, flexShrink: 0 }}>↺</button>
-            <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "10px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 15, letterSpacing: 2, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, boxShadow: `0 0 16px ${C.green}35`, minHeight: 42, opacity: dbReady ? 1 : 0.4 }}>▶ RUN</button>
+          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "3px 10px 4px", background: C.black, display: "flex", gap: 6, flexShrink: 0 }}>
+            <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 1, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 38, width: 48, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
+            <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 1, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 38, width: 40, flexShrink: 0 }}>↺</button>
+            <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 2, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, boxShadow: `0 0 12px ${C.green}30`, minHeight: 38, opacity: dbReady ? 1 : 0.4 }}>▶ RUN</button>
           </div>
         )}
       </div>

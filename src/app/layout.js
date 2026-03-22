@@ -1,3 +1,5 @@
+import { Analytics } from "@vercel/analytics/next";
+
 export const metadata = {
   title: "QueryQuest — Learn SQL Like a Game",
   description: "80 SQL challenges with real in-browser execution. Cyberpunk CLI aesthetic. From SELECT to CTEs. Free, no signup required.",
@@ -33,6 +35,7 @@ export default function RootLayout({ children }) {
       </head>
       <body style={{ margin: 0, padding: 0, background: "#020410", overflow: "hidden" }}>
         {children}
+        <Analytics />
       </body>
     </html>
   );
