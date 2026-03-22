@@ -4,16 +4,42 @@ export const metadata = {
   title: "PunkSQL — Learn SQL Like a Game",
   description: "80 SQL challenges with real in-browser execution. Cyberpunk CLI aesthetic. From SELECT to CTEs. Free, no signup required.",
   keywords: ["SQL", "learn SQL", "SQL practice", "SQL challenges", "database", "coding game"],
+
+  // Favicon + icon suite
+  icons: {
+    // Main browser favicon (modern)
+    icon: [
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    // Legacy shortcut icon fallback
+    shortcut: "/favicon.ico",
+    // Apple touch icon for iOS home screen
+    apple: [
+      { url: "/icon.png", type: "image/png" },
+    ],
+  },
+
   openGraph: {
     title: "PunkSQL — Learn SQL Like a Game",
     description: "80 SQL challenges, 8 modules, real in-browser execution. Level up from SELECT to CTEs.",
     type: "website",
     locale: "en_US",
+    images: [
+      {
+        url: "/icon.png",
+        width: 512,
+        height: 512,
+        alt: "PunkSQL — Learn SQL Like a Game",
+      },
+    ],
   },
+
   twitter: {
     card: "summary_large_image",
     title: "PunkSQL — Learn SQL Like a Game",
     description: "80 SQL challenges with real in-browser execution. Free.",
+    images: ["/icon.png"],
   },
 };
 
