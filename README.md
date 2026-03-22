@@ -116,8 +116,13 @@ Module 8: ctes            WITH, chained CTEs, CASE WHEN, recursive patterns
 
 ```bash
 # Clone
+<<<<<<< HEAD
 git clone https://github.com/eduardocornelsen/punksql.git
 cd punksql
+=======
+git clone https://github.com/eduardocornelsen/PunkSQL.git
+cd PunkSQL
+>>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
 
 # Install
 npm install
@@ -137,7 +142,11 @@ Requires [Node.js 18+](https://nodejs.org/).
 
 ### Vercel (recommended)
 
+<<<<<<< HEAD
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/eduardocornelsen/punksql)
+=======
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/eduardocornelsen/PunkSQL)
+>>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
 
 Or manually:
 
@@ -157,13 +166,21 @@ npm run build
 ## Project Structure
 
 ```
+<<<<<<< HEAD
 punksql/
+=======
+PunkSQL/
+>>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
 ├── src/
 │   ├── app/
 │   │   ├── page.js              # Main page (dynamic import, no SSR)
 │   │   └── layout.js            # Root layout, SEO metadata, PWA head
 │   └── components/
+<<<<<<< HEAD
 │       └── PunkSQL.jsx          # Complete app (~2000 lines, single file)
+=======
+│       └── PunkSQL.jsx       # Complete app (~2000 lines, single file)
+>>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
 ├── public/
 │   ├── manifest.json            # PWA manifest (installable as mobile app)
 │   └── favicon.svg              # Cyberpunk icon
