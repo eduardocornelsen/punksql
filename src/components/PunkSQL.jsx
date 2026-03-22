@@ -1768,6 +1768,32 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
           </div>
           <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginTop: 4 }}>{xp - lv.cur} / {lv.nxt - lv.cur} to LVL {lv.level + 1}</div>
         </div>
+
+        {/* Google Sign In Button */}
+        {!user && !loading && (
+          <button 
+            onClick={signInWithGoogle}
+            style={{
+              marginTop: 20,
+              width: "100%",
+              maxWidth: 240,
+              padding: "12px 0",
+              cursor: "pointer",
+              fontFamily: F.mono,
+              fontSize: 14,
+              color: C.black,
+              fontWeight: 700,
+              background: C.cyan,
+              border: `1px solid ${C.cyan}`,
+              boxShadow: `0 0 20px ${C.cyan}40`,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              animation: "pulseGlow 2s ease infinite"
+            }}
+          >
+            {lang === "pt" ? "ENTRAR COM GOOGLE" : "SIGN IN WITH GOOGLE"}
+          </button>
+        )}
       </div>
       <Divider />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}>
@@ -1821,17 +1847,15 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
 
       <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 20, lineHeight: 2.2, textAlign: "center" }}>
         {t("footer_1")}<br />{t("footer_2")}<br />
-        <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 12 }}>
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           {loading ? (
-             <span style={{ color: C.dim }}>[ loading... ]</span>
+             <span style={{ color: C.dim, fontSize: 12 }}>[ loading... ]</span>
           ) : user ? (
-            <>
-              <span style={{ color: C.cyanDim, cursor: "pointer" }} onClick={() => { if(confirm(lang === "pt" ? "Sair da conta?" : "Sign out?")) signOut(); }}>{t("logout")}</span>
-              <span style={{ color: C.dim }}>({user.email})</span>
-            </>
-          ) : (
-            <span style={{ color: C.cyan, cursor: "pointer", fontWeight: "bold", border: `1px solid ${C.cyan}40`, padding: "4px 12px", background: C.cyanGhost }} onClick={signInWithGoogle}>{t("login_google")}</span>
-          )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: C.cyanDim, cursor: "pointer", fontSize: 12 }} onClick={() => { if(confirm(lang === "pt" ? "Sair da conta?" : "Sign out?")) signOut(); }}>{t("logout")}</span>
+              <span style={{ color: C.dim, fontSize: 11 }}>({user.email})</span>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
