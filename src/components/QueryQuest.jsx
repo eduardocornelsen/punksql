@@ -192,6 +192,9 @@ const globalCSS = `
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 *{scrollbar-width:thin;-webkit-tap-highlight-color:transparent}
 textarea:focus{outline:none}button{-webkit-tap-highlight-color:transparent}
+html{height:100%;height:-webkit-fill-available}
+body{height:100%;min-height:-webkit-fill-available}
+:root{--app-h:100dvh}@supports not (height:100dvh){:root{--app-h:100vh}}
 `;
 
 // ── Utilities ─────────────────────────────────────────────
@@ -401,22 +404,26 @@ function TabBar({ active, onTabChange }) {
     { id: "profile", label: t("tab_user"), icon: "◉" },
   ];
   return (
-    <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.black, position: "sticky", bottom: 0, zIndex: 100, paddingBottom: "env(safe-area-inset-bottom, 0px)", minHeight: 0 }}>
-      {tabs.map(tab => {
-        const on = active === tab.id;
-        return (
-          <button key={tab.id} onClick={() => onTabChange(tab.id)} style={{
-            flex: 1, background: "none", border: "none", cursor: "pointer",
-            padding: "8px 0 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-            position: "relative", minHeight: 50, minWidth: 0,
-          }}>
-            {on && <div style={{ position: "absolute", top: -1, left: "12%", right: "12%", height: 2, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}` }} />}
-            <span style={{ fontFamily: F.mono, fontSize: 20, color: on ? C.cyan : C.dim, textShadow: on ? `0 0 10px ${C.cyan}80` : "none", transition: "all 0.2s", lineHeight: 1 }}>{tab.icon}</span>
-            <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: on ? C.cyan : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", padding: "0 2px" }}>{tab.label}</span>
-          </button>
-        );
-      })}
-    </div>
+    <>
+      {/* Spacer so scrollable content isn't hidden under the fixed tab bar */}
+      <div style={{ height: "calc(50px + env(safe-area-inset-bottom, 0px))", flexShrink: 0 }} />
+      <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.black, position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, paddingBottom: "env(safe-area-inset-bottom, 0px)", maxWidth: 480, margin: "0 auto" }}>
+        {tabs.map(tab => {
+          const on = active === tab.id;
+          return (
+            <button key={tab.id} onClick={() => onTabChange(tab.id)} style={{
+              flex: 1, background: "none", border: "none", cursor: "pointer",
+              padding: "8px 0 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              position: "relative", minHeight: 50, minWidth: 0,
+            }}>
+              {on && <div style={{ position: "absolute", top: -1, left: "12%", right: "12%", height: 2, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}` }} />}
+              <span style={{ fontFamily: F.mono, fontSize: 20, color: on ? C.cyan : C.dim, textShadow: on ? `0 0 10px ${C.cyan}80` : "none", transition: "all 0.2s", lineHeight: 1 }}>{tab.icon}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: on ? C.cyan : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", padding: "0 2px" }}>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -1260,7 +1267,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         )}
         {/* ── RUN button — shown when no result. When keyboard open, only show RUN (hide toolbars above) ── */}
         {!result && (
-          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "3px 10px 4px", background: C.black, display: "flex", gap: 6, flexShrink: 0 }}>
+          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "3px 10px 4px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, display: "flex", gap: 6, flexShrink: 0 }}>
             <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 1, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 38, width: 48, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
             <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 1, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 38, width: 40, flexShrink: 0 }}>↺</button>
             <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 2, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, boxShadow: `0 0 12px ${C.green}30`, minHeight: 38, opacity: dbReady ? 1 : 0.4 }}>▶ RUN</button>
@@ -2006,7 +2013,7 @@ export default function QueryQuestCLI() {
     setLastContext("learn");
   }, []);
 
-  const shell = { maxWidth: 480, margin: "0 auto", height: "100vh", background: C.void, fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", boxShadow: `0 0 80px ${C.cyan}08`, animation: "crtFlicker 4s ease infinite" };
+  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: C.void, fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", boxShadow: `0 0 80px ${C.cyan}08`, animation: "crtFlicker 4s ease infinite" };
   const ctx = { lang, t };
 
   // Build focus title from current challenge

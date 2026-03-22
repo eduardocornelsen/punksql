@@ -33,7 +33,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body style={{ margin: 0, padding: 0, background: "#020410", overflow: "hidden" }}>
+      <body style={{ margin: 0, padding: 0, background: "#020410", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
         {children}
         <Analytics />
       </body>
