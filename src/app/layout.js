@@ -1,6 +1,8 @@
 import { Analytics } from "@vercel/analytics/next";
+import AuthProvider from "@/components/AuthProvider";
 
 export const metadata = {
+// ... existing metadata
   title: "PunkSQL — Learn SQL Like a Game",
   description: "80 SQL challenges with real in-browser execution. Cyberpunk CLI aesthetic. From SELECT to CTEs. Free, no signup required.",
   keywords: ["SQL", "learn SQL", "SQL practice", "SQL challenges", "database", "coding game"],
@@ -60,7 +62,9 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body style={{ margin: 0, padding: 0, background: "#020410", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

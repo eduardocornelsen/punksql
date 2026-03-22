@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
+import { useAuth } from "@/components/AuthProvider";
+import { useProgress } from "@/hooks/useProgress";
 
 // ═══════════════════════════════════════════════════════════
 //  PUNKSQL // CYBERPUNK CLI — XL MOBILE
@@ -114,7 +116,8 @@ const i18n = {
     badge_1: "1st_SELECT", badge_2: "JOIN_MASTER", badge_3: "7D_STREAK",
     badge_4: "SPEED", badge_5: "OWL", badge_6: "PERFECT",
     footer_1: "PunkSQL v1.0", footer_2: "duckdb // 23ms",
-    settings: "[ settings ]", logout: "[ logout ]",
+    settings: "[ settings ]", logout: "[ logout ]", login_google: "[ login with google ]",
+    syncing: "syncing...", synced: "cloud sync ok",
     continue_lesson: "CONTINUE LESSON",
     continue_mod: "mod_04 // aggregations",
   },
@@ -165,7 +168,8 @@ const i18n = {
     badge_1: "1º_SELECT", badge_2: "JOIN", badge_3: "SÉRIE_7D",
     badge_4: "VELOZ", badge_5: "CORUJA", badge_6: "PERFEITO",
     footer_1: "PunkSQL v1.0", footer_2: "duckdb // 23ms",
-    settings: "[ config ]", logout: "[ sair ]",
+    settings: "[ config ]", logout: "[ sair ]", login_google: "[ entrar com google ]",
+    syncing: "sincronizando...", synced: "nuvem ok",
     continue_lesson: "CONTINUAR LIÇÃO",
     continue_mod: "mod_04 // agregações",
   },
@@ -1093,12 +1097,32 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         SFX.play("correct");
         if (onXP) {
           const pts = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
-          onXP(pts + (isDaily ? 100 : 0), ch.id);
+          onXP(pts + (isDaily ? 100 : 0), ch.id, {
+            submitted_sql: sql.trim(),
+            is_correct: true,
+            xp_earned: pts + (isDaily ? 100 : 0)
+          });
         }
-      } else { SFX.play("wrong"); }
+      } else {
+        SFX.play("wrong");
+        if (onXP) {
+           onXP(0, ch.id, {
+             submitted_sql: sql.trim(),
+             is_correct: false,
+             xp_earned: 0
+           });
+        }
+      }
     } else {
       setVerdict(null);
       SFX.play("wrong");
+      if (onXP) {
+         onXP(0, ch.id, {
+           submitted_sql: sql.trim(),
+           is_correct: false,
+           xp_earned: 0
+         });
+      }
     }
     setResOpen(true);
     setOpenPanel(null);
@@ -1714,8 +1738,9 @@ function QuizScreen({ onXP }) {
 // ═══════════════════════════════════════════════════════════
 //  PROFILE
 // ═══════════════════════════════════════════════════════════
-function ProfileScreen({ xp = 0, solved = new Set() }) {
+function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
   const { t, lang } = useLang();
+  const { user, signInWithGoogle, signOut, loading } = useAuth();
   const lv = getLevel(xp);
   const [expandedBadge, setExpandedBadge] = useState(null);
   const earnedAch = ACHIEVEMENTS.filter(a => a.check(solved, xp));
@@ -1728,6 +1753,14 @@ function ProfileScreen({ xp = 0, solved = new Set() }) {
         </div>
         <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, animation: "pulseGlow 3s ease infinite" }}>player</div>
         <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 6 }}>LVL {lv.level} · {xp.toLocaleString()} XP</div>
+        
+        {/* Sync Status */}
+        {user && (
+          <div style={{ fontFamily: F.mono, fontSize: 10, color: syncing ? C.amber : C.green, marginTop: 4, letterSpacing: 1 }}>
+            {syncing ? t("syncing").toUpperCase() : t("synced").toUpperCase()}
+          </div>
+        )}
+
         {/* Level progress bar */}
         <div style={{ maxWidth: 200, margin: "10px auto 0" }}>
           <div style={{ height: 4, background: C.border, position: "relative", overflow: "hidden" }}>
@@ -1788,7 +1821,18 @@ function ProfileScreen({ xp = 0, solved = new Set() }) {
 
       <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 20, lineHeight: 2.2, textAlign: "center" }}>
         {t("footer_1")}<br />{t("footer_2")}<br />
-        <span style={{ color: C.cyanDim }}>{t("settings")}</span><span style={{ color: C.dim }}> · </span><span style={{ color: C.cyanDim }}>{t("logout")}</span>
+        <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 12 }}>
+          {loading ? (
+             <span style={{ color: C.dim }}>[ loading... ]</span>
+          ) : user ? (
+            <>
+              <span style={{ color: C.cyanDim, cursor: "pointer" }} onClick={() => { if(confirm(lang === "pt" ? "Sair da conta?" : "Sign out?")) signOut(); }}>{t("logout")}</span>
+              <span style={{ color: C.dim }}>({user.email})</span>
+            </>
+          ) : (
+            <span style={{ color: C.cyan, cursor: "pointer", fontWeight: "bold", border: `1px solid ${C.cyan}40`, padding: "4px 12px", background: C.cyanGhost }} onClick={signInWithGoogle}>{t("login_google")}</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1899,6 +1943,19 @@ export default function PunkSQLCLI() {
   const [solved, setSolved] = useState(new Set());
   const [storageLoaded, setStorageLoaded] = useState(false);
 
+  // Supabase Sync
+  const { syncing, logAttempt } = useProgress(
+    { xp, solved_ids: Array.from(solved), lang },
+    (serverData) => {
+      // Merge logic: take highest XP and union of solved IDs
+      if (serverData.xp > xp) setXp(serverData.xp);
+      if (serverData.solved_ids?.length > (solved.size || 0)) {
+        setSolved(prev => new Set([...Array.from(prev), ...serverData.solved_ids]));
+      }
+      if (serverData.lang) setLang(serverData.lang);
+    }
+  );
+
   // Load progress from persistent storage on mount
   useEffect(() => {
     loadProgress().then(data => {
@@ -1943,6 +2000,16 @@ export default function PunkSQLCLI() {
     });
     if (challengeId) markSolved(challengeId);
   }, [markSolved]);
+
+  const handleXP = useCallback((pts, challengeId, details) => {
+    addXP(pts, challengeId);
+    if (details) {
+       logAttempt({
+         challenge_id: challengeId,
+         ...details
+       });
+    }
+  }, [addXP, logAttempt]);
 
   // Check for new badge unlocks after solved changes
   useEffect(() => {
@@ -2035,7 +2102,7 @@ export default function PunkSQLCLI() {
   if (screen === "daily") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <TopBar lang={lang} setLang={setLang} startCollapsed focusTitle={focusTitle} />
-      <ChallengeScreen key="daily" onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={dailyChallengeId} onXP={addXP} isDaily moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} onFocusChange={setAppFocusMode} />
+      <ChallengeScreen key="daily" onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={dailyChallengeId} onXP={handleXP} isDaily={true} moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} onFocusChange={setAppFocusMode} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
@@ -2044,7 +2111,7 @@ export default function PunkSQLCLI() {
   if (screen === "challenge") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <TopBar lang={lang} setLang={setLang} startCollapsed focusTitle={focusTitle} />
-      <ChallengeScreen key={lastCodeId} onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={lastCodeId} onXP={addXP} isDaily={false} moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} onFocusChange={setAppFocusMode} />
+      <ChallengeScreen key={lastCodeId} onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={lastCodeId} onXP={handleXP} isDaily={false} moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} onFocusChange={setAppFocusMode} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
@@ -2053,7 +2120,7 @@ export default function PunkSQLCLI() {
   if (screen === "lesson") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <TopBar lang={lang} setLang={setLang} startCollapsed exercises={lessonExercises} currentExId={lessonChId} onExNav={handleLessonNav} focusTitle={focusTitle} />
-      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={lessonChId} onXP={addXP} moduleId={null} onNext={handleLessonNav} onFocusChange={setAppFocusMode} />
+      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={lessonChId} onXP={handleXP} moduleId={lastLearnId} onNext={handleLessonNav} onFocusChange={setAppFocusMode} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
@@ -2067,9 +2134,9 @@ export default function PunkSQLCLI() {
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
         {tab === "learn" && <LearnScreen onNavigate={nav} solved={solved} />}
         {tab === "practice" && <PracticeScreen onNavigate={nav} solved={solved} />}
-        {tab === "quiz" && <QuizScreen onXP={addXP} />}
-        {tab === "review" && <ReviewScreen onXP={addXP} />}
-        {tab === "profile" && <ProfileScreen xp={xp} solved={solved} />}
+        {tab === "quiz" && <QuizScreen onXP={handleXP} />}
+        {tab === "review" && <ReviewScreen onXP={handleXP} />}
+        {tab === "profile" && <ProfileScreen xp={xp} solved={solved} syncing={syncing} />}
       </div>
       <TabBar active={tab} onTabChange={setTab} />
       {/* Level up overlay */}
