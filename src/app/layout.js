@@ -1,18 +1,18 @@
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
-  title: "QueryQuest — Learn SQL Like a Game",
+  title: "PunkSQL — Learn SQL Like a Game",
   description: "80 SQL challenges with real in-browser execution. Cyberpunk CLI aesthetic. From SELECT to CTEs. Free, no signup required.",
   keywords: ["SQL", "learn SQL", "SQL practice", "SQL challenges", "database", "coding game"],
   openGraph: {
-    title: "QueryQuest — Learn SQL Like a Game",
+    title: "PunkSQL — Learn SQL Like a Game",
     description: "80 SQL challenges, 8 modules, real in-browser execution. Level up from SELECT to CTEs.",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "QueryQuest — Learn SQL Like a Game",
+    title: "PunkSQL — Learn SQL Like a Game",
     description: "80 SQL challenges with real in-browser execution. Free.",
   },
 };

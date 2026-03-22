@@ -1,11 +1,11 @@
 #!/bin/bash
-# QueryQuest Deploy Script
-# Run this from the queryquest-web directory
+# PunkSQL Deploy Script
+# Run this from the punksql directory
 
 set -e
 
 echo "═══════════════════════════════════════"
-echo "  QUERYQUEST — Deploy Script"
+echo "  PUNKSQL — Deploy Script"
 echo "═══════════════════════════════════════"
 echo ""
 
@@ -50,7 +50,7 @@ case $choice in
         read -p "GitHub repo URL: " repo_url
         git init 2>/dev/null || true
         git add .
-        git commit -m "QueryQuest v1.0 — 80 SQL challenges" 2>/dev/null || git commit --amend --no-edit
+        git commit -m "PunkSQL v1.0 — 80 SQL challenges" 2>/dev/null || git commit --amend --no-edit
         git remote remove origin 2>/dev/null || true
         git remote add origin "$repo_url"
         git push -u origin main --force

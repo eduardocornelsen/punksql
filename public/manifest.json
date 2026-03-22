@@ -1,6 +1,6 @@
 {
-  "name": "QueryQuest",
-  "short_name": "QueryQuest",
+  "name": "PunkSQL",
+  "short_name": "PunkSQL",
   "description": "Learn SQL by solving real challenges",
   "start_url": "/",
   "display": "standalone",

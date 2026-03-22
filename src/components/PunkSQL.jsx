@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 
 // ═══════════════════════════════════════════════════════════
-//  QUERYQUEST // CYBERPUNK CLI — XL MOBILE
+//  PUNKSQL // CYBERPUNK CLI — XL MOBILE
 // ═══════════════════════════════════════════════════════════
 
 // ── Persistent Storage Helpers ────────────────────────────
@@ -69,7 +69,7 @@ const F = { mono: "'Share Tech Mono', 'Fira Code', 'JetBrains Mono', 'Courier Ne
 const i18n = {
   en: {
     tab_home: "HOME", tab_learn: "LEARN", tab_code: "CODE", tab_cards: "CARDS", tab_user: "USER",
-    boot_1: "[SYS] QueryQuest v1.0 // init",
+    boot_1: "[SYS] PunkSQL v1.0 // init",
     boot_2: "[NET] sandbox:5432 ok",
     boot_3: "[USR] eduardo // lvl 12",
     daily_challenge: "daily_challenge", challenge_name: "revenue_by_quarter",
@@ -113,14 +113,14 @@ const i18n = {
     achievements: "ACHIEVEMENTS",
     badge_1: "1st_SELECT", badge_2: "JOIN_MASTER", badge_3: "7D_STREAK",
     badge_4: "SPEED", badge_5: "OWL", badge_6: "PERFECT",
-    footer_1: "QueryQuest v1.0", footer_2: "duckdb // 23ms",
+    footer_1: "PunkSQL v1.0", footer_2: "duckdb // 23ms",
     settings: "[ settings ]", logout: "[ logout ]",
     continue_lesson: "CONTINUE LESSON",
     continue_mod: "mod_04 // aggregations",
   },
   pt: {
     tab_home: "INÍCIO", tab_learn: "TRILHA", tab_code: "CÓDIGO", tab_cards: "CARDS", tab_user: "PERFIL",
-    boot_1: "[SIS] QueryQuest v1.0 // init",
+    boot_1: "[SIS] PunkSQL v1.0 // init",
     boot_2: "[NET] sandbox:5432 ok",
     boot_3: "[USR] eduardo // nvl 12",
     daily_challenge: "desafio_diário", challenge_name: "receita_trimestre",
@@ -164,7 +164,7 @@ const i18n = {
     achievements: "CONQUISTAS",
     badge_1: "1º_SELECT", badge_2: "JOIN", badge_3: "SÉRIE_7D",
     badge_4: "VELOZ", badge_5: "CORUJA", badge_6: "PERFEITO",
-    footer_1: "QueryQuest v1.0", footer_2: "duckdb // 23ms",
+    footer_1: "PunkSQL v1.0", footer_2: "duckdb // 23ms",
     settings: "[ config ]", logout: "[ sair ]",
     continue_lesson: "CONTINUAR LIÇÃO",
     continue_mod: "mod_04 // agregações",
@@ -406,19 +406,19 @@ function TabBar({ active, onTabChange }) {
   return (
     <>
       {/* Spacer so scrollable content isn't hidden under the fixed tab bar */}
-      <div style={{ height: "calc(50px + env(safe-area-inset-bottom, 0px))", flexShrink: 0 }} />
+      <div style={{ height: "calc(62px + env(safe-area-inset-bottom, 0px))", flexShrink: 0 }} />
       <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.black, position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, paddingBottom: "env(safe-area-inset-bottom, 0px)", maxWidth: 480, margin: "0 auto" }}>
         {tabs.map(tab => {
           const on = active === tab.id;
           return (
             <button key={tab.id} onClick={() => onTabChange(tab.id)} style={{
               flex: 1, background: "none", border: "none", cursor: "pointer",
-              padding: "8px 0 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-              position: "relative", minHeight: 50, minWidth: 0,
+              padding: "10px 0 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+              position: "relative", minHeight: 62, minWidth: 0,
             }}>
               {on && <div style={{ position: "absolute", top: -1, left: "12%", right: "12%", height: 2, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}` }} />}
-              <span style={{ fontFamily: F.mono, fontSize: 20, color: on ? C.cyan : C.dim, textShadow: on ? `0 0 10px ${C.cyan}80` : "none", transition: "all 0.2s", lineHeight: 1 }}>{tab.icon}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: on ? C.cyan : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", padding: "0 2px" }}>{tab.label}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 24, color: on ? C.cyan : C.dim, textShadow: on ? `0 0 10px ${C.cyan}80` : "none", transition: "all 0.2s", lineHeight: 1 }}>{tab.icon}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 12, letterSpacing: 1, color: on ? C.cyan : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", padding: "0 2px" }}>{tab.label}</span>
             </button>
           );
         })}
@@ -1802,7 +1802,7 @@ function OnboardingScreen({ onComplete, lang }) {
   const [step, setStep] = useState(0);
   const ispt = lang === "pt";
   const slides = [
-    { icon: ">_", title: ispt ? "BEM-VINDO AO QUERYQUEST" : "WELCOME TO QUERYQUEST", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.cyan },
+    { icon: ">_", title: ispt ? "BEM-VINDO AO PUNKSQL" : "WELCOME TO PUNKSQL", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.cyan },
     { icon: "◈", title: ispt ? "APRENDA" : "LEARN", body: ispt ? "A aba LEARN tem 8 módulos:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nCada módulo tem 5-6 exercícios\nque vão do fácil ao expert." : "The LEARN tab has 8 modules:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nEach module has 5-6 exercises\nranging from easy to expert.", color: C.green },
     { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? "CODE: 41 desafios SQL reais.\nEscreva SQL, clique RUN para testar,\nSUBMIT para validar. Use os botões\nde keywords — sem precisar de teclado!\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s." : "CODE: 41 real SQL challenges.\nWrite SQL, tap RUN to test,\nSUBMIT to validate. Use keyword\nbuttons — no keyboard needed!\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.", color: C.cyan },
     { icon: "◇", title: ispt ? "CARDS + XP" : "CARDS + XP", body: ispt ? "CARDS: Flashcards com swipe.\nDireita = sabia (+pts)\nEsquerda = não sabia (-1 vida)\n3 vidas — Game Over reseta!\n\nXP: Tudo dá XP — challenges, quiz,\ncards. Suba de nível e ganhe badges!" : "CARDS: Swipeable flashcards.\nRight = knew it (+pts)\nLeft = didn't know (-1 life)\n3 lives — Game Over resets!\n\nXP: Everything earns XP — challenges,\nquiz, cards. Level up and earn badges!", color: C.amber },
@@ -1882,7 +1882,7 @@ function OnboardingScreen({ onComplete, lang }) {
 // ═══════════════════════════════════════════════════════════
 //  APP
 // ═══════════════════════════════════════════════════════════
-export default function QueryQuestCLI() {
+export default function PunkSQLCLI() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [appFocusMode, setAppFocusMode] = useState(false);
   const [lang, setLang] = useState("en");

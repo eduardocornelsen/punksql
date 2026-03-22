@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 
-const QueryQuest = dynamic(() => import("@/components/QueryQuest"), {
+const PunkSQL = dynamic(() => import("@/components/PunkSQL"), {
   ssr: false,
   loading: () => (
     <div style={{
@@ -14,7 +14,7 @@ const QueryQuest = dynamic(() => import("@/components/QueryQuest"), {
       fontFamily: "'Share Tech Mono', monospace",
     }}>
       <div style={{ fontSize: 24, color: "#00F0FF", marginBottom: 16, letterSpacing: 4 }}>
-        QUERYQUEST
+        PUNKSQL
       </div>
       <div style={{ fontSize: 14, color: "#5A7E98", animation: "pulse 1.5s ease infinite" }}>
         loading sql engine...
@@ -28,5 +28,5 @@ const QueryQuest = dynamic(() => import("@/components/QueryQuest"), {
 });
 
 export default function Home() {
-  return <QueryQuest />;
+  return <PunkSQL />;
 }

@@ -7,3 +7,4 @@ out/
 *.tsbuildinfo
 docs/archive/
 docs/QueryQuest-Deployment-Plan-v2.md
+.env
