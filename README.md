@@ -1,12 +1,12 @@
 <div align="center">
 
-# ⟩\_ QueryQuest
+# ⟩\_ PunkSQL
 
 ### Learn SQL by solving real challenges.
 
 **80 exercises · 8 modules · Real in-browser SQL execution · Cyberpunk CLI aesthetic**
 
-[▶ Play Now](https://queryquest-web.vercel.app) · [Report Bug](https://github.com/eduardocornelsen/queryquest/issues) · [Request Feature](https://github.com/eduardocornelsen/queryquest/issues)
+[▶ Play Now](https://punksql.vercel.app) · [Report Bug](https://github.com/eduardocornelsen/punksql/issues) · [Request Feature](https://github.com/eduardocornelsen/punksql/issues)
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
@@ -17,9 +17,9 @@
 
 ---
 
-## What is QueryQuest?
+## What is PunkSQL?
 
-QueryQuest is a **mobile-first SQL learning platform** with a cyberpunk terminal aesthetic. It's like Duolingo meets LeetCode — you write real SQL queries that execute in your browser using SQLite compiled to WebAssembly. No backend, no signup, no cost.
+PunkSQL is a **mobile-first SQL learning platform** with a cyberpunk terminal aesthetic. It's like Duolingo meets LeetCode — you write real SQL queries that execute in your browser using SQLite compiled to WebAssembly. No backend, no signup, no cost.
 
 Built for career switchers learning SQL from scratch, and for data professionals who want to stay sharp.
 
@@ -116,8 +116,8 @@ Module 8: ctes            WITH, chained CTEs, CASE WHEN, recursive patterns
 
 ```bash
 # Clone
-git clone https://github.com/eduardocornelsen/queryquest.git
-cd queryquest
+git clone https://github.com/eduardocornelsen/PunkSQL.git
+cd PunkSQL
 
 # Install
 npm install
@@ -137,7 +137,7 @@ Requires [Node.js 18+](https://nodejs.org/).
 
 ### Vercel (recommended)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/eduardocornelsen/queryquest)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/eduardocornelsen/PunkSQL)
 
 Or manually:
 
@@ -157,13 +157,13 @@ npm run build
 ## Project Structure
 
 ```
-queryquest/
+PunkSQL/
 ├── src/
 │   ├── app/
 │   │   ├── page.js              # Main page (dynamic import, no SSR)
 │   │   └── layout.js            # Root layout, SEO metadata, PWA head
 │   └── components/
-│       └── QueryQuest.jsx       # Complete app (~2000 lines, single file)
+│       └── PunkSQL.jsx       # Complete app (~2000 lines, single file)
 ├── public/
 │   ├── manifest.json            # PWA manifest (installable as mobile app)
 │   └── favicon.svg              # Cyberpunk Q icon
@@ -172,7 +172,7 @@ queryquest/
 └── README.md
 ```
 
-The entire app lives in a single `QueryQuest.jsx` file. This is intentional — it's a self-contained artifact that can run inside Claude.ai, as a Next.js page, or be ported to React Native with minimal changes.
+The entire app lives in a single `PunkSQL.jsx` file. This is intentional — it's a self-contained artifact that can run inside Claude.ai, as a Next.js page, or be ported to React Native with minimal changes.
 
 ---
 
