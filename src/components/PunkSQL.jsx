@@ -1143,14 +1143,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void }}>
-      {/* Header — hidden in focus mode (title moves to TopBar) */}
-      {!focusMode && (
-        <div style={{ padding: "6px 14px", borderBottom: `1px solid ${C.border}`, background: C.black, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.dim, padding: "5px 12px", minHeight: 32 }}>ESC</button>
-          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{ch.id} {ch.title}</div></div>
-          <Tag color={ch.color}>{ch.diff}</Tag>
-        </div>
-      )}
+      {/* Header — ESC always visible; title/tag collapse in focus mode */}
+      <div style={{ padding: "6px 14px", borderBottom: `1px solid ${C.border}`, background: C.black, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.cyan}50`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.cyan, padding: "5px 12px", minHeight: 32, flexShrink: 0, boxShadow: `0 0 8px ${C.cyan}15` }}>ESC</button>
+        {!focusMode && (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{ch.id} {ch.title}</div></div>
+            <Tag color={ch.color}>{ch.diff}</Tag>
+          </>
+        )}
+      </div>
       {/* Problem line — always visible (collapsed in focus mode) */}
       <button onClick={() => !focusMode && setProbOpen(!probOpen)} style={{ background: probOpen && !focusMode ? C.panel : C.black, border: "none", borderBottom: `1px solid ${C.border}`, cursor: focusMode ? "default" : "pointer", textAlign: "left", width: "100%", padding: focusMode ? "5px 14px" : "6px 14px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
         {!focusMode && <span style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, transition: "transform 0.25s", transform: probOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>}
@@ -1869,80 +1871,251 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
 function OnboardingScreen({ onComplete, lang }) {
   const [step, setStep] = useState(0);
   const ispt = lang === "pt";
+
   const slides = [
-    { icon: ">_", title: ispt ? "BEM-VINDO AO PUNKSQL" : "WELCOME TO PUNKSQL", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.cyan },
-    { icon: "◈", title: ispt ? "APRENDA" : "LEARN", body: ispt ? "A aba LEARN tem 8 módulos:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nCada módulo tem 5-6 exercícios\nque vão do fácil ao expert." : "The LEARN tab has 8 modules:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nEach module has 5-6 exercises\nranging from easy to expert.", color: C.green },
-    { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? "CODE: 41 desafios SQL reais.\nEscreva SQL, clique RUN para testar,\nSUBMIT para validar. Use os botões\nde keywords — sem precisar de teclado!\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s." : "CODE: 41 real SQL challenges.\nWrite SQL, tap RUN to test,\nSUBMIT to validate. Use keyword\nbuttons — no keyboard needed!\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.", color: C.cyan },
-    { icon: "◇", title: ispt ? "CARDS + XP" : "CARDS + XP", body: ispt ? "CARDS: Flashcards com swipe.\nDireita = sabia (+pts)\nEsquerda = não sabia (-1 vida)\n3 vidas — Game Over reseta!\n\nXP: Tudo dá XP — challenges, quiz,\ncards. Suba de nível e ganhe badges!" : "CARDS: Swipeable flashcards.\nRight = knew it (+pts)\nLeft = didn't know (-1 life)\n3 lives — Game Over resets!\n\nXP: Everything earns XP — challenges,\nquiz, cards. Level up and earn badges!", color: C.amber },
-    { icon: "▲", title: ispt ? "PRONTO PARA COMEÇAR?" : "READY TO START?", body: ispt ? "Dica: Na tela de código, use\nos botões SQL no rodapé.\nToque na tela para mover o cursor.\nBotão ⌨ abre o teclado.\n\nComece pelo módulo 1: first_query\nBoa sorte, dev!" : "Tip: In the code editor, use\nthe SQL buttons at the bottom.\nTap the screen to move cursor.\nThe ⌨ button opens keyboard.\n\nStart with module 1: first_query\nGood luck, dev!", color: C.green },
+    {
+      color: C.cyan,
+      icon: ">_",
+      title: ispt ? "BEM-VINDO AO PUNKSQL" : "WELCOME TO PUNKSQL",
+      render: () => (
+        <div style={{ fontFamily: F.mono, color: C.dim, lineHeight: 1.9, textAlign: "center" }}>
+          <div style={{ fontSize: 15, color: C.green, marginBottom: 12, letterSpacing: 1 }}>
+            {ispt ? "APRENDA SQL RESOLVENDO DESAFIOS REAIS" : "LEARN SQL BY SOLVING REAL CHALLENGES"}
+          </div>
+          <div style={{ fontSize: 13, marginBottom: 4 }}>
+            {ispt ? "Este tour mostra como usar todos os botões" : "This quick tour shows all buttons and gestures"}
+          </div>
+          <div style={{ fontSize: 13, marginBottom: 20 }}>
+            {ispt ? "e gestos do app. Leva menos de 2 min!" : "in the app. Takes under 2 min!"}
+          </div>
+          <div style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}30`, padding: "12px 18px", fontSize: 13, color: C.cyanDim }}>
+            <div>{ispt ? "Mude o idioma na barra do topo:" : "Switch language at the top bar:"}</div>
+            <div style={{ color: C.cyan, marginTop: 6, fontSize: 16, letterSpacing: 4 }}>EN ←→ PT</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      color: C.green,
+      icon: "⌂ ◈ > ? ◇ ◉",
+      title: ispt ? "ABAS DE NAVEGAÇÃO" : "BOTTOM NAVIGATION",
+      render: () => (
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim }}>
+          {/* Visual tab bar mockup */}
+          <div style={{ border: `1px solid ${C.border}`, background: C.black, padding: "10px 4px", display: "flex", justifyContent: "space-around", marginBottom: 14 }}>
+            {[
+              { icon: "⌂", label: "HOME", color: C.cyan },
+              { icon: "◈", label: "LEARN", color: C.green },
+              { icon: ">", label: "CODE", color: C.cyan },
+              { icon: "?", label: "QUIZ", color: C.amber },
+              { icon: "◇", label: "CARDS", color: C.purple },
+              { icon: "◉", label: "USER", color: C.dim },
+            ].map(tab => (
+              <div key={tab.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <span style={{ color: tab.color, fontSize: 20 }}>{tab.icon}</span>
+                <span style={{ color: tab.color, fontSize: 8, letterSpacing: 0.5 }}>{tab.label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {[
+              ["⌂ HOME",  ispt ? "Quests diários + estatísticas" : "Daily quests + stats"],
+              ["◈ LEARN", ispt ? "8 módulos SQL do básico ao expert" : "8 SQL modules, basic → expert"],
+              ["> CODE",  ispt ? "41 desafios com editor de código" : "41 challenges with code editor"],
+              ["? QUIZ",  ispt ? "30 perguntas, 15s por questão" : "30 questions, 15s each"],
+              ["◇ CARDS", ispt ? "Flashcards estilo swipe (3 vidas)" : "Swipe flashcards (3 lives)"],
+            ].map(([tab, desc]) => (
+              <div key={tab} style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                <span style={{ color: C.cyan, minWidth: 68, flexShrink: 0 }}>{tab}</span>
+                <span style={{ color: C.dim }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+    {
+      color: C.cyan,
+      icon: ">",
+      title: ispt ? "EDITOR DE CÓDIGO" : "CODE EDITOR",
+      render: () => (
+        <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>
+          {/* Mini editor mockup */}
+          <div style={{ border: `1px solid ${C.border}`, background: C.black, marginBottom: 12, overflow: "hidden" }}>
+            <div style={{ padding: "5px 10px", background: C.panel, borderBottom: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ color: C.cyan, border: `1px solid ${C.cyan}50`, padding: "1px 7px", fontSize: 11, letterSpacing: 1 }}>ESC</span>
+              <span style={{ color: C.cyan, fontSize: 12, flex: 1 }}>#1 select_all</span>
+              <span style={{ color: C.amber, fontSize: 10, border: `1px solid ${C.amber}30`, padding: "1px 6px" }}>EASY</span>
+            </div>
+            <div style={{ padding: "8px 12px", fontSize: 13, color: C.cyanHot, minHeight: 36 }}>
+              SELECT * FROM users;
+            </div>
+            <div style={{ padding: "5px 10px", background: C.panel, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, fontSize: 11, alignItems: "center" }}>
+              <span style={{ border: `1px solid ${C.border}`, padding: "2px 7px", color: C.amber }}>⌨</span>
+              <span style={{ border: `1px solid ${C.border}`, padding: "2px 7px", color: C.purple }}>TBL</span>
+              <span style={{ border: `1px solid ${C.border}`, padding: "2px 7px", color: C.green }}>COLS</span>
+              <span style={{ border: `1px solid ${C.border}`, padding: "2px 7px", color: C.cyan }}>SQL</span>
+              <span style={{ marginLeft: "auto", background: C.green, padding: "3px 10px", color: C.black, fontWeight: 700, fontSize: 12 }}>▶ RUN</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {[
+              ["ESC",             ispt ? "← Volta para a tela anterior" : "← Go back to previous screen"],
+              ["⌨",              ispt ? "Abre / fecha o teclado virtual" : "Toggle virtual keyboard"],
+              ["TBL / COLS / SQL", ispt ? "Insere tabelas, colunas, keywords" : "Insert tables, columns, SQL keywords"],
+              ["▶ RUN",           ispt ? "Executa e valida a query SQL" : "Run & validate your SQL query"],
+              ["◉",              ispt ? "Modo foco — editor em tela cheia" : "Focus mode — full-screen editor"],
+              [ispt ? "Toque editor" : "Tap editor", ispt ? "Move o cursor para aquela posição" : "Move cursor to that position"],
+            ].map(([key, desc]) => (
+              <div key={key} style={{ display: "flex", gap: 8, alignItems: "baseline", borderBottom: `1px solid ${C.border}20`, paddingBottom: 4 }}>
+                <span style={{ color: C.cyan, minWidth: 95, flexShrink: 0 }}>{key}</span>
+                <span style={{ color: C.dim }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+    {
+      color: C.amber,
+      icon: "◇",
+      title: ispt ? "CARDS + SISTEMA XP" : "CARDS + XP SYSTEM",
+      render: () => (
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim }}>
+          {/* Card mockup */}
+          <div style={{ border: `1px solid ${C.amber}40`, background: C.black, padding: "12px 16px", marginBottom: 14, textAlign: "center" }}>
+            <div style={{ color: C.amber, fontSize: 11, letterSpacing: 1, marginBottom: 8 }}>── FLASHCARD ──</div>
+            <div style={{ color: C.white, fontSize: 14, marginBottom: 10 }}>
+              {ispt ? "O que faz o GROUP BY?" : "What does GROUP BY do?"}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+              <span style={{ color: C.red }}>← {ispt ? "Não sei −1♥" : "Don't know −1♥"}</span>
+              <span style={{ color: C.green }}>{ispt ? "Sei +XP →" : "Know it +XP →"}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, lineHeight: 1.8 }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <span style={{ color: C.green, width: 28, textAlign: "center", flexShrink: 0 }}>→</span>
+              <span>{ispt ? "Swipe direita = sabia a resposta (+XP)" : "Swipe right = knew it (+XP)"}</span>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <span style={{ color: C.red, width: 28, textAlign: "center", flexShrink: 0 }}>←</span>
+              <span>{ispt ? "Swipe esquerda = não sabia (−1 vida)" : "Swipe left = didn't know (−1 life)"}</span>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <span style={{ color: C.amber, width: 28, textAlign: "center", flexShrink: 0 }}>♥♥♥</span>
+              <span>{ispt ? "3 vidas — Game Over reseta o deck!" : "3 lives — Game Over resets deck!"}</span>
+            </div>
+            <div style={{ marginTop: 4, background: C.amberGhost, border: `1px solid ${C.amber}30`, padding: "8px 12px", fontSize: 12, lineHeight: 1.7 }}>
+              {ispt
+                ? "XP ganho em tudo: desafios, quiz, cards.\nSuba de nível e desbloqueie badges!"
+                : "Earn XP from everything: challenges, quiz, cards.\nLevel up and unlock badges!"}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      color: C.green,
+      icon: "✓",
+      title: ispt ? "REFERÊNCIA RÁPIDA" : "QUICK REFERENCE",
+      render: () => (
+        <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
+            {[
+              ["ESC",              ispt ? "Voltar / sair da tela atual" : "Go back / exit current screen"],
+              ["⌨",               ispt ? "Abrir / fechar teclado" : "Open / close keyboard"],
+              ["TBL / COLS / SQL", ispt ? "Inserção rápida de SQL" : "Quick SQL insert buttons"],
+              ["▶ RUN",            ispt ? "Executar e validar SQL" : "Run & validate SQL"],
+              ["→ / ←",           ispt ? "Cards: sei / não sei" : "Cards: know it / don't know"],
+              ["◉",               ispt ? "Modo foco (editor full-screen)" : "Focus mode (full-screen editor)"],
+              [ispt ? "Toque editor" : "Tap editor", ispt ? "Posicionar cursor" : "Position cursor"],
+              ["Ctrl + ↵",        ispt ? "Desktop: executar query" : "Desktop: run query"],
+            ].map(([key, desc]) => (
+              <div key={key} style={{ display: "flex", gap: 8, borderBottom: `1px solid ${C.border}25`, paddingBottom: 4 }}>
+                <span style={{ color: C.cyan, minWidth: 100, flexShrink: 0 }}>{key}</span>
+                <span>{desc}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: C.greenGhost, border: `1px solid ${C.green}40`, padding: "12px 16px", color: C.green, textAlign: "center", fontSize: 13, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 15, marginBottom: 4 }}>{ispt ? "PRONTO PARA HACKEAR SQL!" : "READY TO HACK SQL!"}</div>
+            <div style={{ fontSize: 12, color: C.greenDim }}>
+              {ispt ? "Comece pela aba ◈ LEARN — módulo 1" : "Start at the ◈ LEARN tab — module 1"}
+            </div>
+          </div>
+        </div>
+      ),
+    },
   ];
+
   const s = slides[step];
   const isLast = step === slides.length - 1;
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: C.void, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "24px 28px" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: C.void, display: "flex", flexDirection: "column", alignItems: "stretch", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {/* CRT scanlines overlay */}
       <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,240,255,0.015) 2px, rgba(0,240,255,0.015) 4px)", pointerEvents: "none", zIndex: 1 }} />
 
-      {/* Step indicator dots */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
+      {/* Step indicator dots — clickable */}
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", padding: "20px 20px 0", zIndex: 2 }}>
         {slides.map((_, i) => (
-          <div key={i} style={{
+          <div key={i} onClick={() => setStep(i)} style={{
             width: i === step ? 24 : 8, height: 8,
             background: i === step ? s.color : C.border,
             transition: "all 0.3s ease",
             boxShadow: i === step ? `0 0 8px ${s.color}60` : "none",
+            cursor: "pointer",
           }} />
         ))}
       </div>
 
-      {/* Icon */}
-      <div style={{
-        fontFamily: F.mono, fontSize: 48, color: s.color, marginBottom: 20,
-        textShadow: `0 0 24px ${s.color}60, 0 0 48px ${s.color}30`,
-        animation: "pulseGlow 3s ease infinite",
-      }}>{s.icon}</div>
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", padding: "16px 24px 0", zIndex: 2 }}>
+        {/* Icon */}
+        <div style={{
+          fontFamily: F.mono, fontSize: step === 1 ? 20 : 44, color: s.color,
+          marginBottom: 14, textAlign: "center", letterSpacing: step === 1 ? 6 : 0,
+          textShadow: `0 0 24px ${s.color}60, 0 0 48px ${s.color}30`,
+          animation: "pulseGlow 3s ease infinite",
+        }}>{s.icon}</div>
 
-      {/* Title */}
-      <div style={{
-        fontFamily: F.mono, fontSize: 20, color: s.color, letterSpacing: 3,
-        marginBottom: 20, textAlign: "center",
-        textShadow: `0 0 12px ${s.color}40`,
-      }}>{s.title}</div>
+        {/* Title */}
+        <div style={{
+          fontFamily: F.mono, fontSize: 17, color: s.color, letterSpacing: 2,
+          marginBottom: 18, textAlign: "center",
+          textShadow: `0 0 12px ${s.color}40`,
+        }}>{s.title}</div>
 
-      {/* Body */}
-      <div style={{
-        fontFamily: F.mono, fontSize: 15, color: C.dim, lineHeight: 2,
-        textAlign: "center", whiteSpace: "pre-wrap", maxWidth: 360,
-        marginBottom: 40,
-      }}>{s.body}</div>
-
-      {/* Nav buttons */}
-      <div style={{ display: "flex", gap: 12, width: "100%", maxWidth: 360 }}>
-        {step > 0 && (
-          <button onClick={() => setStep(step - 1)} style={{
-            flex: 1, padding: "14px 0", cursor: "pointer",
-            fontFamily: F.mono, fontSize: 15, color: C.dim,
-            background: "none", border: `1px solid ${C.border}`, minHeight: 50,
-          }}>← BACK</button>
-        )}
-        <button onClick={() => isLast ? onComplete() : setStep(step + 1)} style={{
-          flex: 2, padding: "14px 0", cursor: "pointer",
-          fontFamily: F.mono, fontSize: 15, color: C.black, fontWeight: 700,
-          background: s.color, border: `1px solid ${s.color}`, minHeight: 50,
-          boxShadow: `0 0 20px ${s.color}40`,
-          letterSpacing: 2,
-        }}>{isLast ? (ispt ? "COMEÇAR ▶" : "START ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
+        {/* Slide content */}
+        {s.render()}
       </div>
 
-      {/* Skip */}
-      {!isLast && (
-        <button onClick={onComplete} style={{
-          background: "none", border: "none", cursor: "pointer",
-          fontFamily: F.mono, fontSize: 13, color: C.muted, marginTop: 16,
-          letterSpacing: 1,
-        }}>{ispt ? "PULAR >" : "SKIP >"}</button>
-      )}
+      {/* Nav buttons — fixed at bottom */}
+      <div style={{ padding: "12px 24px", zIndex: 2, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 10 }}>
+          {step > 0 && (
+            <button onClick={() => setStep(step - 1)} style={{
+              flex: 1, padding: "14px 0", cursor: "pointer",
+              fontFamily: F.mono, fontSize: 14, color: C.dim,
+              background: "none", border: `1px solid ${C.border}`, minHeight: 50, letterSpacing: 1,
+            }}>← BACK</button>
+          )}
+          <button onClick={() => isLast ? onComplete() : setStep(step + 1)} style={{
+            flex: 2, padding: "14px 0", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 15, color: C.black, fontWeight: 700,
+            background: s.color, border: `1px solid ${s.color}`, minHeight: 50,
+            boxShadow: `0 0 20px ${s.color}40`, letterSpacing: 2,
+          }}>{isLast ? (ispt ? "COMEÇAR ▶" : "START ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
+        </div>
+        {!isLast && (
+          <button onClick={onComplete} style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 12, color: C.muted,
+            letterSpacing: 1, padding: "6px 0",
+          }}>{ispt ? "PULAR >" : "SKIP >"}</button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1951,7 +2124,9 @@ function OnboardingScreen({ onComplete, lang }) {
 //  APP
 // ═══════════════════════════════════════════════════════════
 export default function PunkSQLCLI() {
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try { return !localStorage.getItem("punksql-onboarded"); } catch { return true; }
+  });
   const [appFocusMode, setAppFocusMode] = useState(false);
   const [lang, setLang] = useState("en");
   const [tab, setTab] = useState("home");
@@ -2112,7 +2287,7 @@ export default function PunkSQLCLI() {
   const focusTitle = appFocusMode && focusCh ? `#${focusCh.id} ${focusCh.title}` : null;
 
   if (showOnboarding) return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} /></div></LangContext.Provider>
+    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => { try { localStorage.setItem("punksql-onboarded", "1"); } catch {} setShowOnboarding(false); }} /></div></LangContext.Provider>
   );
 
   // Daily challenge rotates by date

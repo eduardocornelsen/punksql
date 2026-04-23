@@ -35,10 +35,18 @@ export default function AuthProvider({ children }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    // OAUTH REDIRECT FIX:
+    // If redirecting to localhost instead of production, fix in Supabase dashboard:
+    //   Authentication → URL Configuration
+    //   1. Set "Site URL" to your production URL (e.g. https://punksql.vercel.app)
+    //   2. Add to "Redirect URLs": https://punksql.vercel.app/api/auth/callback
+    //
+    // Optionally set NEXT_PUBLIC_APP_URL in Vercel env vars to force the correct origin.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || window.location.origin;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: `${appUrl}/api/auth/callback`,
       },
     });
   };
