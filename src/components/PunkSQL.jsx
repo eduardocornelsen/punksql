@@ -294,44 +294,62 @@ const LangSwitcher = ({ lang, setLang }) => (
 );
 
 function TopBar({ lang, setLang, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null }) {
-  const ExDots = () => {
-    const curIdx = exercises.findIndex(e => e.id === currentExId);
-    const prev = curIdx > 0 ? exercises[curIdx - 1] : null;
-    const next = curIdx < exercises.length - 1 ? exercises[curIdx + 1] : null;
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", minWidth: 0 }}>
-        <button onClick={() => prev && onExNav(prev.id)} disabled={!prev} style={{ background: "none", border: "none", cursor: prev ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: prev ? C.cyan : C.border, padding: "2px 4px", flexShrink: 0 }}>◂</button>
-        <div style={{ display: "flex", gap: 3, alignItems: "center", overflowX: "auto" }}>
-          {exercises.map((ex, i) => {
-            const isCur = ex.id === currentExId;
-            const sz = 18;
-            return (
-              <button key={ex.id} onClick={() => onExNav(ex.id)} style={{
-                width: sz, height: sz, minWidth: sz,
-                background: isCur ? C.cyan : "none",
-                border: `1.5px solid ${isCur ? C.cyan : C.border}`,
-                cursor: "pointer", fontFamily: F.mono, fontSize: 9, fontWeight: 700,
-                color: isCur ? C.black : C.dim,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transform: "rotate(45deg)",
-                boxShadow: isCur ? `0 0 6px ${C.cyan}50` : "none",
-                padding: 0, flexShrink: 0,
-              }}>
-                <span style={{ transform: "rotate(-45deg)" }}>{i + 1}</span>
-              </button>
-            );
-          })}
-        </div>
-        <button onClick={() => next && onExNav(next.id)} disabled={!next} style={{ background: "none", border: "none", cursor: next ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: next ? C.cyan : C.border, padding: "2px 4px", flexShrink: 0 }}>▸</button>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, flexShrink: 0 }}>{curIdx + 1}/{exercises.length}</span>
-      </div>
-    );
-  };
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const curIdx = exercises ? exercises.findIndex(e => e.id === currentExId) : -1;
+  const curEx = exercises ? exercises[curIdx] : null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "7px 14px 6px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", padding: "6px 14px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 200, gap: 8, minHeight: 44 }}>
+
+      {/* ── Hamburger (lesson mode) ── */}
       {exercises ? (
-        <ExDots />
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 6px", fontFamily: F.mono, fontSize: 22, lineHeight: 1, color: menuOpen ? C.cyan : C.dim, textShadow: menuOpen ? `0 0 8px ${C.cyan}60` : "none", transition: "color 0.15s" }}>
+            ☰
+          </button>
+
+          {/* Backdrop */}
+          {menuOpen && (
+            <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 300 }} />
+          )}
+
+          {/* Dropdown */}
+          {menuOpen && (
+            <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 301, background: C.black, border: `1px solid ${C.border}`, minWidth: 260, maxHeight: 340, overflowY: "auto", animation: "fadeSlide 0.15s ease", boxShadow: `0 12px 40px ${C.void}CC` }}>
+              {/* Header */}
+              <div style={{ padding: "8px 14px 6px", borderBottom: `1px solid ${C.border}`, fontFamily: F.mono, fontSize: 10, color: C.muted, letterSpacing: 2 }}>
+                EXERCISES — {exercises.length} total
+              </div>
+              {exercises.map((ex, i) => {
+                const isCur = ex.id === currentExId;
+                return (
+                  <button key={ex.id}
+                    onClick={() => { onExNav(ex.id); setMenuOpen(false); }}
+                    style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: isCur ? C.cyanGhost : "none", border: "none", borderBottom: `1px solid ${C.border}22`, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontFamily: F.mono, fontSize: 11, color: isCur ? C.cyan : C.muted, minWidth: 22, flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 13, color: isCur ? C.cyan : C.dim, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: isCur ? `0 0 6px ${C.cyan}40` : "none" }}>{ex.title}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 10, color: ex.color, flexShrink: 0 }}>{ex.diff}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* ── Centre: lesson progress or continue button ── */}
+      {exercises ? (
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 13, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: `0 0 6px ${C.cyan}30` }}>
+            {curEx ? curEx.title : ""}
+          </div>
+          <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>
+            {curIdx + 1} / {exercises.length}
+          </div>
+        </div>
       ) : showContinue ? (
         <button onClick={onContinue} style={{
           background: C.cyan, border: `1px solid ${C.cyanHot}`, cursor: "pointer",
@@ -347,6 +365,7 @@ function TopBar({ lang, setLang, showContinue = false, onContinue, continueLabel
           </div>
         </button>
       ) : <div style={{ flex: 1 }} />}
+
       {!exercises && <div style={{ flex: 1 }} />}
       <LangSwitcher lang={lang} setLang={setLang} />
     </div>
