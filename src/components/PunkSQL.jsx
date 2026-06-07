@@ -282,33 +282,35 @@ function BadgeUnlockOverlay({ badge, lang, onDone }) {
 }
 
 // ── Language Switcher ─────────────────────────────────────
-function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
-  const [collapsed, setCollapsed] = useState(startCollapsed);
+const LangSwitcher = ({ lang, setLang }) => (
+  <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, background: C.void, overflow: "hidden", width: 88, flexShrink: 0 }}>
+    <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", boxShadow: `0 0 14px ${C.cyan}50`, zIndex: 0 }} />
+    {["en", "pt"].map(l => (
+      <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "6px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 11, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
+        {l.toUpperCase()}
+      </button>
+    ))}
+  </div>
+);
 
-  // Auto-collapse when entering focus mode
-  useEffect(() => {
-    if (focusTitle) setCollapsed(true);
-  }, [focusTitle]);
-
-  // Exercise dots renderer (reused in both collapsed and expanded)
-  const ExDots = ({ compact = false }) => {
-    if (!exercises) return null;
+function TopBar({ lang, setLang, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null }) {
+  const ExDots = () => {
     const curIdx = exercises.findIndex(e => e.id === currentExId);
     const prev = curIdx > 0 ? exercises[curIdx - 1] : null;
     const next = curIdx < exercises.length - 1 ? exercises[curIdx + 1] : null;
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: compact ? 4 : 5, flex: 1, justifyContent: "center", minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", minWidth: 0 }}>
         <button onClick={() => prev && onExNav(prev.id)} disabled={!prev} style={{ background: "none", border: "none", cursor: prev ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: prev ? C.cyan : C.border, padding: "2px 4px", flexShrink: 0 }}>◂</button>
-        <div style={{ display: "flex", gap: compact ? 3 : 4, alignItems: "center", overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 3, alignItems: "center", overflowX: "auto" }}>
           {exercises.map((ex, i) => {
             const isCur = ex.id === currentExId;
-            const sz = compact ? 16 : 18;
+            const sz = 18;
             return (
               <button key={ex.id} onClick={() => onExNav(ex.id)} style={{
                 width: sz, height: sz, minWidth: sz,
                 background: isCur ? C.cyan : "none",
                 border: `1.5px solid ${isCur ? C.cyan : C.border}`,
-                cursor: "pointer", fontFamily: F.mono, fontSize: compact ? 8 : 9, fontWeight: 700,
+                cursor: "pointer", fontFamily: F.mono, fontSize: 9, fontWeight: 700,
                 color: isCur ? C.black : C.dim,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 transform: "rotate(45deg)",
@@ -326,29 +328,8 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
     );
   };
 
-  if (collapsed) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", padding: "6px 14px 5px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 6 }}>
-        {focusTitle ? (
-          <div style={{ flex: 1, fontFamily: F.mono, fontSize: 15, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{focusTitle}</div>
-        ) : exercises ? (
-          <ExDots compact />
-        ) : showContinue ? (
-          <button onClick={onContinue} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
-            <span style={{ flexShrink: 0 }}>▶</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
-          </button>
-        ) : <div style={{ flex: 1 }} />}
-        <button onClick={() => setCollapsed(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyanDim, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {lang.toUpperCase()} ▼
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "8px 14px 7px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 8 }}>
-      {/* Left: Exercise dots or Continue button */}
+    <div style={{ display: "flex", alignItems: "center", padding: "7px 14px 6px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 8 }}>
       {exercises ? (
         <ExDots />
       ) : showContinue ? (
@@ -366,18 +347,8 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
           </div>
         </button>
       ) : <div style={{ flex: 1 }} />}
-      {/* Spacer */}
       {!exercises && <div style={{ flex: 1 }} />}
-      {/* Right: Lang switcher + collapse */}
-      <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, background: C.void, overflow: "hidden", width: 110, flexShrink: 0 }}>
-        <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", boxShadow: `0 0 14px ${C.cyan}50`, zIndex: 0 }} />
-        {["en", "pt"].map(l => (
-          <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "6px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 11, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
-            {l.toUpperCase()}
-          </button>
-        ))}
-      </div>
-      <button onClick={() => setCollapsed(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px", flexShrink: 0 }}>▲</button>
+      <LangSwitcher lang={lang} setLang={setLang} />
     </div>
   );
 }
@@ -428,6 +399,144 @@ function TabBar({ active, onTabChange }) {
         })}
       </div>
     </>
+  );
+}
+
+// ── Custom On-Screen Keyboard ────────────────────────────
+function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady, schema }) {
+  const [openPanel, setOpenPanel] = useState(null);
+  const [shifted, setShifted] = useState(false);
+
+  const kw = ["SELECT","FROM","WHERE","JOIN","ON","LEFT JOIN","GROUP BY","ORDER BY","HAVING","LIMIT","AS","AND","OR","IN","NOT","COUNT()","SUM()","AVG()","ROUND()","MAX()","MIN()","DESC","ASC","DISTINCT","SUBSTR()","COALESCE()","CAST()"];
+  const tblNames = schema ? schema.split("\n").map(l => l.split(":")[0].trim()).filter(Boolean) : [];
+  const colNames = schema ? schema.split("\n").flatMap(l => {
+    const parts = l.split(":");
+    return parts.length > 1 ? parts.slice(1).join(":").split(",").map(c => c.trim()) : [];
+  }).filter((v, i, a) => v && a.indexOf(v) === i) : [];
+
+  const panels = [
+    { key: "tables", label: "Tables", color: C.purple, items: tblNames.map(t => ({ text: t, color: C.purple, bg: `${C.purple}15`, border: `${C.purple}40` })) },
+    { key: "columns", label: "Columns", color: C.green, items: colNames.map(c => ({ text: c, color: C.green, bg: C.greenGhost, border: `${C.green}40` })) },
+    { key: "keywords", label: "Keywords", color: C.cyan, items: kw.map(k => ({ text: k, color: C.cyan, bg: C.cyanGhost, border: `${C.cyan}30` })) },
+  ];
+
+  const letterRows = [
+    ["Q","W","E","R","T","Y","U","I","O","P"],
+    ["A","S","D","F","G","H","J","K","L"],
+    ["Z","X","C","V","B","N","M"],
+  ];
+  const numberRow = ["1","2","3","4","5","6","7","8","9","0"];
+  const symbolRow = ["*",",","(",")","'","=",">","<",";","."];
+
+  const pressLetter = (k) => { onInsert(shifted ? k.toLowerCase() : k); if (shifted) setShifted(false); };
+
+  const K = ({ label, onPress, flex = 1, color = C.white, bg = C.surface, border = C.border, fontSize = 13 }) => (
+    <button
+      onPointerDown={(e) => { e.preventDefault(); onPress(); }}
+      style={{
+        flex, minWidth: 0, padding: "7px 2px", background: bg, border: `1px solid ${border}`,
+        cursor: "pointer", fontFamily: F.mono, fontSize, color, textAlign: "center",
+        minHeight: 34, display: "flex", alignItems: "center", justifyContent: "center",
+        lineHeight: 1, userSelect: "none", touchAction: "manipulation",
+      }}
+    >{label}</button>
+  );
+
+  return (
+    <div style={{ background: C.panel, borderTop: `2px solid ${C.borderBright}`, flexShrink: 0, userSelect: "none" }}>
+      {/* Context panel toggles: Tables / Columns / Keywords */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
+        {panels.map(p => (
+          <button key={p.key}
+            onPointerDown={(e) => { e.preventDefault(); setOpenPanel(openPanel === p.key ? null : p.key); }}
+            style={{
+              flex: 1, padding: "8px 0", fontFamily: F.mono, fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+              color: openPanel === p.key ? C.black : p.color,
+              background: openPanel === p.key ? p.color : "transparent",
+              border: "none", borderRight: `1px solid ${C.border}`, cursor: "pointer",
+              transition: "all 0.15s", userSelect: "none", touchAction: "manipulation",
+            }}>
+            {p.label} {openPanel === p.key ? "▲" : "▼"}
+          </button>
+        ))}
+      </div>
+      {/* Panel item chips */}
+      {openPanel && (() => {
+        const p = panels.find(x => x.key === openPanel);
+        if (!p) return null;
+        return (
+          <div style={{ padding: "5px 8px", background: C.black, borderBottom: `1px solid ${C.border}`, display: "flex", gap: 5, overflowX: "auto", animation: "fadeSlide 0.15s ease" }}>
+            {p.items.map((item, i) => (
+              <button key={i}
+                onPointerDown={(e) => { e.preventDefault(); onInsert(item.text + " "); }}
+                style={{
+                  background: item.bg, border: `1px solid ${item.border}`, cursor: "pointer",
+                  padding: "7px 11px", whiteSpace: "nowrap",
+                  fontFamily: F.mono, fontSize: 13, color: item.color, minHeight: 32,
+                  userSelect: "none", touchAction: "manipulation",
+                }}>{item.text}</button>
+            ))}
+          </div>
+        );
+      })()}
+      {/* Number row */}
+      <div style={{ padding: "4px 4px 2px", display: "flex", gap: 2 }}>
+        {numberRow.map(n => (
+          <K key={n} label={n} onPress={() => onInsert(n)} bg={`${C.cyan}0A`} color={C.cyanDim} />
+        ))}
+      </div>
+      {/* Letter rows */}
+      <div style={{ padding: "0 4px 2px", display: "flex", flexDirection: "column", gap: 2 }}>
+        {letterRows.map((row, rowIdx) => (
+          <div key={rowIdx} style={{ display: "flex", gap: 2, justifyContent: "center" }}>
+            {rowIdx === 2 && (
+              <K label={shifted ? "SHIFT▲" : "Shift"} flex={1.8}
+                onPress={() => setShifted(s => !s)}
+                bg={shifted ? C.amberGhost : C.surface}
+                border={shifted ? C.amber : C.border}
+                color={shifted ? C.amber : C.dim} fontSize={11} />
+            )}
+            {row.map(k => (
+              <K key={k} label={shifted ? k.toLowerCase() : k} onPress={() => pressLetter(k)} />
+            ))}
+            {rowIdx === 0 && (
+              <K label="Backspace" flex={1.8} onPress={onBackspace}
+                bg={C.redGhost} border={`${C.red}40`} color={C.red} fontSize={11} />
+            )}
+            {rowIdx === 1 && (
+              <K label="Enter" flex={2} onPress={() => onInsert("\n")}
+                bg={C.cyanGhost} border={`${C.cyan}40`} color={C.cyan} fontSize={11} />
+            )}
+          </div>
+        ))}
+      </div>
+      {/* Symbols + Space row */}
+      <div style={{ padding: "0 4px 2px", display: "flex", gap: 2 }}>
+        {symbolRow.map(s => (
+          <K key={s} label={s} onPress={() => onInsert(s)} />
+        ))}
+        <K label="Space" flex={2} onPress={() => onInsert(" ")} color={C.dim} fontSize={11} />
+      </div>
+      {/* Action row: Tab / Escape / Reset / Run */}
+      <div style={{ padding: "4px 6px calc(6px + env(safe-area-inset-bottom, 0px))", display: "flex", gap: 5 }}>
+        {[
+          { label: "Tab", onP: () => onInsert("  "), color: C.dim, bg: C.surface, border: C.border },
+          { label: "Escape", onP: onBack, color: C.amber, bg: C.amberGhost, border: `${C.amber}50` },
+          { label: "Reset", onP: onReset, color: C.dim, bg: "none", border: C.border },
+        ].map(btn => (
+          <button key={btn.label}
+            onPointerDown={(e) => { e.preventDefault(); btn.onP(); }}
+            style={{ padding: "9px 10px", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 0.5, color: btn.color, background: btn.bg, border: `1px solid ${btn.border}`, minHeight: 40, flexShrink: 0, userSelect: "none", touchAction: "manipulation" }}>
+            {btn.label}
+          </button>
+        ))}
+        <button
+          onPointerDown={(e) => { e.preventDefault(); if (dbReady) onRun(); }}
+          style={{ flex: 1, padding: "9px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 2, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, boxShadow: `0 0 14px ${C.green}35`, minHeight: 40, opacity: dbReady ? 1 : 0.4, userSelect: "none", touchAction: "manipulation" }}>
+          ▶ Run
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -876,7 +985,7 @@ function validateSQL(db, userSQL, expectedSQL) {
 // ═══════════════════════════════════════════════════════════
 //  CHALLENGE EDITOR — Real SQL execution
 // ═══════════════════════════════════════════════════════════
-function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, onFocusChange }) {
+function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null }) {
   const { t, lang } = useLang();
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
@@ -894,18 +1003,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [showSchema, setShowSchema] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [probOpen, setProbOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [cPos, setCPos] = useState(0);
   const [dbReady, setDbReady] = useState(false);
   const [db, setDb] = useState(null);
-  const [openPanel, setOpenPanel] = useState(null);
-  const [focusMode, setFocusModeRaw] = useState(false);
-  const setFocusMode = (v) => {
-    const newVal = typeof v === "function" ? v(focusMode) : v;
-    setFocusModeRaw(newVal);
-    if (onFocusChange) onFocusChange(newVal);
-  };
-  const taRef = useRef(null), edRef = useRef(null), tapT = useRef(null);
+  const taRef = useRef(null), edRef = useRef(null);
   const kw = ["SELECT","FROM","WHERE","JOIN","ON","LEFT JOIN","GROUP BY","ORDER BY","HAVING","LIMIT","AS","AND","OR","IN","COUNT()","SUM()","AVG()","ROUND()","DESC","DISTINCT","SUBSTR()"];
 
   useEffect(() => { getDB().then(d => { setDb(d); setDbReady(true); }); }, []);
@@ -958,14 +1059,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const x = e.touches?.[0]?.clientX ?? e.clientX, y = e.touches?.[0]?.clientY ?? e.clientY;
     setCPos(tapToPos(x, y));
     isSwiping.current = false;
-    // Tap toggles focus mode
-    if (tapT.current) {
-      clearTimeout(tapT.current);
-      tapT.current = null;
-      setFocusMode(f => !f);
-    } else {
-      tapT.current = setTimeout(() => { tapT.current = null; }, 350);
-    }
   };
 
   const onEditorTouchStart = (e) => {
@@ -1014,18 +1107,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const onEditorTouchEnd = (e) => {
     if (!isSwiping.current) {
-      // Was a tap, not a swipe — handle focus toggle + position cursor
       const touch = e.changedTouches?.[0];
-      if (touch) {
-        setCPos(tapToPos(touch.clientX, touch.clientY));
-      }
-      if (tapT.current) {
-        clearTimeout(tapT.current);
-        tapT.current = null;
-        setFocusMode(f => !f);
-      } else {
-        tapT.current = setTimeout(() => { tapT.current = null; }, 350);
-      }
+      if (touch) setCPos(tapToPos(touch.clientX, touch.clientY));
     }
     isSwiping.current = false;
   };
@@ -1076,16 +1159,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     if (dir === "left") ed.scrollLeft = Math.max(0, ed.scrollLeft - charW * 10);
     if (dir === "right") ed.scrollLeft += charW * 10;
   };
-  const kbToggling = useRef(false);
-  const toggleKeyboard = () => {
-    kbToggling.current = true;
-    if (editing) { taRef.current?.blur(); setEditing(false); }
-    else { setEditing(true); setTimeout(() => { const ta = taRef.current; if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); } kbToggling.current = false; }, 100); }
-    setTimeout(() => { kbToggling.current = false; }, 300);
-  };
-  const handleBlur = () => {
-    setTimeout(() => { if (!kbToggling.current) setEditing(false); }, 200);
-  };
   const handleRun = () => {
     if (!db) return;
     const r = runSQL(db, sql.trim());
@@ -1125,7 +1198,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       }
     }
     setResOpen(true);
-    setOpenPanel(null);
   };
   const clearResult = () => { setResult(null); setVerdict(null); };
   const resetSQL = () => { setSql("SELECT \n  \nFROM "); setCPos(7); setResult(null); setVerdict(null); };
@@ -1135,76 +1207,72 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); handleRun(); }
-      if (e.key === "Escape" && !focusMode) { e.preventDefault(); onBack(); }
+      if (e.key === "Escape") { e.preventDefault(); onBack(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sql, db, focusMode]);
+  }, [sql, db]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void }}>
-      {/* Header — hidden in focus mode (title moves to TopBar) */}
-      {!focusMode && (
-        <div style={{ padding: "6px 14px", borderBottom: `1px solid ${C.border}`, background: C.black, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.dim, padding: "5px 12px", minHeight: 32 }}>ESC</button>
-          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{ch.id} {ch.title}</div></div>
-          <Tag color={ch.color}>{ch.diff}</Tag>
+      {/* Challenge header — always visible */}
+      <div style={{ padding: "6px 14px", borderBottom: `1px solid ${C.border}`, background: C.black, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{ch.id} {ch.title}</div>
         </div>
-      )}
-      {/* Problem line — always visible (collapsed in focus mode) */}
-      <button onClick={() => !focusMode && setProbOpen(!probOpen)} style={{ background: probOpen && !focusMode ? C.panel : C.black, border: "none", borderBottom: `1px solid ${C.border}`, cursor: focusMode ? "default" : "pointer", textAlign: "left", width: "100%", padding: focusMode ? "5px 14px" : "6px 14px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        {!focusMode && <span style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, transition: "transform 0.25s", transform: probOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>}
-        <div style={{ fontFamily: F.mono, fontSize: focusMode ? 11 : 13, color: C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}><span style={{ color: C.cyanDim }}>/* </span>{desc}<span style={{ color: C.cyanDim }}> */</span></div>
+        <Tag color={ch.color}>{ch.diff}</Tag>
+      </div>
+      {/* Problem description — collapsible, always accessible */}
+      <button onClick={() => setProbOpen(!probOpen)} style={{ background: probOpen ? C.panel : C.black, border: "none", borderBottom: `1px solid ${C.border}`, cursor: "pointer", textAlign: "left", width: "100%", padding: "6px 14px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <span style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, transition: "transform 0.25s", transform: probOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}><span style={{ color: C.cyanDim }}>/* </span>{desc}<span style={{ color: C.cyanDim }}> */</span></div>
       </button>
-      {probOpen && !focusMode && (
+      {probOpen && (
         <div style={{ padding: "0 14px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.2s ease" }}>
           <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, lineHeight: 1.7, marginBottom: 8 }}>{desc}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: C.black, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.cyanDim, padding: "5px 10px", minHeight: 30 }}>{showSchema ? "HIDE" : "SCHEMA"}</button>
-            <button onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: C.black, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.amber, padding: "5px 10px", minHeight: 30 }}>{showHint ? "HIDE" : "HINT"}</button>
+            <button onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: C.black, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.cyanDim, padding: "5px 10px", minHeight: 30 }}>{showSchema ? "Hide Schema" : "Schema"}</button>
+            <button onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: C.black, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.amber, padding: "5px 10px", minHeight: 30 }}>{showHint ? "Hide Hint" : "Hint"}</button>
           </div>
           {showSchema && <div style={{ marginTop: 12, background: C.black, border: `1px solid ${C.border}`, padding: 14, fontFamily: F.mono, fontSize: 14, animation: "fadeSlide 0.15s ease" }}>{ch.schema.split("\n").map((l, i) => { const [t, ...c] = l.split(":"); return <div key={i} style={{ marginBottom: 4 }}><span style={{ color: C.purple }}>{t.trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.green }}>{c.join(":").trim()}</span></div>; })}</div>}
           {showHint && <div style={{ marginTop: 12, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: 14, fontFamily: F.mono, fontSize: 14, color: C.amber, lineHeight: 1.8 }}>{ch.hint}</div>}
         </div>
       )}
+      {/* Editor area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        {/* Hidden measurement span — same font/size as textarea */}
         <span ref={measRef} style={{ position: "absolute", visibility: "hidden", fontFamily: F.mono, fontSize: 18, whiteSpace: "pre", pointerEvents: "none" }}>XXXXXXXXXXXXXXXXXXXX</span>
         <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-          {/* Scroll arrows — positioned over the editor, not inside scroll */}
+          {/* Scroll arrows */}
           <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", gap: 4, zIndex: 30, pointerEvents: "auto" }}>
             <button onClick={(e) => { e.stopPropagation(); scrollEditor("up"); }} style={{ background: `${C.black}E0`, border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 10px", fontFamily: F.mono, fontSize: 16, color: C.dim, lineHeight: 1 }}>▲</button>
             <button onClick={(e) => { e.stopPropagation(); scrollEditor("down"); }} style={{ background: `${C.black}E0`, border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 10px", fontFamily: F.mono, fontSize: 16, color: C.dim, lineHeight: 1 }}>▼</button>
           </div>
           <div ref={edRef} style={{ height: "100%", padding: "8px 18px", overflowY: "scroll", overflowX: "scroll", background: `linear-gradient(180deg,${C.void},${C.black})`, position: "relative", touchAction: "none" }}
             onTouchStart={onEditorTouchStart} onTouchMove={onEditorTouchMove} onTouchEnd={onEditorTouchEnd} onClick={onTap}>
-            {/* Custom cursor handle — hidden when keyboard is open */}
-          {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
+            {/* Custom cursor handle */}
+            <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
               <div style={{ width: 2, height: lineH * 0.7, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}80`, animation: "blink 1s step-end infinite" }} />
               <div style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>
-            </div>}
+            </div>
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
-            <textarea ref={taRef} value={sql} onChange={e => { setSql(e.target.value); setCPos(e.target.selectionStart || 0); }} onBlur={handleBlur} onSelect={e => setCPos(e.target.selectionStart || 0)} readOnly={!editing} spellCheck={false} placeholder="-- write SQL here" style={{ width: "100%", minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`, background: "transparent", border: "none", color: C.cyanHot, fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none", outline: "none", caretColor: editing ? C.cyan : "transparent", paddingTop: 6, cursor: "default", whiteSpace: "pre", overflowX: "hidden", overflowY: "hidden", wordWrap: "normal", overflowWrap: "normal", touchAction: "none" }} />
+            {/* textarea is always readOnly — native keyboard never triggers */}
+            <textarea ref={taRef} value={sql} readOnly inputMode="none" spellCheck={false} placeholder="-- write SQL here" style={{ width: "100%", minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`, background: "transparent", border: "none", color: C.cyanHot, fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none", outline: "none", caretColor: "transparent", paddingTop: 6, cursor: "default", whiteSpace: "pre", overflowX: "hidden", overflowY: "hidden", wordWrap: "normal", overflowWrap: "normal", touchAction: "none" }} />
           </div>
         </div>
-        {/* Hint bar */}
-        <div style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {!dbReady ? "loading sql engine..." : focusMode ? "FOCUS · swipe to move · tap or ✕ to exit" : "swipe to move cursor · tap to focus"}
-        </div>
-        {/* Results — shown in BOTH modes */}
+        {/* Results */}
         {result && (
-          <div style={{ background: C.black, borderTop: `2px solid ${result.ok ? (verdict?.pass ? C.green : C.cyan) : C.red}`, flexShrink: 0 }}>
+          <div style={{ background: C.black, borderTop: `2px solid ${result.ok ? (verdict?.pass ? C.green : C.cyan) : C.red}`, flexShrink: 0, maxHeight: 220, overflowY: "auto" }}>
             {verdict && <div style={{ padding: "8px 16px", fontFamily: F.mono, fontSize: 15, color: verdict.pass ? C.green : C.red, background: verdict.pass ? C.greenGhost : C.redGhost, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: 20 }}>{verdict.pass ? "✓" : "✗"}</span>
               <span style={{ flex: 1 }}>{verdict.msg}</span>
               {verdict.pass && nextCh && (
                 <button onClick={() => onNext && onNext(nextCh.id)} style={{ fontFamily: F.mono, fontSize: 14, color: C.black, background: C.cyan, border: `1px solid ${C.cyan}`, padding: "8px 16px", cursor: "pointer", letterSpacing: 1.5, boxShadow: `0 0 12px ${C.cyan}30`, animation: "pulseGlow 2s ease infinite" }}>
-                  NEXT ▶
+                  Next ▶
                 </button>
               )}
               {verdict.pass && !nextCh && (
                 <button onClick={onBack} style={{ fontFamily: F.mono, fontSize: 14, color: C.black, background: C.amber, border: `1px solid ${C.amber}`, padding: "8px 16px", cursor: "pointer", letterSpacing: 1.5 }}>
-                  ALL DONE ✓
+                  All Done ✓
                 </button>
               )}
             </div>}
@@ -1213,7 +1281,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red }}>{result.ok ? `✓ ${result.msg}` : `✗ ${result.msg}`}</span>
             </button>
             {resOpen && result.ok && result.rows.length > 0 && (
-              <div style={{ padding: "0 16px 10px", maxHeight: 180, overflowY: "auto", overflowX: "auto" }}>
+              <div style={{ padding: "0 16px 10px", overflowX: "auto" }}>
                 <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 13 }}>
                   <thead><tr>{result.columns.map(c => <th key={c} style={{ padding: "5px 10px", borderBottom: `1px solid ${C.border}`, color: C.cyan, textAlign: "left", fontWeight: 400, whiteSpace: "nowrap" }}>{c}</th>)}</tr></thead>
                   <tbody>{result.rows.slice(0, 50).map((row, i) => <tr key={i}>{row.map((v, j) => <td key={j} style={{ padding: "5px 10px", borderBottom: `1px solid ${C.border}10`, color: v === null ? C.dim : C.white, fontStyle: v === null ? "italic" : "normal", whiteSpace: "nowrap" }}>{v === null ? "NULL" : String(v)}</td>)}</tr>)}</tbody>
@@ -1221,83 +1289,20 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               </div>
             )}
             {resOpen && !result.ok && <div style={{ padding: "4px 16px 10px", fontFamily: F.mono, fontSize: 14, color: C.red, lineHeight: 1.8 }}>{result.msg}</div>}
-            {/* Edit button to go back to coding */}
-            <button onClick={clearResult} style={{ width: "100%", padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, background: C.panel, border: "none", borderTop: `1px solid ${C.border}`, letterSpacing: 1 }}>✎ EDIT CODE</button>
-          </div>
-        )}
-        {/* Toolbars — hidden when result showing OR when keyboard is open */}
-        {!result && !editing && (
-          <>
-            {/* ── Collapsible TBL / COLS / SQL panels ── */}
-            {(() => {
-              const tblNames = ch.schema.split("\n").map(l => l.split(":")[0].trim());
-              const colNames = ch.schema.split("\n").flatMap(l => { const parts = l.split(":"); return parts.length > 1 ? parts.slice(1).join(":").split(",").map(c => c.trim()) : []; }).filter((v, i, a) => v && a.indexOf(v) === i);
-              const panels = [
-                { key: "tbl", label: "TBL", color: C.purple, items: tblNames.map(t => ({ text: t, color: C.purple, bg: `${C.purple}15`, border: `${C.purple}30` })) },
-                { key: "cols", label: "COLS", color: C.green, items: colNames.map(c => ({ text: c, color: C.green, bg: "none", border: C.border })) },
-                { key: "sql", label: "SQL", color: C.cyan, items: kw.map(k => ({ text: k, color: C.cyan, bg: C.cyanGhost, border: `${C.cyan}25` })) },
-              ];
-              return (
-                <>
-                  <div style={{ display: "flex", gap: 0, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-                    {panels.map(p => (
-                      <button key={p.key} onClick={() => setOpenPanel(openPanel === p.key ? null : p.key)} style={{
-                        flex: 1, padding: "9px 0", cursor: "pointer",
-                        fontFamily: F.mono, fontSize: 14, fontWeight: 700, letterSpacing: 1,
-                        color: openPanel === p.key ? C.black : p.color,
-                        background: openPanel === p.key ? p.color : C.black,
-                        border: "none", borderRight: `1px solid ${C.border}`,
-                        transition: "all 0.15s",
-                      }}>{p.label}</button>
-                    ))}
-                    <button onClick={() => setFocusMode(f => !f)} style={{
-                      padding: "9px 14px", cursor: "pointer",
-                      fontFamily: F.mono, fontSize: 14, fontWeight: 700, letterSpacing: 1,
-                      color: focusMode ? C.black : C.amber,
-                      background: focusMode ? C.amber : C.black,
-                      border: "none",
-                      transition: "all 0.15s", flexShrink: 0,
-                    }}>{focusMode ? "✕" : "◉"}</button>
-                  </div>
-                  {openPanel && (() => {
-                    const p = panels.find(x => x.key === openPanel);
-                    if (!p) return null;
-                    return (
-                      <div style={{ padding: "5px 10px", background: C.panel, borderTop: `1px solid ${C.border}`, display: "flex", gap: 5, overflowX: "auto", flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
-                        {p.items.map((item, i) => (
-                          <button key={i} onClick={() => insert(item.text + " ")} style={{
-                            background: item.bg, border: `1px solid ${item.border}`, cursor: "pointer",
-                            padding: "8px 14px", whiteSpace: "nowrap",
-                            fontFamily: F.mono, fontSize: 16, color: item.color, minHeight: 38,
-                          }}>{item.text}</button>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </>
-              );
-            })()}
-            {/* ── Utility keys ── */}
-            <div style={{ padding: "6px 8px", background: C.panel, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, overflowX: "auto", flexShrink: 0 }}>
-              <button onClick={backspace} style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "6px 14px", fontFamily: F.mono, fontSize: 18, color: C.red, minHeight: 40, fontWeight: 700 }}>⌫</button>
-              <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "6px 13px", fontFamily: F.mono, fontSize: 17, color: C.cyan, minHeight: 40, fontWeight: 700 }}>↵</button>
-              <button onClick={() => insert("  ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 10px", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40 }}>TAB</button>
-              <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 12px", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40 }}>SPC</button>
-              {["*",",","(",")","'","=",">","<",";","."].map(ch2 => (
-                <button key={ch2} onClick={() => insert(ch2)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 9px", fontFamily: F.mono, fontSize: 16, color: C.white, minHeight: 40 }}>{ch2}</button>
-              ))}
-            </div>
-          </>
-        )}
-        {/* ── RUN button — shown when no result. When keyboard open, only show RUN (hide toolbars above) ── */}
-        {!result && (
-          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "5px 10px 5px", paddingBottom: "calc(5px + env(safe-area-inset-bottom, 0px))", background: C.black, display: "flex", gap: 8, flexShrink: 0 }}>
-            <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "11px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 16, letterSpacing: 1, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 46, width: 54, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
-            <button onClick={resetSQL} style={{ padding: "11px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 18, letterSpacing: 1, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 46, width: 50, flexShrink: 0 }}>↺</button>
-            <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "11px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, boxShadow: `0 0 14px ${C.green}35`, minHeight: 46, opacity: dbReady ? 1 : 0.4 }}>▶ RUN</button>
+            <button onClick={clearResult} style={{ width: "100%", padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, background: C.panel, border: "none", borderTop: `1px solid ${C.border}`, letterSpacing: 1 }}>✎ Edit Code</button>
           </div>
         )}
       </div>
+      {/* Custom keyboard — always visible, replaces native OS keyboard */}
+      <CustomKeyboard
+        onInsert={insert}
+        onBackspace={backspace}
+        onRun={handleRun}
+        onReset={resetSQL}
+        onBack={onBack}
+        dbReady={dbReady}
+        schema={ch.schema}
+      />
     </div>
   );
 }
@@ -1952,7 +1957,6 @@ function OnboardingScreen({ onComplete, lang }) {
 // ═══════════════════════════════════════════════════════════
 export default function PunkSQLCLI() {
   const [showOnboarding, setShowOnboarding] = useState(true);
-  const [appFocusMode, setAppFocusMode] = useState(false);
   const [lang, setLang] = useState("en");
   const [tab, setTab] = useState("home");
   const [screen, setScreen] = useState("main");
@@ -2107,10 +2111,6 @@ export default function PunkSQLCLI() {
   const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: C.void, fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", boxShadow: `0 0 80px ${C.cyan}08`, animation: "crtFlicker 4s ease infinite" };
   const ctx = { lang, t };
 
-  // Build focus title from current challenge
-  const focusCh = CHALLENGES_DB.find(c => c.id === (screen === "lesson" ? lessonChId : lastCodeId));
-  const focusTitle = appFocusMode && focusCh ? `#${focusCh.id} ${focusCh.title}` : null;
-
   if (showOnboarding) return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} /></div></LangContext.Provider>
   );
@@ -2125,8 +2125,8 @@ export default function PunkSQLCLI() {
 
   if (screen === "daily") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar lang={lang} setLang={setLang} startCollapsed focusTitle={focusTitle} />
-      <ChallengeScreen key="daily" onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={dailyChallengeId} onXP={handleXP} isDaily={true} moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} onFocusChange={setAppFocusMode} />
+      <TopBar lang={lang} setLang={setLang} />
+      <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} isDaily={true} moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
@@ -2134,8 +2134,8 @@ export default function PunkSQLCLI() {
 
   if (screen === "challenge") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar lang={lang} setLang={setLang} startCollapsed focusTitle={focusTitle} />
-      <ChallengeScreen key={lastCodeId} onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={lastCodeId} onXP={handleXP} isDaily={false} moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} onFocusChange={setAppFocusMode} />
+      <TopBar lang={lang} setLang={setLang} />
+      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} isDaily={false} moduleId={null} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
@@ -2143,8 +2143,8 @@ export default function PunkSQLCLI() {
 
   if (screen === "lesson") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar lang={lang} setLang={setLang} startCollapsed exercises={lessonExercises} currentExId={lessonChId} onExNav={handleLessonNav} focusTitle={focusTitle} />
-      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => { setScreen("main"); setAppFocusMode(false); }} challengeId={lessonChId} onXP={handleXP} moduleId={lastLearnId} onNext={handleLessonNav} onFocusChange={setAppFocusMode} />
+      <TopBar lang={lang} setLang={setLang} exercises={lessonExercises} currentExId={lessonChId} onExNav={handleLessonNav} />
+      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} moduleId={lastLearnId} onNext={handleLessonNav} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
@@ -2152,7 +2152,7 @@ export default function PunkSQLCLI() {
 
   return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar lang={lang} setLang={setLang} startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
+      <TopBar lang={lang} setLang={setLang} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }}>
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
@@ -2163,9 +2163,7 @@ export default function PunkSQLCLI() {
         {tab === "profile" && <ProfileScreen xp={xp} solved={solved} syncing={syncing} />}
       </div>
       <TabBar active={tab} onTabChange={setTab} />
-      {/* Level up overlay */}
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
-      {/* Badge unlock overlay */}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
   );
