@@ -467,7 +467,7 @@ function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady
   const hairline = { borderTop: `1px solid ${C.border}22` };
 
   return (
-    <div style={{ background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0, userSelect: "none" }}>
+    <div style={{ background: C.black, flexShrink: 0, userSelect: "none" }}>
       {/* Context panel toggles: Tables / Columns / Keywords */}
       <div style={{ display: "flex" }}>
         {panels.map((p, i) => (
