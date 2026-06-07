@@ -430,109 +430,114 @@ function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady
 
   const pressLetter = (k) => { onInsert(shifted ? k.toLowerCase() : k); if (shifted) setShifted(false); };
 
-  const K = ({ label, onPress, flex = 1, color = C.white, bg = C.surface, border = C.border, fontSize = 13 }) => (
+  // Borderless key — text-only, no box, Termux-style
+  const K = ({ label, onPress, flex = 1, color = C.muted, fontSize = 15 }) => (
     <button
       onPointerDown={(e) => { e.preventDefault(); onPress(); }}
       style={{
-        flex, minWidth: 0, padding: "7px 2px", background: bg, border: `1px solid ${border}`,
-        cursor: "pointer", fontFamily: F.mono, fontSize, color, textAlign: "center",
-        minHeight: 34, display: "flex", alignItems: "center", justifyContent: "center",
+        flex, minWidth: 0, padding: "9px 1px",
+        background: "transparent", border: "none",
+        cursor: "pointer", fontFamily: F.mono, fontSize, color,
+        textAlign: "center", minHeight: 36,
+        display: "flex", alignItems: "center", justifyContent: "center",
         lineHeight: 1, userSelect: "none", touchAction: "manipulation",
       }}
     >{label}</button>
   );
 
+  const hairline = { borderTop: `1px solid ${C.border}22` };
+
   return (
-    <div style={{ background: C.panel, borderTop: `2px solid ${C.borderBright}`, flexShrink: 0, userSelect: "none" }}>
+    <div style={{ background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0, userSelect: "none" }}>
       {/* Context panel toggles: Tables / Columns / Keywords */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
-        {panels.map(p => (
+      <div style={{ display: "flex", ...hairline }}>
+        {panels.map((p, i) => (
           <button key={p.key}
             onPointerDown={(e) => { e.preventDefault(); setOpenPanel(openPanel === p.key ? null : p.key); }}
             style={{
-              flex: 1, padding: "8px 0", fontFamily: F.mono, fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
-              color: openPanel === p.key ? C.black : p.color,
-              background: openPanel === p.key ? p.color : "transparent",
-              border: "none", borderRight: `1px solid ${C.border}`, cursor: "pointer",
-              transition: "all 0.15s", userSelect: "none", touchAction: "manipulation",
+              flex: 1, padding: "9px 0",
+              fontFamily: F.mono, fontSize: 12, letterSpacing: 1,
+              color: openPanel === p.key ? p.color : C.muted,
+              background: "transparent", border: "none",
+              borderRight: i < panels.length - 1 ? `1px solid ${C.border}22` : "none",
+              cursor: "pointer", userSelect: "none", touchAction: "manipulation",
+              textShadow: openPanel === p.key ? `0 0 8px ${p.color}60` : "none",
+              transition: "color 0.15s, text-shadow 0.15s",
             }}>
-            {p.label} {openPanel === p.key ? "▲" : "▼"}
+            {p.label}{openPanel === p.key ? " ▲" : " ▼"}
           </button>
         ))}
       </div>
-      {/* Panel item chips */}
+      {/* Panel item list — borderless scrollable text */}
       {openPanel && (() => {
         const p = panels.find(x => x.key === openPanel);
         if (!p) return null;
         return (
-          <div style={{ padding: "5px 8px", background: C.black, borderBottom: `1px solid ${C.border}`, display: "flex", gap: 5, overflowX: "auto", animation: "fadeSlide 0.15s ease" }}>
+          <div style={{ ...hairline, padding: "4px 12px", background: C.void, display: "flex", gap: 0, overflowX: "auto", animation: "fadeSlide 0.12s ease" }}>
             {p.items.map((item, i) => (
               <button key={i}
                 onPointerDown={(e) => { e.preventDefault(); onInsert(item.text + " "); }}
                 style={{
-                  background: item.bg, border: `1px solid ${item.border}`, cursor: "pointer",
-                  padding: "7px 11px", whiteSpace: "nowrap",
-                  fontFamily: F.mono, fontSize: 13, color: item.color, minHeight: 32,
+                  background: "transparent", border: "none", cursor: "pointer",
+                  padding: "7px 14px", whiteSpace: "nowrap",
+                  fontFamily: F.mono, fontSize: 13, color: item.color,
                   userSelect: "none", touchAction: "manipulation",
+                  textShadow: `0 0 6px ${item.color}40`,
                 }}>{item.text}</button>
             ))}
           </div>
         );
       })()}
       {/* Number row */}
-      <div style={{ padding: "4px 4px 2px", display: "flex", gap: 2 }}>
+      <div style={{ display: "flex", ...hairline }}>
         {numberRow.map(n => (
-          <K key={n} label={n} onPress={() => onInsert(n)} bg={`${C.cyan}0A`} color={C.cyanDim} />
+          <K key={n} label={n} onPress={() => onInsert(n)} color={C.cyanDim} fontSize={14} />
         ))}
       </div>
       {/* Letter rows */}
-      <div style={{ padding: "0 4px 2px", display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ display: "flex", flexDirection: "column" }}>
         {letterRows.map((row, rowIdx) => (
-          <div key={rowIdx} style={{ display: "flex", gap: 2, justifyContent: "center" }}>
+          <div key={rowIdx} style={{ display: "flex", justifyContent: "center", ...hairline }}>
             {rowIdx === 2 && (
-              <K label={shifted ? "SHIFT▲" : "Shift"} flex={1.8}
+              <K label={shifted ? "▲" : "⇧"} flex={1.5}
                 onPress={() => setShifted(s => !s)}
-                bg={shifted ? C.amberGhost : C.surface}
-                border={shifted ? C.amber : C.border}
-                color={shifted ? C.amber : C.dim} fontSize={11} />
+                color={shifted ? C.amber : C.muted} fontSize={16} />
             )}
             {row.map(k => (
-              <K key={k} label={shifted ? k.toLowerCase() : k} onPress={() => pressLetter(k)} />
+              <K key={k} label={shifted ? k.toLowerCase() : k} onPress={() => pressLetter(k)} color={C.white} fontSize={15} />
             ))}
             {rowIdx === 0 && (
-              <K label="Backspace" flex={1.8} onPress={onBackspace}
-                bg={C.redGhost} border={`${C.red}40`} color={C.red} fontSize={11} />
+              <K label="⌫" flex={1.5} onPress={onBackspace} color={C.red} fontSize={17} />
             )}
             {rowIdx === 1 && (
-              <K label="Enter" flex={2} onPress={() => onInsert("\n")}
-                bg={C.cyanGhost} border={`${C.cyan}40`} color={C.cyan} fontSize={11} />
+              <K label="↵" flex={1.8} onPress={() => onInsert("\n")} color={C.cyan} fontSize={17} />
             )}
           </div>
         ))}
       </div>
       {/* Symbols + Space row */}
-      <div style={{ padding: "0 4px 2px", display: "flex", gap: 2 }}>
+      <div style={{ display: "flex", ...hairline }}>
         {symbolRow.map(s => (
-          <K key={s} label={s} onPress={() => onInsert(s)} />
+          <K key={s} label={s} onPress={() => onInsert(s)} color={C.dim} fontSize={14} />
         ))}
-        <K label="Space" flex={2} onPress={() => onInsert(" ")} color={C.dim} fontSize={11} />
+        <K label="─────" flex={2} onPress={() => onInsert(" ")} color={C.muted} fontSize={11} />
       </div>
-      {/* Action row: Tab / Escape / Reset / Run */}
-      <div style={{ padding: "4px 6px calc(6px + env(safe-area-inset-bottom, 0px))", display: "flex", gap: 5 }}>
-        {[
-          { label: "Tab", onP: () => onInsert("  "), color: C.dim, bg: C.surface, border: C.border },
-          { label: "Escape", onP: onBack, color: C.amber, bg: C.amberGhost, border: `${C.amber}50` },
-          { label: "Reset", onP: onReset, color: C.dim, bg: "none", border: C.border },
-        ].map(btn => (
-          <button key={btn.label}
-            onPointerDown={(e) => { e.preventDefault(); btn.onP(); }}
-            style={{ padding: "9px 10px", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 0.5, color: btn.color, background: btn.bg, border: `1px solid ${btn.border}`, minHeight: 40, flexShrink: 0, userSelect: "none", touchAction: "manipulation" }}>
-            {btn.label}
-          </button>
-        ))}
-        <button
-          onPointerDown={(e) => { e.preventDefault(); if (dbReady) onRun(); }}
-          style={{ flex: 1, padding: "9px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 2, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, boxShadow: `0 0 14px ${C.green}35`, minHeight: 40, opacity: dbReady ? 1 : 0.4, userSelect: "none", touchAction: "manipulation" }}>
+      {/* Action row: Tab / Escape / Reset / ▶ Run */}
+      <div style={{ display: "flex", alignItems: "center", ...hairline, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <button onPointerDown={(e) => { e.preventDefault(); onInsert("  "); }}
+          style={{ flex: 1, padding: "11px 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.muted, userSelect: "none", touchAction: "manipulation" }}>
+          Tab
+        </button>
+        <button onPointerDown={(e) => { e.preventDefault(); onBack(); }}
+          style={{ flex: 1.2, padding: "11px 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.amber, userSelect: "none", touchAction: "manipulation", textShadow: `0 0 6px ${C.amber}40` }}>
+          Escape
+        </button>
+        <button onPointerDown={(e) => { e.preventDefault(); onReset(); }}
+          style={{ flex: 1, padding: "11px 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.muted, userSelect: "none", touchAction: "manipulation" }}>
+          Reset
+        </button>
+        <button onPointerDown={(e) => { e.preventDefault(); if (dbReady) onRun(); }}
+          style={{ flex: 2, padding: "11px 0", background: "transparent", border: "none", borderLeft: `1px solid ${C.border}33`, cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 15, letterSpacing: 2, fontWeight: 700, color: dbReady ? C.green : C.muted, userSelect: "none", touchAction: "manipulation", textShadow: dbReady ? `0 0 10px ${C.green}60` : "none", opacity: dbReady ? 1 : 0.4 }}>
           ▶ Run
         </button>
       </div>
