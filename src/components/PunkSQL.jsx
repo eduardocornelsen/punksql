@@ -469,19 +469,20 @@ function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady
   return (
     <div style={{ background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0, userSelect: "none" }}>
       {/* Context panel toggles: Tables / Columns / Keywords */}
-      <div style={{ display: "flex", ...hairline }}>
+      <div style={{ display: "flex" }}>
         {panels.map((p, i) => (
           <button key={p.key}
             onPointerDown={(e) => { e.preventDefault(); setOpenPanel(openPanel === p.key ? null : p.key); }}
             style={{
-              flex: 1, padding: "9px 0",
-              fontFamily: F.mono, fontSize: 12, letterSpacing: 1,
-              color: openPanel === p.key ? p.color : C.muted,
+              flex: 1, padding: "11px 0",
+              fontFamily: F.mono, fontSize: 15, letterSpacing: 1, fontWeight: 700,
+              color: p.color,
               background: "transparent", border: "none",
               borderRight: i < panels.length - 1 ? `1px solid ${C.border}22` : "none",
               cursor: "pointer", userSelect: "none", touchAction: "manipulation",
-              textShadow: openPanel === p.key ? `0 0 8px ${p.color}60` : "none",
-              transition: "color 0.15s, text-shadow 0.15s",
+              textShadow: openPanel === p.key ? `0 0 12px ${p.color}80` : `0 0 4px ${p.color}30`,
+              opacity: openPanel === p.key ? 1 : 0.65,
+              transition: "opacity 0.15s, text-shadow 0.15s",
             }}>
             {p.label}{openPanel === p.key ? " ▲" : " ▼"}
           </button>
