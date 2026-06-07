@@ -493,7 +493,7 @@ function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady
         const p = panels.find(x => x.key === openPanel);
         if (!p) return null;
         return (
-          <div style={{ ...hairline, padding: "4px 12px", background: C.void, display: "flex", gap: 0, overflowX: "auto", animation: "fadeSlide 0.12s ease" }}>
+          <div style={{ padding: "4px 12px", background: C.black, display: "flex", gap: 0, overflowX: "auto", animation: "fadeSlide 0.12s ease" }}>
             {p.items.map((item, i) => (
               <button key={i}
                 onPointerDown={(e) => { e.preventDefault(); onInsert(item.text + " "); }}
@@ -509,7 +509,7 @@ function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady
         );
       })()}
       {/* Number row */}
-      <div style={{ display: "flex", ...hairline }}>
+      <div style={{ display: "flex" }}>
         {numberRow.map(n => (
           <K key={n} label={n} onPress={() => onInsert(n)} color={C.cyanDim} fontSize={14} />
         ))}
@@ -517,7 +517,7 @@ function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady
       {/* Letter rows */}
       <div style={{ display: "flex", flexDirection: "column" }}>
         {letterRows.map((row, rowIdx) => (
-          <div key={rowIdx} style={{ display: "flex", justifyContent: "center", ...hairline }}>
+          <div key={rowIdx} style={{ display: "flex", justifyContent: "center" }}>
             {rowIdx === 2 && (
               <K label={shifted ? "▲" : "⇧"} flex={1.5}
                 onPress={() => setShifted(s => !s)}
@@ -536,14 +536,14 @@ function CustomKeyboard({ onInsert, onBackspace, onRun, onReset, onBack, dbReady
         ))}
       </div>
       {/* Symbols + Space row */}
-      <div style={{ display: "flex", ...hairline }}>
+      <div style={{ display: "flex" }}>
         {symbolRow.map(s => (
           <K key={s} label={s} onPress={() => onInsert(s)} color={C.dim} fontSize={14} />
         ))}
         <K label="─────" flex={2} onPress={() => onInsert(" ")} color={C.muted} fontSize={11} />
       </div>
       {/* Action row: Tab / Escape / Reset / ▶ Run */}
-      <div style={{ display: "flex", alignItems: "center", ...hairline, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <div style={{ display: "flex", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <button onPointerDown={(e) => { e.preventDefault(); onInsert("  "); }}
           style={{ flex: 1, padding: "11px 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.muted, userSelect: "none", touchAction: "manipulation" }}>
           Tab
@@ -1239,7 +1239,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   }, [sql, db]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", background: C.black }}>
       {/* Challenge header — always visible */}
       <div style={{ padding: "6px 14px", borderBottom: `1px solid ${C.border}`, background: C.black, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1272,7 +1272,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             <button onClick={(e) => { e.stopPropagation(); scrollEditor("up"); }} style={{ background: `${C.black}E0`, border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 10px", fontFamily: F.mono, fontSize: 16, color: C.dim, lineHeight: 1 }}>▲</button>
             <button onClick={(e) => { e.stopPropagation(); scrollEditor("down"); }} style={{ background: `${C.black}E0`, border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 10px", fontFamily: F.mono, fontSize: 16, color: C.dim, lineHeight: 1 }}>▼</button>
           </div>
-          <div ref={edRef} style={{ height: "100%", padding: "8px 18px", overflowY: "scroll", overflowX: "scroll", background: `linear-gradient(180deg,${C.void},${C.black})`, position: "relative", touchAction: "none" }}
+          <div ref={edRef} style={{ height: "100%", padding: "8px 18px", overflowY: "scroll", overflowX: "scroll", background: C.black, position: "relative", touchAction: "none" }}
             onTouchStart={onEditorTouchStart} onTouchMove={onEditorTouchMove} onTouchEnd={onEditorTouchEnd} onClick={onTap}>
             {/* Custom cursor handle */}
             <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
