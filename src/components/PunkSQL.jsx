@@ -872,16 +872,36 @@ function validateSQL(db, userSQL, expectedSQL) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  AUX KEYBOARD — Dual-row virtual keyboard for terminal input
+//  AUX KEYBOARD — Termux-style virtual keyboard
 // ═══════════════════════════════════════════════════════════
+
+// Shared key button used in both the Termux rows and the token panel
+function AuxKey({ label, onPress, flex = 1, fontSize = 12, color = "#FFFFFF", bg = "#000000", bold = false }) {
+  return (
+    <button
+      onPointerDown={e => { e.preventDefault(); onPress(); }}
+      style={{
+        flex, minHeight: 40, background: bg,
+        border: "none", borderRight: "1px solid #1A1A1A",
+        cursor: "pointer", fontFamily: F.mono, fontSize, color,
+        fontWeight: bold ? 700 : 400,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 0, letterSpacing: 0.2, userSelect: "none",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function TokenChip({ text, color, onTap }) {
   return (
     <button
       onPointerDown={e => { e.preventDefault(); onTap(); }}
       style={{
-        background: `${color}12`, border: `1px solid ${color}40`,
+        background: `${color}18`, border: `1px solid ${color}50`,
         cursor: "pointer", fontFamily: F.mono, fontSize: 11, color,
-        padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0,
+        padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0,
         borderRadius: 2, letterSpacing: 0.3, lineHeight: 1.4,
       }}
     >
@@ -890,63 +910,107 @@ function TokenChip({ text, color, onTap }) {
   );
 }
 
-function AuxKeyboard({ onInsert, onControl, onHistoryNav, focusMode }) {
+function AuxKeyboard({ onInsert, onControl, onHistoryNav }) {
   const keyboardTokens = useGameStore(s => s.keyboardTokens);
+  const [activeTab, setActiveTab] = useState(null); // null | "tables" | "columns" | "sql"
 
-  const ctrlKeys = [
+  const tabDefs = [
+    { id: "tables",  label: "TABLES",  color: C.orange, tokens: keyboardTokens.tables,   onTap: t => onInsert(t) },
+    { id: "columns", label: "COLUMNS", color: C.green,  tokens: keyboardTokens.columns,  onTap: c => onInsert(c) },
+    { id: "sql",     label: "SQL",     color: C.cyan,   tokens: keyboardTokens.keywords, onTap: k => onInsert(" " + k + " ") },
+  ];
+
+  const activeTokens = tabDefs.find(t => t.id === activeTab);
+
+  // Termux row 1: ESC / — HOME ↑ END PGUP
+  const row1 = [
     { label: "ESC",  onPress: () => onControl("escape") },
+    { label: "/",    onPress: () => onInsert("/") },
+    { label: "—",    onPress: () => onInsert("-") },
+    { label: "HOME", onPress: () => onControl("home"), fontSize: 10 },
+    { label: "↑",    onPress: () => onHistoryNav("up") },
+    { label: "END",  onPress: () => onControl("end"), fontSize: 10 },
+    { label: "PGUP", onPress: () => onControl("pgup"), fontSize: 10 },
+  ];
+
+  // Termux row 2: TAB CTRL ALT ← ↓ → PGDN
+  const row2 = [
+    { label: "TAB",  onPress: () => onInsert("\t") },
     { label: "CTRL", onPress: () => onControl("ctrl") },
     { label: "ALT",  onPress: () => onControl("alt") },
-    { label: "TAB",  onPress: () => onInsert("\t") },
-    { label: "_",    onPress: () => onInsert("_") },
-    { label: "↑",    onPress: () => onHistoryNav("up"), color: C.amber },
-    { label: "↓",    onPress: () => onHistoryNav("down"), color: C.amber },
-    { label: "←",    onPress: () => onControl("left"), color: C.cyan },
-    { label: "→",    onPress: () => onControl("right"), color: C.cyan },
+    { label: "←",    onPress: () => onControl("left") },
+    { label: "↓",    onPress: () => onHistoryNav("down") },
+    { label: "→",    onPress: () => onControl("right") },
+    { label: "PGDN", onPress: () => onControl("pgdn"), fontSize: 10 },
   ];
 
   return (
-    <div style={{
-      background: C.surface, borderTop: `1px solid ${C.border}`,
-      flexShrink: 0, userSelect: "none",
-    }}>
-      {/* Top row: contextual SQL token chips (scrollable) */}
+    <div style={{ background: "#000000", flexShrink: 0, userSelect: "none" }}>
+
+      {/* Tab selector row */}
       <div style={{
-        display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
-        scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
+        display: "flex", borderTop: "1px solid #1A1A1A", borderBottom: "1px solid #1A1A1A",
       }}>
-        {keyboardTokens.keywords.map(kw => (
-          <TokenChip key={kw} text={kw} color={C.cyan} onTap={() => onInsert(" " + kw + " ")} />
-        ))}
-        {keyboardTokens.tables.map(t => (
-          <TokenChip key={"t_"+t} text={t} color={C.orange} onTap={() => onInsert(t)} />
-        ))}
-        {keyboardTokens.columns.map(c => (
-          <TokenChip key={"c_"+c} text={c} color={C.green} onTap={() => onInsert(c)} />
+        {tabDefs.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onPointerDown={e => { e.preventDefault(); setActiveTab(isActive ? null : tab.id); }}
+              style={{
+                flex: 1, minHeight: 34, background: isActive ? `${tab.color}18` : "#000000",
+                border: "none", borderRight: "1px solid #1A1A1A",
+                borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
+                cursor: "pointer", fontFamily: F.mono, fontSize: 11,
+                color: isActive ? tab.color : "#666666",
+                fontWeight: isActive ? 700 : 400,
+                letterSpacing: 1, userSelect: "none",
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Token chip panel — visible only when a tab is active */}
+      {activeTokens && (
+        <div style={{
+          display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
+          scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
+          borderBottom: "1px solid #1A1A1A", minHeight: 38,
+          background: "#000000",
+        }}>
+          {activeTokens.tokens.length === 0 && (
+            <span style={{ fontFamily: F.mono, fontSize: 11, color: "#444", alignSelf: "center" }}>
+              no {activeTokens.id} loaded
+            </span>
+          )}
+          {activeTokens.tokens.map(tok => (
+            <TokenChip
+              key={tok}
+              text={tok}
+              color={activeTokens.color}
+              onTap={() => activeTokens.onTap(tok)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Termux row 1 */}
+      <div style={{ display: "flex", borderBottom: "1px solid #1A1A1A" }}>
+        {row1.map(k => (
+          <AuxKey key={k.label} label={k.label} onPress={k.onPress} fontSize={k.fontSize ?? 12} />
         ))}
       </div>
 
-      {/* Bottom row: system modifier/nav keys */}
-      <div style={{
-        display: "flex", padding: "3px 8px 6px", gap: 4,
-      }}>
-        {ctrlKeys.map(key => (
-          <button
-            key={key.label}
-            onPointerDown={e => { e.preventDefault(); key.onPress(); }}
-            style={{
-              flex: 1, minHeight: 34, background: "#1A1A1A",
-              border: `1px solid ${C.border}`,
-              cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-              color: key.color || C.dim,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              letterSpacing: 0,
-            }}
-          >
-            {key.label}
-          </button>
+      {/* Termux row 2 */}
+      <div style={{ display: "flex" }}>
+        {row2.map(k => (
+          <AuxKey key={k.label} label={k.label} onPress={k.onPress} fontSize={k.fontSize ?? 12} />
         ))}
       </div>
+
     </div>
   );
 }
