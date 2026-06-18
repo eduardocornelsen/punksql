@@ -1045,6 +1045,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     if (onFocusChange) onFocusChange(newVal);
   };
   const taRef = useRef(null), edRef = useRef(null), tapT = useRef(null);
+  // Mirrors current sql without stale-closure issues in callbacks
+  const sqlRef = useRef(sql);
+  useEffect(() => { sqlRef.current = sql; }, [sql]);
+  // Saved before entering history navigation; restored on ↓ back to present
+  const historyDraftRef = useRef("");
 
   // Zustand store — set active challenge for keyboard token loading
   const { setActiveChallenge, pushQueryHistory, navigateHistory, resetHistoryIndex, setCursorPosition } = useGameStore(
@@ -1308,10 +1313,20 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   }, [onBack, sql.length]);
 
   const handleHistoryNav = useCallback((direction) => {
-    const query = navigateHistory(direction === "up" ? 1 : -1);
+    const isUp = direction === "up";
+    // Save draft the moment we leave the "current" position
+    if (isUp && useGameStore.getState().historyIndex === -1) {
+      historyDraftRef.current = sqlRef.current;
+    }
+    const query = navigateHistory(isUp ? 1 : -1);
     if (query !== null) {
       setSql(query);
       setCPos(query.length);
+    } else if (!isUp) {
+      // ↓ past the most recent entry → restore the pre-navigation draft
+      const draft = historyDraftRef.current;
+      setSql(draft);
+      setCPos(draft.length);
     }
   }, [navigateHistory]);
 
