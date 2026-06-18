@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 import { useAuth } from "@/components/AuthProvider";
 import { useProgress } from "@/hooks/useProgress";
 import useGameStore from "@/stores/useGameStore";
+import { useShallow } from "zustand/react/shallow";
 
 // ═══════════════════════════════════════════════════════════
 //  PUNKSQL // CYBERPUNK CLI — XL MOBILE
@@ -890,7 +891,7 @@ function TokenChip({ text, color, onTap }) {
 }
 
 function AuxKeyboard({ onInsert, onControl, onHistoryNav, focusMode }) {
-  const { keyboardTokens } = useGameStore(s => ({ keyboardTokens: s.keyboardTokens }));
+  const keyboardTokens = useGameStore(s => s.keyboardTokens);
 
   const ctrlKeys = [
     { label: "ESC",  onPress: () => onControl("escape") },
@@ -985,13 +986,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const taRef = useRef(null), edRef = useRef(null), tapT = useRef(null);
 
   // Zustand store — set active challenge for keyboard token loading
-  const { setActiveChallenge, pushQueryHistory, navigateHistory, resetHistoryIndex, setCursorPosition } = useGameStore(s => ({
-    setActiveChallenge: s.setActiveChallenge,
-    pushQueryHistory: s.pushQueryHistory,
-    navigateHistory: s.navigateHistory,
-    resetHistoryIndex: s.resetHistoryIndex,
-    setCursorPosition: s.setCursorPosition,
-  }));
+  const { setActiveChallenge, pushQueryHistory, navigateHistory, resetHistoryIndex, setCursorPosition } = useGameStore(
+    useShallow(s => ({
+      setActiveChallenge: s.setActiveChallenge,
+      pushQueryHistory: s.pushQueryHistory,
+      navigateHistory: s.navigateHistory,
+      resetHistoryIndex: s.resetHistoryIndex,
+      setCursorPosition: s.setCursorPosition,
+    }))
+  );
 
   useEffect(() => { setActiveChallenge(ch); return () => setActiveChallenge(null); }, [challengeId]);
 
