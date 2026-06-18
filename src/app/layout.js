@@ -61,7 +61,25 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body suppressHydrationWarning style={{ margin: 0, padding: 0, background: "#020410", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
+      <body suppressHydrationWarning style={{ margin: 0, padding: 0, background: "#111111", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
+        {/* Landscape warning — hidden by default, shown via CSS media query */}
+        <style>{`
+          .landscape-warn { display: none; }
+          @media screen and (orientation: landscape) and (max-height: 500px) {
+            .landscape-warn { display: flex; }
+          }
+        `}</style>
+        <div className="landscape-warn" style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "#000000", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          gap: 16, fontFamily: "monospace", textAlign: "center",
+          pointerEvents: "none",
+        }}>
+          <div style={{ fontSize: 40 }}>⟳</div>
+          <div style={{ color: "#00FF88", fontSize: 16, letterSpacing: 1 }}>rotate device</div>
+          <div style={{ color: "#555555", fontSize: 12 }}>PunkSQL requires portrait mode</div>
+        </div>
         <AuthProvider>
           {children}
         </AuthProvider>

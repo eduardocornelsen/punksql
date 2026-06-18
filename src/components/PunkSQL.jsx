@@ -197,9 +197,11 @@ const globalCSS = `
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 *{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
 textarea:focus{outline:none}button{-webkit-tap-highlight-color:transparent}
-html{height:100%;height:-webkit-fill-available;background:#000}
-body{height:100%;min-height:-webkit-fill-available;background:#000}
+html{height:100%;height:-webkit-fill-available;background:#111}
+body{height:100%;min-height:-webkit-fill-available;background:#111}
 :root{--app-h:100dvh}@supports not (height:100dvh){:root{--app-h:100vh}}
+.landscape-warn{display:none;position:fixed;inset:0;background:#000;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;font-family:monospace;color:#00FF88;font-size:18px;text-align:center}
+@media screen and (orientation:landscape) and (max-height:500px){.landscape-warn{display:flex}}
 `;
 
 // ── Utilities ─────────────────────────────────────────────
@@ -1090,13 +1092,24 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const lastTapTime = useRef(0);
   const swipeStart = useRef({ x: 0, y: 0, pos: 0 });
   const isSwiping = useRef(false);
+  // True on real touch devices; false on desktop/mouse
+  const isTouch = useRef(false);
+  useEffect(() => {
+    isTouch.current = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  }, []);
 
   const onTap = (e) => {
+    // On desktop (mouse click): don't preventDefault — let textarea get natural focus
+    if (!e.touches) {
+      const x = e.clientX, y = e.clientY;
+      setCPos(tapToPos(x, y));
+      return;
+    }
     e.preventDefault();
     const now = Date.now();
     if (now - lastTapTime.current < 50) return;
     lastTapTime.current = now;
-    const x = e.touches?.[0]?.clientX ?? e.clientX, y = e.touches?.[0]?.clientY ?? e.clientY;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
     setCPos(tapToPos(x, y));
     isSwiping.current = false;
   };
@@ -1445,7 +1458,28 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               <div style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>
             </div>}
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
-            <textarea ref={taRef} value={sql} onChange={e => { setSql(e.target.value); setCPos(e.target.selectionStart || 0); }} onBlur={handleBlur} onSelect={e => setCPos(e.target.selectionStart || 0)} readOnly={!editing} spellCheck={false} placeholder="-- write SQL here" style={{ width: "100%", minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`, background: "transparent", border: "none", color: C.cyanHot, fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none", outline: "none", caretColor: editing ? C.cyan : "transparent", paddingTop: 6, cursor: "default", whiteSpace: "pre", overflowX: "hidden", overflowY: "hidden", wordWrap: "normal", overflowWrap: "normal", touchAction: "none" }} />
+            <textarea
+              ref={taRef}
+              value={sql}
+              onChange={e => { setSql(e.target.value); setCPos(e.target.selectionStart || 0); }}
+              onBlur={handleBlur}
+              onSelect={e => setCPos(e.target.selectionStart || 0)}
+              onFocus={() => { if (!isTouch.current) setEditing(true); }}
+              readOnly={isTouch.current && !editing}
+              spellCheck={false}
+              placeholder="-- write SQL here"
+              style={{
+                width: "100%",
+                minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`,
+                background: "transparent", border: "none", color: C.cyanHot,
+                fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none",
+                outline: "none", caretColor: editing ? C.cyan : "transparent",
+                paddingTop: 6, cursor: "text", whiteSpace: "pre",
+                overflowX: "hidden", overflowY: "hidden",
+                wordWrap: "normal", overflowWrap: "normal",
+                touchAction: isTouch.current ? "none" : "auto",
+              }}
+            />
           </div>
         </div>
         {/* Hint bar */}
