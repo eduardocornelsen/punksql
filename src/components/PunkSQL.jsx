@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useProgress } from "@/hooks/useProgress";
+import useGameStore from "@/stores/useGameStore";
 
 // ═══════════════════════════════════════════════════════════
 //  PUNKSQL // CYBERPUNK CLI — XL MOBILE
@@ -55,17 +56,19 @@ const SFX = {
 };
 
 const C = {
-  void: "#020410", black: "#060C18", panel: "#0A1224", surface: "#0E1830",
-  border: "#163050", borderBright: "#1A5080",
-  cyan: "#00F0FF", cyanDim: "#40C8E0", cyanGhost: "rgba(0,240,255,0.08)",
-  cyanGlow: "rgba(0,240,255,0.18)", cyanHot: "#80FFFF",
-  green: "#00FF88", greenDim: "#40DD88", greenGhost: "rgba(0,255,136,0.10)",
-  amber: "#FFB800", amberDim: "#E0B040", amberGhost: "rgba(255,184,0,0.10)",
-  red: "#FF3050", redDim: "#E04060", redGhost: "rgba(255,48,80,0.10)",
-  white: "#F0F8FF", dim: "#A0C0D4", muted: "#5A7E98", purple: "#D0A0FF",
+  void: "#000000", black: "#000000", panel: "#0D0D0D", surface: "#111111",
+  border: "#222222", borderBright: "#333333",
+  cyan: "#00FFFF", cyanDim: "#00CCCC", cyanGhost: "rgba(0,255,255,0.08)",
+  cyanGlow: "rgba(0,255,255,0.18)", cyanHot: "#80FFFF",
+  green: "#00FF88", greenDim: "#00CC66", greenGhost: "rgba(0,255,136,0.10)",
+  amber: "#FFBB00", amberDim: "#CC9900", amberGhost: "rgba(255,187,0,0.10)",
+  orange: "#FF8800", orangeGhost: "rgba(255,136,0,0.10)",
+  red: "#FF3333", redDim: "#CC2222", redGhost: "rgba(255,51,51,0.10)",
+  white: "#FFFFFF", dim: "#888888", muted: "#555555", purple: "#CC88FF",
+  text: "#CCCCCC",
 };
 
-const F = { mono: "'Share Tech Mono', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace" };
+const F = { mono: "'JetBrains Mono', 'Fira Code', 'Share Tech Mono', 'Courier New', monospace" };
 
 // ── i18n ──────────────────────────────────────────────────
 const i18n = {
@@ -179,35 +182,32 @@ const LangContext = createContext({ lang: "en", t: (k) => k });
 function useLang() { return useContext(LangContext); }
 
 const globalCSS = `
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
-@keyframes scanline{0%{top:-100%}100%{top:100%}}
-@keyframes fadeSlide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes crtFlicker{0%,100%{opacity:1}50%{opacity:0.98}}
-@keyframes pulseGlow{0%,100%{text-shadow:0 0 8px rgba(0,240,255,0.5)}50%{text-shadow:0 0 20px rgba(0,240,255,0.9),0 0 36px rgba(0,240,255,0.4)}}
-@keyframes nodeActive{0%,100%{box-shadow:0 0 12px rgba(0,240,255,0.5),inset 0 0 12px rgba(0,240,255,0.15)}50%{box-shadow:0 0 28px rgba(0,240,255,0.8),inset 0 0 16px rgba(0,240,255,0.25)}}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes crtFlicker{0%,100%{opacity:1}50%{opacity:0.99}}
+@keyframes pulseGlow{0%,100%{opacity:1}50%{opacity:0.75}}
+@keyframes nodeActive{0%,100%{box-shadow:0 0 8px rgba(0,255,255,0.4)}50%{box-shadow:0 0 18px rgba(0,255,255,0.7)}}
 @keyframes flipCard{0%{transform:perspective(600px) rotateY(0)}50%{transform:perspective(600px) rotateY(90deg)}100%{transform:perspective(600px) rotateY(0)}}
-@keyframes streakPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
 @keyframes bootLine{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
 @keyframes langSwitch{from{opacity:0.85}to{opacity:1}}
 @keyframes levelUp{0%{transform:scale(0.5);opacity:0}20%{transform:scale(1.2);opacity:1}40%{transform:scale(0.95)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
 @keyframes badgeUnlock{0%{transform:scale(0) rotate(-180deg);opacity:0}50%{transform:scale(1.3) rotate(10deg);opacity:1}75%{transform:scale(0.9) rotate(-5deg)}100%{transform:scale(1) rotate(0)}}
-@keyframes shinePass{0%{left:-100%}100%{left:200%}}
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
-*{scrollbar-width:thin;-webkit-tap-highlight-color:transparent}
+*{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
 textarea:focus{outline:none}button{-webkit-tap-highlight-color:transparent}
-html{height:100%;height:-webkit-fill-available}
-body{height:100%;min-height:-webkit-fill-available}
+html{height:100%;height:-webkit-fill-available;background:#000}
+body{height:100%;min-height:-webkit-fill-available;background:#000}
 :root{--app-h:100dvh}@supports not (height:100dvh){:root{--app-h:100vh}}
 `;
 
 // ── Utilities ─────────────────────────────────────────────
-const Cursor = () => <span style={{ display: "inline-block", width: 12, height: 20, background: C.cyan, marginLeft: 4, animation: "blink 530ms step-end infinite", boxShadow: `0 0 10px ${C.cyan}80` }} />;
+const Cursor = () => <span style={{ display: "inline-block", width: 9, height: "1em", background: C.green, marginLeft: 2, animation: "blink 600ms step-end infinite", verticalAlign: "text-bottom" }} />;
 
 const Prompt = ({ path = "~" }) => (
-  <span style={{ fontFamily: F.mono, fontSize: 15 }}>
-    <span style={{ color: C.green }}>user</span><span style={{ color: C.dim }}>@</span><span style={{ color: C.purple }}>qq</span>
-    <span style={{ color: C.dim }}>:</span><span style={{ color: C.amber }}>{path}</span><span style={{ color: C.cyan }}> $</span>
+  <span style={{ fontFamily: F.mono, fontSize: 14 }}>
+    <span style={{ color: C.green }}>punksql</span><span style={{ color: C.dim }}>@</span><span style={{ color: C.green }}>android</span>
+    <span style={{ color: C.dim }}>:</span><span style={{ color: C.cyan }}>{path}</span><span style={{ color: C.green }}>$</span>
   </span>
 );
 
@@ -221,18 +221,12 @@ const Tag = ({ children, color = C.cyan }) => (
 
 const CLIBox = ({ children, title, color = C.border, style: s = {} }) => (
   <div style={{ border: `1px solid ${color}`, background: C.panel, position: "relative", ...s }}>
-    {title && <div style={{ position: "absolute", top: -10, left: 16, background: C.panel, padding: "0 10px", fontFamily: F.mono, fontSize: 16, color: C.cyanDim, letterSpacing: 1.5 }}>┤ {title} ├</div>}
-    <div style={{ padding: "22px 18px" }}>{children}</div>
+    {title && <div style={{ position: "absolute", top: -10, left: 12, background: C.panel, padding: "0 8px", fontFamily: F.mono, fontSize: 13, color: C.cyanDim, letterSpacing: 1 }}>[ {title} ]</div>}
+    <div style={{ padding: "20px 16px" }}>{children}</div>
   </div>
 );
 
-const Scanlines = () => (
-  <>
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 999, background: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(0,0,0,0.06) 4px,rgba(0,0,0,0.06) 8px)", mixBlendMode: "multiply" }} />
-    <div style={{ position: "absolute", left: 0, right: 0, height: 10, zIndex: 999, pointerEvents: "none", background: `linear-gradient(180deg,transparent,${C.cyan}05,transparent)`, animation: "scanline 6s linear infinite" }} />
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 998, background: "radial-gradient(ellipse at center,transparent 65%,rgba(0,0,0,0.35) 100%)" }} />
-  </>
-);
+const Scanlines = () => null; // Removed — Termux UI uses no CRT effects
 
 // ── Level & Achievement System ────────────────────────────
 const LEVELS = [0,25,75,150,250,400,600,850,1150,1500,1900,2400,3000,3700,4500,5500,6700,8000,9500,11200];
@@ -400,29 +394,37 @@ function ProgressBar({ progress, color = C.cyan }) {
 function TabBar({ active, onTabChange }) {
   const { t } = useLang();
   const tabs = [
-    { id: "home", label: t("tab_home"), icon: "⌂" },
-    { id: "learn", label: t("tab_learn"), icon: "◈" },
-    { id: "practice", label: t("tab_code"), icon: ">" },
-    { id: "quiz", label: "QUIZ", icon: "?" },
-    { id: "review", label: t("tab_cards"), icon: "◇" },
-    { id: "profile", label: t("tab_user"), icon: "◉" },
+    { id: "home", label: "~", icon: "~" },
+    { id: "learn", label: "learn", icon: "learn" },
+    { id: "practice", label: "code", icon: "code" },
+    { id: "quiz", label: "quiz", icon: "quiz" },
+    { id: "review", label: "cards", icon: "cards" },
+    { id: "profile", label: "user", icon: "user" },
   ];
   return (
     <>
-      {/* Spacer so scrollable content isn't hidden under the fixed tab bar */}
-      <div style={{ height: "calc(62px + env(safe-area-inset-bottom, 0px))", flexShrink: 0 }} />
-      <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.black, position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, paddingBottom: "env(safe-area-inset-bottom, 0px)", maxWidth: 480, margin: "0 auto" }}>
+      <div style={{ height: "calc(44px + env(safe-area-inset-bottom, 0px))", flexShrink: 0 }} />
+      <div style={{
+        display: "flex", borderTop: `1px solid ${C.border}`, background: C.black,
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200,
+        paddingBottom: "env(safe-area-inset-bottom, 0px)", maxWidth: 480, margin: "0 auto",
+      }}>
         {tabs.map(tab => {
           const on = active === tab.id;
           return (
             <button key={tab.id} onClick={() => onTabChange(tab.id)} style={{
-              flex: 1, background: "none", border: "none", cursor: "pointer",
-              padding: "10px 0 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-              position: "relative", minHeight: 62, minWidth: 0,
+              flex: 1, background: "none", border: "none", borderRight: `1px solid ${C.border}`,
+              cursor: "pointer", padding: "10px 4px 8px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 0,
+              minHeight: 44, minWidth: 0, position: "relative",
             }}>
-              {on && <div style={{ position: "absolute", top: -1, left: "12%", right: "12%", height: 2, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}` }} />}
-              <span style={{ fontFamily: F.mono, fontSize: 24, color: on ? C.cyan : C.dim, textShadow: on ? `0 0 10px ${C.cyan}80` : "none", transition: "all 0.2s", lineHeight: 1 }}>{tab.icon}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 12, letterSpacing: 1, color: on ? C.cyan : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", padding: "0 2px" }}>{tab.label}</span>
+              {on && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: C.green }} />}
+              <span style={{
+                fontFamily: F.mono, fontSize: 11, letterSpacing: 0.5,
+                color: on ? C.green : C.dim,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                maxWidth: "100%", padding: "0 2px", lineHeight: 1.6,
+              }}>{on ? `[${tab.label}]` : tab.label}</span>
             </button>
           );
         })}
@@ -438,26 +440,26 @@ function StatusBar({ xp = 0, solved = new Set() }) {
   const lv = getLevel(xp);
   return (
     <div style={{ borderBottom: `1px solid ${C.border}`, background: C.black }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px 4px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, letterSpacing: 1 }}>LVL</span>
-            <span style={{ fontFamily: F.mono, fontSize: 22, color: C.amber, textShadow: `0 0 8px ${C.amber}40` }}>{lv.level}</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontFamily: F.mono, fontSize: 11, color: C.cyan }}>XP</span>
-            <span style={{ fontFamily: F.mono, fontSize: 22, color: C.cyanHot, textShadow: `0 0 8px ${C.cyan}40` }}>{xp.toLocaleString()}</span>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green }}>{solved.size}/{CHALLENGES_DB.length}</span>
-          <span style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, letterSpacing: 1 }}>{time}</span>
-        </div>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "6px 14px", fontFamily: F.mono, fontSize: 12, color: C.dim,
+      }}>
+        <span>
+          <span style={{ color: C.green }}>punksql</span>
+          <span style={{ color: C.dim }}>@android</span>
+          <span style={{ color: C.muted }}> — </span>
+          <span style={{ color: C.amber }}>LVL {lv.level}</span>
+          <span style={{ color: C.muted }}> · </span>
+          <span style={{ color: C.cyan }}>{xp.toLocaleString()} XP</span>
+        </span>
+        <span>
+          <span style={{ color: C.green }}>{solved.size}/{CHALLENGES_DB.length}</span>
+          <span style={{ color: C.muted }}> {time}</span>
+        </span>
       </div>
-      {/* XP progress to next level */}
-      <div style={{ padding: "0 18px 8px" }}>
-        <div style={{ height: 3, background: C.border, position: "relative", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${Math.min(100, lv.progress * 100)}%`, background: C.cyan, boxShadow: `0 0 6px ${C.cyan}60`, transition: "width 0.5s ease" }} />
+      <div style={{ padding: "0 14px 6px" }}>
+        <div style={{ height: 2, background: C.border, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${Math.min(100, lv.progress * 100)}%`, background: C.green, transition: "width 0.5s ease" }} />
         </div>
       </div>
     </div>
@@ -465,106 +467,106 @@ function StatusBar({ xp = 0, solved = new Set() }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  HOME
+//  HOME — Termux-style CLI menu
 // ═══════════════════════════════════════════════════════════
 function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const { t, lang } = useLang();
-  const solvedToday = solved.size; // simplified — in production would filter by date
-  const quests = [
-    { cmd: t("quest_1_cmd"), cur: Math.min(solvedToday, 2), max: 2, xp: 30, done: solvedToday >= 2 },
-    { cmd: t("quest_2_cmd"), cur: Math.min(xp, 100), max: 100, xp: 20, done: xp >= 100 },
-    { cmd: t("quest_3_cmd"), cur: Math.min(solved.size, 5), max: 5, xp: 25, done: solved.size >= 5 },
+  const [cmd, setCmd] = useState("");
+  const cmdRef = useRef(null);
+  const lv = getLevel(xp);
+
+  const menuItems = [
+    { num: "1", id: "SYSTEM_STORY",  desc: lang === "pt" ? "// trilha de aprendizado SQL" : "// SQL learning campaign",   action: () => onNavigate("learn") },
+    { num: "2", id: "BOUNTY_BOARD",  desc: lang === "pt" ? "// desafio diário rotativo"   : "// daily rotating challenge", action: () => onNavigate("daily") },
+    { num: "3", id: "PRACTICE",      desc: lang === "pt" ? "// todos os 80 desafios SQL"  : "// all 80 SQL challenges",    action: () => onNavigate("practice") },
+    { num: "4", id: "QUIZ",          desc: lang === "pt" ? "// múltipla escolha"           : "// multiple-choice questions", action: () => onNavigate("quiz") },
+    { num: "5", id: "REVIEW_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"  : "// spaced repetition cards",  action: () => onNavigate("review") },
+    { num: "6", id: "PROFILE",       desc: lang === "pt" ? "// stats e conquistas"        : "// stats & achievements",     action: () => onNavigate("profile") },
   ];
+
+  const handleCmd = (e) => {
+    if (e.key === "Enter") {
+      const val = cmd.trim();
+      const item = menuItems.find(m => m.num === val || m.id.toLowerCase() === val.toLowerCase());
+      if (item) item.action();
+      setCmd("");
+    }
+  };
+
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const dc = CHALLENGES_DB[dayOfYear % CHALLENGES_DB.length];
+
   return (
-    <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: 18, animation: "langSwitch 0.3s ease" }}>
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, lineHeight: 2.2 }}>
-        {[t("boot_1"), t("boot_2"), t("boot_3")].map((line, i) => (
-          <div key={i} style={{ animation: `bootLine 0.3s ease ${i * 0.15}s both` }}>
-            <span style={{ color: C.cyanDim }}>{line.split("]")[0]}]</span><span style={{ color: C.dim }}>{line.split("]").slice(1).join("]")}</span>
-          </div>
-        ))}
-      </div>
-      <Divider char="═" color={C.borderBright} />
+    <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
+      {/* Boot lines */}
+      {[t("boot_1"), t("boot_2"), t("boot_3")].map((line, i) => (
+        <div key={i} style={{ fontSize: 12, color: C.dim, lineHeight: 1.9, animation: `bootLine 0.25s ease ${i * 0.1}s both` }}>
+          {line}
+        </div>
+      ))}
 
-      <CLIBox title={t("daily_challenge")} color={C.borderBright}>
-        {(() => {
-          const dc = CHALLENGES_DB.find(c => c.id === 17) || CHALLENGES_DB[0];
-          const dcDesc = lang === "pt" ? dc.desc_pt : dc.desc_en;
-          return (<>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-              <div>
-                <div style={{ fontFamily: F.mono, fontSize: 26, color: C.cyan, animation: "pulseGlow 3s ease infinite" }}>{dc.title}</div>
-                <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 8 }}><Prompt path="/daily" /></div>
-              </div>
-              <Tag color={dc.color}>{dc.diff}</Tag>
-            </div>
-            <p style={{ fontFamily: F.mono, fontSize: 20, color: C.dim, lineHeight: 1.9, margin: "0 0 18px" }}>
-              <span style={{ color: C.cyanDim }}>// </span>{dcDesc}
-            </p>
-          </>);
-        })()}
+      {/* Daily challenge banner */}
+      <div style={{ margin: "14px 0 16px", padding: "10px 12px", border: `1px solid ${C.border}`, background: C.panel }}>
+        <div style={{ fontSize: 11, color: C.dim, marginBottom: 4 }}>
+          {lang === "pt" ? "desafio_diário" : "daily_challenge"} · {dc.diff}
+        </div>
         <button onClick={() => onNavigate("daily")} style={{
-          width: "100%", padding: "16px 0", cursor: "pointer",
-          fontFamily: F.mono, fontSize: 19, letterSpacing: 3, fontWeight: 700,
-          color: C.black, background: C.cyan, border: `1px solid ${C.cyan}`,
-          boxShadow: `0 0 24px ${C.cyan}35, inset 0 0 24px ${C.cyan}25`,
-          minHeight: 62,
-        }}>{t("execute")}</button>
-      </CLIBox>
-
-      {(() => {
-        // Find first active module (first not-fully-solved)
-        const modDefs = [{ id:1,n:"first_query",tp:"SELECT, FROM, DISTINCT, LIMIT"},{id:2,n:"filtering",tp:"WHERE, AND/OR, IN, LIKE"},{id:3,n:"sorting",tp:"ORDER BY, ASC/DESC, LIMIT"},{id:4,n:"aggregations",tp:"COUNT, SUM, AVG, GROUP BY"},{id:5,n:"joins",tp:"INNER JOIN, LEFT JOIN, ON"},{id:6,n:"subqueries",tp:"IN, NOT IN, EXISTS"},{id:7,n:"window_fn",tp:"ROW_NUMBER, RANK, LAG"},{id:8,n:"ctes",tp:"WITH, recursive CTEs"}];
-        const activeMod = modDefs.find(m => {
-          const chs = CHALLENGES_DB.filter(c => c.mod === m.id);
-          return !chs.every(c => solved.has(c.id));
-        }) || modDefs[0];
-        const modChs = CHALLENGES_DB.filter(c => c.mod === activeMod.id);
-        const modSolved = modChs.filter(c => solved.has(c.id)).length;
-        const prog = modChs.length > 0 ? modSolved / modChs.length : 0;
-        return (
-          <button onClick={() => onNavigate("lesson", activeMod.id)} style={{ background: C.panel, border: `1px solid ${C.border}`, cursor: "pointer", textAlign: "left", width: "100%", padding: "18px" }}>
-            <div style={{ fontFamily: F.mono, fontSize: 19, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 12 }}>┤ {t("resume")} ├</div>
-            <div style={{ fontFamily: F.mono, color: C.white, marginBottom: 6, lineHeight: 1.2 }}>
-              <span style={{ fontSize: 27 }}>mod_{String(activeMod.id).padStart(2, "0")}<span style={{ color: C.dim }}>://</span></span><span style={{ fontSize: 30, color: C.cyan }}>{activeMod.n}</span>
-            </div>
-            <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, marginBottom: 14 }}>{activeMod.tp}</div>
-            <ProgressBar progress={prog} />
-            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 6 }}>{modSolved}/{modChs.length} solved</div>
-          </button>
-        );
-      })()}
-
-      <div>
-        <div style={{ fontFamily: F.mono, fontSize: 19, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 12 }}>┤ {t("daily_quests")} ├</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {quests.map((q, i) => (
-            <div key={i} style={{ background: C.panel, border: `1px solid ${q.done ? C.greenDim : C.border}`, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14, animation: `fadeSlide 0.3s ease ${i * 0.08}s both`, minHeight: 62 }}>
-
-              <span style={{ fontFamily: F.mono, fontSize: 22, color: q.done ? C.green : C.dim, textShadow: q.done ? `0 0 8px ${C.green}60` : "none", width: 24, textAlign: "center" }}>{q.done ? "✓" : "○"}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: F.mono, fontSize: 20, color: q.done ? C.greenDim : C.white }}>
-                  <span style={{ color: C.dim }}>$ </span><span style={{ textDecoration: q.done ? "line-through" : "none", color: q.done ? C.dim : C.white }}>{q.cmd}</span>
-                </div>
-                <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, marginTop: 5 }}>
-                  [{q.cur}/{q.max}]{!q.done && <span style={{ marginLeft: 8 }}>{"█".repeat(Math.round((q.cur / q.max) * 8))}{"░".repeat(8 - Math.round((q.cur / q.max) * 8))}</span>}
-                </div>
-              </div>
-              <span style={{ fontFamily: F.mono, fontSize: 17, color: q.done ? C.greenDim : C.cyanDim }}>+{q.xp}xp</span>
-            </div>
-          ))}
+          display: "flex", alignItems: "center", gap: 8, background: "none", border: "none",
+          cursor: "pointer", padding: 0, width: "100%", textAlign: "left",
+        }}>
+          <span style={{ color: C.green, fontSize: 13 }}>$ </span>
+          <span style={{ color: C.cyan, fontSize: 14 }}>{dc.title}</span>
+          <span style={{ color: C.dim, fontSize: 12, marginLeft: "auto" }}>→ ENTER</span>
+        </button>
+        <div style={{ fontSize: 11, color: C.dim, marginTop: 6, paddingLeft: 18, lineHeight: 1.5 }}>
+          {lang === "pt" ? dc.desc_pt : dc.desc_en}
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        {[{ label: t("stat_today"), value: String(solved.size), sub: t("stat_solved"), color: C.cyan, glow: C.cyan }, { label: "XP", value: xp.toLocaleString(), sub: "total", color: C.green, glow: C.green }, { label: t("stat_acc"), value: CHALLENGES_DB.length > 0 ? `${Math.round(solved.size / CHALLENGES_DB.length * 100)}%` : "0%", sub: t("stat_correct"), color: C.amber, glow: C.amber }].map((s, i) => (
-          <div key={i} style={{ background: C.panel, border: `1px solid ${s.color}30`, padding: "18px 12px", textAlign: "center" }}>
-            <div style={{ fontFamily: F.mono, fontSize: 16, color: s.color, letterSpacing: 1.5, marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontFamily: F.mono, fontSize: 40, color: s.color, textShadow: `0 0 16px ${s.glow}40, 0 0 4px ${s.glow}20`, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 8, letterSpacing: 1 }}>{s.sub}</div>
-          </div>
+      {/* Menu */}
+      <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
+        <span style={{ color: C.green }}>$ </span>ls modules/
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: 16 }}>
+        {menuItems.map((item) => (
+          <button key={item.num} onClick={item.action} style={{
+            display: "flex", alignItems: "center", gap: 0,
+            background: "none", border: "none", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 13, textAlign: "left",
+            padding: "6px 0", color: C.text, width: "100%",
+          }}>
+            <span style={{ color: C.cyan, minWidth: 28 }}>[{item.num}]</span>
+            <span style={{ color: C.white, minWidth: 140 }}>{item.id}</span>
+            <span style={{ color: C.dim, fontSize: 12 }}>{item.desc}</span>
+          </button>
         ))}
       </div>
+
+      {/* Stats summary */}
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        LVL {lv.level} · {xp.toLocaleString()} XP · {solved.size}/{CHALLENGES_DB.length} solved
+      </div>
+
+      {/* CLI input */}
+      <div style={{ display: "flex", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <Prompt path="~" />
+        <span style={{ color: C.text }}> </span>
+        <input
+          ref={cmdRef}
+          value={cmd}
+          onChange={e => setCmd(e.target.value)}
+          onKeyDown={handleCmd}
+          style={{
+            flex: 1, background: "none", border: "none", outline: "none",
+            fontFamily: F.mono, fontSize: 13, color: C.white, caretColor: C.green,
+          }}
+          placeholder={lang === "pt" ? "digite número ou comando..." : "type number or command..."}
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </div>
+
     </div>
   );
 }
@@ -602,56 +604,51 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
     return { ...m, s, p, l: total, c: total, xp: xpEarned, solvedCount };
   });
   return (
-    <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginBottom: 8 }}><Prompt path="/learn" /> <span style={{ color: C.white }}>{t("learn_cmd")}</span></div>
-      <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginBottom: 6, animation: "pulseGlow 3s ease infinite" }}>{t("learn_title")}</div>
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginBottom: 20 }}>{t("learn_sub")}</div>
-      <div style={{ display: "flex", flexDirection: "column", position: "relative" }}>
-        <div style={{ position: "absolute", left: 23, top: 30, bottom: 30, width: 2, background: `linear-gradient(180deg,${C.green},${C.cyan},${C.border})`, zIndex: 0 }} />
+    <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
+      <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}>
+        <Prompt path="/learn" /><span style={{ color: C.text }}> ls -la modules/</span>
+      </div>
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
+        {t("learn_title")} {t("learn_sub")}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {mods.map((m, i) => {
           const done = m.s === "done", act = m.s === "active", lock = m.s === "lock";
-          const nc = done ? C.green : act ? C.cyan : C.dim;
           const clickable = !lock;
-          const nodeBg = done ? "#081A12" : act ? "#081420" : "#060C18";
+          const nc = done ? C.green : act ? C.cyan : C.muted;
           return (
-            <div
+            <button
               key={m.id}
               onClick={clickable ? () => onNavigate("lesson", m.id) : undefined}
+              disabled={lock}
               style={{
-                display: "flex", gap: 16, alignItems: "flex-start", padding: "10px 0",
-                animation: `fadeSlide 0.3s ease ${i * 0.04}s both`,
+                display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
+                background: act ? C.panel : "none", border: `1px solid ${act ? C.border : "transparent"}`,
                 cursor: clickable ? "pointer" : "default",
-                position: "relative", zIndex: 1,
+                textAlign: "left", width: "100%",
+                animation: `fadeSlide 0.25s ease ${i * 0.03}s both`,
+                opacity: lock ? 0.35 : 1,
               }}
             >
-              <div style={{ width: 46, minWidth: 46, display: "flex", justifyContent: "center", paddingTop: 6, position: "relative", zIndex: 2 }}>
-                <div style={{ width: 32, height: 32, border: `2px solid ${nc}`, background: nodeBg, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: act ? `0 0 16px ${C.cyan}50` : `0 0 0 4px ${C.void}`, animation: act ? "nodeActive 2.5s ease infinite" : "none", transform: "rotate(45deg)", position: "relative", zIndex: 3 }}>
-                  <span style={{ transform: "rotate(-45deg)", fontFamily: F.mono, fontSize: 14, fontWeight: 700, color: nc }}>{m.id}</span>
+              <span style={{ color: nc, fontSize: 13, minWidth: 20, lineHeight: 1.6 }}>
+                {done ? "✓" : act ? "▶" : "·"}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>mod_{String(m.id).padStart(2,"0")}/</span>
+                  <span style={{ fontSize: 13, color: nc }}>{m.n}</span>
+                  {done && <span style={{ fontSize: 11, color: C.green, marginLeft: "auto" }}>+{m.xp}xp</span>}
+                  {lock && <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>[LOCKED]</span>}
                 </div>
-              </div>
-              <div style={{
-                flex: 1, background: C.panel,
-                border: `1px solid ${act ? C.borderBright : C.border}`,
-                padding: "16px 18px", opacity: lock ? 0.4 : 1,
-                transition: "border-color 0.15s",
-              }}
-                onMouseEnter={e => clickable && (e.currentTarget.style.borderColor = act ? C.cyan : C.greenDim)}
-                onMouseLeave={e => clickable && (e.currentTarget.style.borderColor = act ? C.borderBright : C.border)}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontFamily: F.mono, fontSize: 15, color: done ? C.greenDim : act ? C.cyan : C.white }}>{done && <span style={{ color: C.greenDim }}>✓ </span>}{m.n}</div>
-                    <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 5 }}>{m.tp}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{m.tp}</div>
+                {(act || done) && (
+                  <div style={{ marginTop: 6, height: 2, background: C.border, overflow: "hidden", maxWidth: 120 }}>
+                    <div style={{ height: "100%", width: `${Math.min(100, m.p * 100)}%`, background: done ? C.green : C.cyan }} />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {done && <span style={{ fontFamily: F.mono, fontSize: 14, color: C.greenDim }}>+{m.xp}xp</span>}
-                    {clickable && <span style={{ fontFamily: F.mono, fontSize: 16, color: act ? C.cyan : C.dim }}>▶</span>}
-                  </div>
-                </div>
-                {act && <div style={{ marginTop: 12 }}><ProgressBar progress={m.p} /><div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 8 }}>{t("challenges")}: {m.solvedCount}/{m.c}</div></div>}
-                {lock && <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 6 }}>{t("locked")} {mods[i - 1]?.n}</div>}
+                )}
+                {act && <div style={{ fontSize: 11, color: C.dim, marginTop: 3 }}>{m.solvedCount}/{m.c} challenges</div>}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -874,6 +871,86 @@ function validateSQL(db, userSQL, expectedSQL) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  AUX KEYBOARD — Dual-row virtual keyboard for terminal input
+// ═══════════════════════════════════════════════════════════
+function TokenChip({ text, color, onTap }) {
+  return (
+    <button
+      onPointerDown={e => { e.preventDefault(); onTap(); }}
+      style={{
+        background: `${color}12`, border: `1px solid ${color}40`,
+        cursor: "pointer", fontFamily: F.mono, fontSize: 11, color,
+        padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0,
+        borderRadius: 2, letterSpacing: 0.3, lineHeight: 1.4,
+      }}
+    >
+      {text}
+    </button>
+  );
+}
+
+function AuxKeyboard({ onInsert, onControl, onHistoryNav, focusMode }) {
+  const { keyboardTokens } = useGameStore(s => ({ keyboardTokens: s.keyboardTokens }));
+
+  const ctrlKeys = [
+    { label: "ESC",  onPress: () => onControl("escape") },
+    { label: "CTRL", onPress: () => onControl("ctrl") },
+    { label: "ALT",  onPress: () => onControl("alt") },
+    { label: "TAB",  onPress: () => onInsert("\t") },
+    { label: "_",    onPress: () => onInsert("_") },
+    { label: "↑",    onPress: () => onHistoryNav("up"), color: C.amber },
+    { label: "↓",    onPress: () => onHistoryNav("down"), color: C.amber },
+    { label: "←",    onPress: () => onControl("left"), color: C.cyan },
+    { label: "→",    onPress: () => onControl("right"), color: C.cyan },
+  ];
+
+  return (
+    <div style={{
+      background: C.surface, borderTop: `1px solid ${C.border}`,
+      flexShrink: 0, userSelect: "none",
+    }}>
+      {/* Top row: contextual SQL token chips (scrollable) */}
+      <div style={{
+        display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
+        scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
+      }}>
+        {keyboardTokens.keywords.map(kw => (
+          <TokenChip key={kw} text={kw} color={C.cyan} onTap={() => onInsert(" " + kw + " ")} />
+        ))}
+        {keyboardTokens.tables.map(t => (
+          <TokenChip key={"t_"+t} text={t} color={C.orange} onTap={() => onInsert(t)} />
+        ))}
+        {keyboardTokens.columns.map(c => (
+          <TokenChip key={"c_"+c} text={c} color={C.green} onTap={() => onInsert(c)} />
+        ))}
+      </div>
+
+      {/* Bottom row: system modifier/nav keys */}
+      <div style={{
+        display: "flex", padding: "3px 8px 6px", gap: 4,
+      }}>
+        {ctrlKeys.map(key => (
+          <button
+            key={key.label}
+            onPointerDown={e => { e.preventDefault(); key.onPress(); }}
+            style={{
+              flex: 1, minHeight: 34, background: "#1A1A1A",
+              border: `1px solid ${C.border}`,
+              cursor: "pointer", fontFamily: F.mono, fontSize: 11,
+              color: key.color || C.dim,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              letterSpacing: 0,
+            }}
+          >
+            {key.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 //  CHALLENGE EDITOR — Real SQL execution
 // ═══════════════════════════════════════════════════════════
 function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, onFocusChange }) {
@@ -906,7 +983,17 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     if (onFocusChange) onFocusChange(newVal);
   };
   const taRef = useRef(null), edRef = useRef(null), tapT = useRef(null);
-  const kw = ["SELECT","FROM","WHERE","JOIN","ON","LEFT JOIN","GROUP BY","ORDER BY","HAVING","LIMIT","AS","AND","OR","IN","COUNT()","SUM()","AVG()","ROUND()","DESC","DISTINCT","SUBSTR()"];
+
+  // Zustand store — set active challenge for keyboard token loading
+  const { setActiveChallenge, pushQueryHistory, navigateHistory, resetHistoryIndex, setCursorPosition } = useGameStore(s => ({
+    setActiveChallenge: s.setActiveChallenge,
+    pushQueryHistory: s.pushQueryHistory,
+    navigateHistory: s.navigateHistory,
+    resetHistoryIndex: s.resetHistoryIndex,
+    setCursorPosition: s.setCursorPosition,
+  }));
+
+  useEffect(() => { setActiveChallenge(ch); return () => setActiveChallenge(null); }, [challengeId]);
 
   useEffect(() => { getDB().then(d => { setDb(d); setDbReady(true); }); }, []);
 
@@ -1088,7 +1175,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   };
   const handleRun = () => {
     if (!db) return;
-    const r = runSQL(db, sql.trim());
+    const trimmed = sql.trim();
+    pushQueryHistory(trimmed);
+    resetHistoryIndex();
+    const r = runSQL(db, trimmed);
     setResult(r);
     if (r.ok) {
       const v = validateSQL(db, sql.trim(), ch.validate);
@@ -1131,6 +1221,48 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const resetSQL = () => { setSql("SELECT \n  \nFROM "); setCPos(7); setResult(null); setVerdict(null); };
   const desc = lang === "pt" ? ch.desc_pt : ch.desc_en;
 
+  // AuxKeyboard handlers
+  const handleAuxInsert = useCallback((text) => {
+    insert(text);
+    // Keep native keyboard open if already editing
+    if (editing && taRef.current) {
+      const ta = taRef.current;
+      requestAnimationFrame(() => {
+        ta.focus();
+        setCPos(prev => { ta.setSelectionRange(prev, prev); return prev; });
+      });
+    }
+  }, [insert, editing]);
+
+  const handleAuxControl = useCallback((action) => {
+    if (action === "escape") { onBack(); return; }
+    if (action === "left") {
+      setCPos(p => Math.max(0, p - 1));
+    } else if (action === "right") {
+      setCPos(p => Math.min(sql.length, p + 1));
+    }
+  }, [onBack, sql.length]);
+
+  const handleHistoryNav = useCallback((direction) => {
+    const query = navigateHistory(direction === "up" ? 1 : -1);
+    if (query !== null) {
+      setSql(query);
+      setCPos(query.length);
+    }
+  }, [navigateHistory]);
+
+  // Schema viewer: handle `.schema` command typed in the editor
+  const schemaOutput = (() => {
+    const s = sql.trim().toLowerCase();
+    if (s === ".schema" || s === ".tables") {
+      return ch.schema.split("\n").map(l => {
+        const [t, ...cols] = l.split(":");
+        return { table: t.trim(), cols: cols.join(":").trim() };
+      });
+    }
+    return null;
+  })();
+
   // Desktop keyboard shortcuts
   useEffect(() => {
     const onKey = (e) => {
@@ -1142,29 +1274,47 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   }, [sql, db, focusMode]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void }}>
-      {/* Header — hidden in focus mode (title moves to TopBar) */}
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#000000" }}>
+      {/* Header — hidden in focus mode */}
       {!focusMode && (
-        <div style={{ padding: "6px 14px", borderBottom: `1px solid ${C.border}`, background: C.black, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.dim, padding: "5px 12px", minHeight: 32 }}>ESC</button>
-          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{ch.id} {ch.title}</div></div>
-          <Tag color={ch.color}>{ch.diff}</Tag>
+        <div style={{ padding: "5px 12px", borderBottom: `1px solid ${C.border}`, background: C.black, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 10px", minHeight: 28 }}>←</button>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: C.muted }}>#{ch.id}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.title}</span>
+          </div>
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: ch.color, border: `1px solid ${ch.color}40`, padding: "2px 6px" }}>{ch.diff}</span>
         </div>
       )}
-      {/* Problem line — always visible (collapsed in focus mode) */}
-      <button onClick={() => !focusMode && setProbOpen(!probOpen)} style={{ background: probOpen && !focusMode ? C.panel : C.black, border: "none", borderBottom: `1px solid ${C.border}`, cursor: focusMode ? "default" : "pointer", textAlign: "left", width: "100%", padding: focusMode ? "5px 14px" : "6px 14px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        {!focusMode && <span style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, transition: "transform 0.25s", transform: probOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>}
-        <div style={{ fontFamily: F.mono, fontSize: focusMode ? 11 : 13, color: C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}><span style={{ color: C.cyanDim }}>/* </span>{desc}<span style={{ color: C.cyanDim }}> */</span></div>
+      {/* Problem description — collapsible */}
+      <button onClick={() => !focusMode && setProbOpen(!probOpen)} style={{
+        background: C.black, border: "none", borderBottom: `1px solid ${C.border}`,
+        cursor: focusMode ? "default" : "pointer", textAlign: "left", width: "100%",
+        padding: "5px 12px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+      }}>
+        {!focusMode && <span style={{ fontFamily: F.mono, fontSize: 11, color: C.dim }}>{probOpen ? "▼" : "▶"}</span>}
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+          <span style={{ color: C.dim }}>-- </span>{desc}
+        </div>
       </button>
       {probOpen && !focusMode && (
-        <div style={{ padding: "0 14px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.2s ease" }}>
-          <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, lineHeight: 1.7, marginBottom: 8 }}>{desc}</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: C.black, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.cyanDim, padding: "5px 10px", minHeight: 30 }}>{showSchema ? "HIDE" : "SCHEMA"}</button>
-            <button onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: C.black, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.amber, padding: "5px 10px", minHeight: 30 }}>{showHint ? "HIDE" : "HINT"}</button>
+        <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
+          <div style={{ fontFamily: F.mono, fontSize: 12, color: C.text, lineHeight: 1.7, marginBottom: 8 }}>{desc}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
+            <button onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
           </div>
-          {showSchema && <div style={{ marginTop: 12, background: C.black, border: `1px solid ${C.border}`, padding: 14, fontFamily: F.mono, fontSize: 14, animation: "fadeSlide 0.15s ease" }}>{ch.schema.split("\n").map((l, i) => { const [t, ...c] = l.split(":"); return <div key={i} style={{ marginBottom: 4 }}><span style={{ color: C.purple }}>{t.trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.green }}>{c.join(":").trim()}</span></div>; })}</div>}
-          {showHint && <div style={{ marginTop: 12, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: 14, fontFamily: F.mono, fontSize: 14, color: C.amber, lineHeight: 1.8 }}>{ch.hint}</div>}
+          {showSchema && (
+            <div style={{ marginTop: 8, background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, animation: "fadeSlide 0.15s ease" }}>
+              {ch.schema.split("\n").map((l, i) => {
+                const [t, ...c] = l.split(":");
+                return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.orange }}>{t.trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.green }}>{c.join(":").trim()}</span></div>;
+              })}
+            </div>
+          )}
+          {showHint && (
+            <div style={{ marginTop: 8, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>{ch.hint}</div>
+          )}
         </div>
       )}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -1225,76 +1375,36 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             <button onClick={clearResult} style={{ width: "100%", padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, background: C.panel, border: "none", borderTop: `1px solid ${C.border}`, letterSpacing: 1 }}>✎ EDIT CODE</button>
           </div>
         )}
-        {/* Toolbars — hidden when result showing OR when keyboard is open */}
-        {!result && !editing && (
-          <>
-            {/* ── Collapsible TBL / COLS / SQL panels ── */}
-            {(() => {
-              const tblNames = ch.schema.split("\n").map(l => l.split(":")[0].trim());
-              const colNames = ch.schema.split("\n").flatMap(l => { const parts = l.split(":"); return parts.length > 1 ? parts.slice(1).join(":").split(",").map(c => c.trim()) : []; }).filter((v, i, a) => v && a.indexOf(v) === i);
-              const panels = [
-                { key: "tbl", label: "TBL", color: C.purple, items: tblNames.map(t => ({ text: t, color: C.purple, bg: `${C.purple}15`, border: `${C.purple}30` })) },
-                { key: "cols", label: "COLS", color: C.green, items: colNames.map(c => ({ text: c, color: C.green, bg: "none", border: C.border })) },
-                { key: "sql", label: "SQL", color: C.cyan, items: kw.map(k => ({ text: k, color: C.cyan, bg: C.cyanGhost, border: `${C.cyan}25` })) },
-              ];
-              return (
-                <>
-                  <div style={{ display: "flex", gap: 0, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-                    {panels.map(p => (
-                      <button key={p.key} onClick={() => setOpenPanel(openPanel === p.key ? null : p.key)} style={{
-                        flex: 1, padding: "9px 0", cursor: "pointer",
-                        fontFamily: F.mono, fontSize: 14, fontWeight: 700, letterSpacing: 1,
-                        color: openPanel === p.key ? C.black : p.color,
-                        background: openPanel === p.key ? p.color : C.black,
-                        border: "none", borderRight: `1px solid ${C.border}`,
-                        transition: "all 0.15s",
-                      }}>{p.label}</button>
-                    ))}
-                    <button onClick={() => setFocusMode(f => !f)} style={{
-                      padding: "9px 14px", cursor: "pointer",
-                      fontFamily: F.mono, fontSize: 14, fontWeight: 700, letterSpacing: 1,
-                      color: focusMode ? C.black : C.amber,
-                      background: focusMode ? C.amber : C.black,
-                      border: "none",
-                      transition: "all 0.15s", flexShrink: 0,
-                    }}>{focusMode ? "✕" : "◉"}</button>
-                  </div>
-                  {openPanel && (() => {
-                    const p = panels.find(x => x.key === openPanel);
-                    if (!p) return null;
-                    return (
-                      <div style={{ padding: "5px 10px", background: C.panel, borderTop: `1px solid ${C.border}`, display: "flex", gap: 5, overflowX: "auto", flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
-                        {p.items.map((item, i) => (
-                          <button key={i} onClick={() => insert(item.text + " ")} style={{
-                            background: item.bg, border: `1px solid ${item.border}`, cursor: "pointer",
-                            padding: "8px 14px", whiteSpace: "nowrap",
-                            fontFamily: F.mono, fontSize: 16, color: item.color, minHeight: 38,
-                          }}>{item.text}</button>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </>
-              );
-            })()}
-            {/* ── Utility keys ── */}
-            <div style={{ padding: "6px 8px", background: C.panel, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, overflowX: "auto", flexShrink: 0 }}>
-              <button onClick={backspace} style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "6px 14px", fontFamily: F.mono, fontSize: 18, color: C.red, minHeight: 40, fontWeight: 700 }}>⌫</button>
-              <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "6px 13px", fontFamily: F.mono, fontSize: 17, color: C.cyan, minHeight: 40, fontWeight: 700 }}>↵</button>
-              <button onClick={() => insert("  ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 10px", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40 }}>TAB</button>
-              <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 12px", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40 }}>SPC</button>
-              {["*",",","(",")","'","=",">","<",";","."].map(ch2 => (
-                <button key={ch2} onClick={() => insert(ch2)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "6px 9px", fontFamily: F.mono, fontSize: 16, color: C.white, minHeight: 40 }}>{ch2}</button>
-              ))}
-            </div>
-          </>
+        {/* Schema viewer — shown when .schema command is detected */}
+        {schemaOutput && (
+          <div style={{ padding: "8px 14px", background: C.panel, borderTop: `1px solid ${C.border}`, flexShrink: 0, fontFamily: F.mono, fontSize: 12, animation: "fadeSlide 0.15s ease" }}>
+            <div style={{ color: C.dim, marginBottom: 6 }}>-- schema output --</div>
+            {schemaOutput.map(({ table, cols }) => (
+              <div key={table} style={{ marginBottom: 4 }}>
+                <span style={{ color: C.orange }}>{table}</span>
+                <span style={{ color: C.dim }}>: </span>
+                <span style={{ color: C.green }}>{cols}</span>
+              </div>
+            ))}
+          </div>
         )}
-        {/* ── RUN button — shown when no result. When keyboard open, only show RUN (hide toolbars above) ── */}
+        {/* AuxKeyboard — always visible (dual-row virtual keyboard) */}
         {!result && (
-          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "5px 10px 5px", paddingBottom: "calc(5px + env(safe-area-inset-bottom, 0px))", background: C.black, display: "flex", gap: 8, flexShrink: 0 }}>
-            <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "11px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 16, letterSpacing: 1, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 46, width: 54, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
-            <button onClick={resetSQL} style={{ padding: "11px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 18, letterSpacing: 1, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 46, width: 50, flexShrink: 0 }}>↺</button>
-            <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "11px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, boxShadow: `0 0 14px ${C.green}35`, minHeight: 46, opacity: dbReady ? 1 : 0.4 }}>▶ RUN</button>
+          <AuxKeyboard
+            onInsert={handleAuxInsert}
+            onControl={handleAuxControl}
+            onHistoryNav={handleHistoryNav}
+            focusMode={focusMode}
+          />
+        )}
+        {/* ── RUN + utility bar ── */}
+        {!result && (
+          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
+            <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
+            <button onClick={backspace} style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
+            <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
+            <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
+            <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
           </div>
         )}
       </div>
@@ -1317,38 +1427,59 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
     if (pick) onNavigate("challenge", pick.id);
   };
   return (
-    <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
-      <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, marginBottom: 8 }}><Prompt path="/practice" /></div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-        <div style={{ fontFamily: F.mono, fontSize: 28, color: C.cyan, animation: "pulseGlow 3s ease infinite", flex: 1 }}>{t("practice_title")}</div>
-        <button onClick={goRandom} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 14px", fontFamily: F.mono, fontSize: 14, color: C.cyan, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>🎲 {lang === "pt" ? "ALEATÓRIO" : "RANDOM"}</button>
+    <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
+      <div style={{ fontSize: 12, color: C.dim, marginBottom: 10 }}>
+        <Prompt path="/code" /><span style={{ color: C.text }}> ls --sort=diff challenges/</span>
       </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, overflowX: "auto" }}>
+      {/* Filter bar */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" }}>
         {["ALL","EASY","MED","HARD","EXPERT"].map(f => {
           const total = f === "ALL" ? CHALLENGES_DB.length : CHALLENGES_DB.filter(c => c.diff === f).length;
           const solvedCnt = f === "ALL" ? solved.size : CHALLENGES_DB.filter(c => c.diff === f && solved.has(c.id)).length;
           const pct = total > 0 ? Math.round(solvedCnt / total * 100) : 0;
-          return <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? C.cyanGhost : "none", border: `1px solid ${filter === f ? C.cyan : C.border}`, cursor: "pointer", padding: "10px 14px", minHeight: 44, fontFamily: F.mono, fontSize: 15, color: filter === f ? C.cyan : C.dim, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}><span>{f}</span><span style={{ fontSize: 11, color: filter === f ? C.cyan : C.muted }}>{pct}%</span></button>;
+          const fc = f === "EASY" ? C.green : f === "MED" ? C.cyan : f === "HARD" ? C.amber : f === "EXPERT" ? C.red : C.dim;
+          return (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              background: filter === f ? `${fc}18` : "none", border: `1px solid ${filter === f ? fc : C.border}`,
+              cursor: "pointer", padding: "5px 10px", whiteSpace: "nowrap",
+              fontFamily: F.mono, fontSize: 11, color: filter === f ? fc : C.muted,
+            }}>
+              {f} <span style={{ opacity: 0.6 }}>{pct}%</span>
+            </button>
+          );
         })}
+        <button onClick={goRandom} style={{
+          background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer",
+          padding: "5px 10px", fontFamily: F.mono, fontSize: 11, color: C.cyan, marginLeft: "auto", flexShrink: 0,
+        }}>{lang === "pt" ? "ALEATÓRIO" : "RANDOM"}</button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Challenge list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {filtered.map((ch, i) => {
           const isSolved = solved.has(ch.id);
+          const dc = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red;
           return (
-          <button key={ch.id} onClick={() => onNavigate("challenge", ch.id)} style={{ background: C.panel, border: `1px solid ${isSolved ? `${C.green}40` : C.border}`, cursor: "pointer", textAlign: "left", width: "100%", padding: "16px 18px", display: "flex", alignItems: "center", gap: 16, animation: `fadeSlide 0.3s ease ${i * 0.04}s both`, minHeight: 68 }}>
-            <div style={{ width: 36, height: 36, flexShrink: 0, border: `2px solid ${isSolved ? C.green : ch.color}`, background: isSolved ? `${C.green}15` : "none", display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(45deg)" }}>
-              <span style={{ transform: "rotate(-45deg)", fontFamily: F.mono, fontSize: isSolved ? 16 : 15, fontWeight: 700, color: isSolved ? C.green : ch.color }}>{isSolved ? "✓" : ch.id}</span>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: F.mono, fontSize: 17, color: isSolved ? C.greenDim : C.white }}>{ch.title}</div>
-              <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 4 }}>{lang === "pt" ? ch.desc_pt : ch.desc_en}</div>
-            </div>
-            <Tag color={ch.color}>{ch.diff}</Tag>
-          </button>
+            <button key={ch.id} onClick={() => onNavigate("challenge", ch.id)} style={{
+              background: "none", border: `1px solid ${isSolved ? `${C.green}25` : "transparent"}`,
+              cursor: "pointer", textAlign: "left", width: "100%", padding: "8px 10px",
+              display: "flex", alignItems: "center", gap: 10,
+              animation: `fadeSlide 0.2s ease ${Math.min(i, 20) * 0.02}s both`,
+            }}>
+              <span style={{ color: isSolved ? C.green : C.muted, fontSize: 11, width: 14, flexShrink: 0 }}>
+                {isSolved ? "✓" : "·"}
+              </span>
+              <span style={{ color: dc, fontSize: 10, minWidth: 32, flexShrink: 0 }}>{ch.diff}</span>
+              <span style={{ fontSize: 13, color: isSolved ? C.dim : C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {ch.title}
+              </span>
+              <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>#{ch.id}</span>
+            </button>
           );
         })}
       </div>
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 16, textAlign: "center" }}>{lang === "pt" ? `// ${filtered.length} de ${CHALLENGES_DB.length}` : `// ${filtered.length} of ${CHALLENGES_DB.length}`}</div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 10, textAlign: "center" }}>
+        {filtered.length} challenges · {solved.size}/{CHALLENGES_DB.length} solved
+      </div>
     </div>
   );
 }
@@ -2104,7 +2235,7 @@ export default function PunkSQLCLI() {
     setLastContext("learn");
   }, []);
 
-  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: C.void, fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", boxShadow: `0 0 80px ${C.cyan}08`, animation: "crtFlicker 4s ease infinite" };
+  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" };
   const ctx = { lang, t };
 
   // Build focus title from current challenge
