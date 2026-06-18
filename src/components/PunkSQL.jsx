@@ -928,7 +928,7 @@ function AuxKeyboard({ onInsert, onControl, onHistoryNav }) {
     { label: "/",    onPress: () => onInsert("/") },
     { label: "—",    onPress: () => onInsert("-") },
     { label: "HOME", onPress: () => onControl("home"), fontSize: 10 },
-    { label: "↑",    onPress: () => onHistoryNav("up") },
+    { label: "↑",    onPress: () => onControl("up") },
     { label: "END",  onPress: () => onControl("end"), fontSize: 10 },
     { label: "PGUP", onPress: () => onControl("pgup"), fontSize: 10 },
   ];
@@ -939,7 +939,7 @@ function AuxKeyboard({ onInsert, onControl, onHistoryNav }) {
     { label: "CTRL", onPress: () => onControl("ctrl") },
     { label: "ALT",  onPress: () => onControl("alt") },
     { label: "←",    onPress: () => onControl("left") },
-    { label: "↓",    onPress: () => onHistoryNav("down") },
+    { label: "↓",    onPress: () => onControl("down") },
     { label: "→",    onPress: () => onControl("right") },
     { label: "PGDN", onPress: () => onControl("pgdn"), fontSize: 10 },
   ];
@@ -1305,12 +1305,46 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const handleAuxControl = useCallback((action) => {
     if (action === "escape") { onBack(); return; }
+
+    const moveTo = (newPos) => {
+      setCPos(newPos);
+      requestAnimationFrame(() => {
+        if (taRef.current) {
+          taRef.current.focus();
+          taRef.current.setSelectionRange(newPos, newPos);
+        }
+      });
+    };
+
     if (action === "left") {
-      setCPos(p => Math.max(0, p - 1));
+      moveTo(Math.max(0, cPos - 1));
     } else if (action === "right") {
-      setCPos(p => Math.min(sql.length, p + 1));
+      moveTo(Math.min(sqlRef.current.length, cPos + 1));
+    } else if (action === "up" || action === "down") {
+      const s = sqlRef.current;
+      const lines = s.split("\n");
+      // Find current line index and column
+      let rem = cPos, lineIdx = 0;
+      for (let i = 0; i < lines.length; i++) {
+        if (rem <= lines[i].length) { lineIdx = i; break; }
+        rem -= lines[i].length + 1;
+      }
+      const col = rem;
+      const targetLine = lineIdx + (action === "up" ? -1 : 1);
+      if (targetLine < 0 || targetLine >= lines.length) return;
+      let newPos = 0;
+      for (let i = 0; i < targetLine; i++) newPos += lines[i].length + 1;
+      moveTo(newPos + Math.min(col, lines[targetLine].length));
+    } else if (action === "home") {
+      const s = sqlRef.current;
+      const lineStart = s.lastIndexOf("\n", cPos - 1) + 1;
+      moveTo(lineStart);
+    } else if (action === "end") {
+      const s = sqlRef.current;
+      const lineEnd = s.indexOf("\n", cPos);
+      moveTo(lineEnd === -1 ? s.length : lineEnd);
     }
-  }, [onBack, sql.length]);
+  }, [onBack, cPos]);
 
   const handleHistoryNav = useCallback((direction) => {
     const isUp = direction === "up";
