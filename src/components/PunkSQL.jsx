@@ -876,17 +876,17 @@ function validateSQL(db, userSQL, expectedSQL) {
 // ═══════════════════════════════════════════════════════════
 
 // Shared key button used in both the Termux rows and the token panel
-function AuxKey({ label, onPress, flex = 1, fontSize = 12, color = "#FFFFFF", bg = "#000000", bold = false }) {
+function AuxKey({ label, onPress, flex = 1, fontSize = 12, color = "#FFFFFF", bg = "#000000" }) {
   return (
     <button
       onPointerDown={e => { e.preventDefault(); onPress(); }}
       style={{
         flex, minHeight: 40, background: bg,
-        border: "none", borderRight: "1px solid #1A1A1A",
+        border: "none",
         cursor: "pointer", fontFamily: F.mono, fontSize, color,
-        fontWeight: bold ? 700 : 400,
+        fontWeight: 400,
         display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 0, letterSpacing: 0.2, userSelect: "none",
+        padding: 0, letterSpacing: 0.3, userSelect: "none",
       }}
     >
       {label}
@@ -945,12 +945,10 @@ function AuxKeyboard({ onInsert, onControl, onHistoryNav }) {
   ];
 
   return (
-    <div style={{ background: "#000000", flexShrink: 0, userSelect: "none" }}>
+    <div style={{ background: "#000000", flexShrink: 0, userSelect: "none", borderTop: "1px solid #222" }}>
 
       {/* Tab selector row */}
-      <div style={{
-        display: "flex", borderTop: "1px solid #1A1A1A", borderBottom: "1px solid #1A1A1A",
-      }}>
+      <div style={{ display: "flex" }}>
         {tabDefs.map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -958,11 +956,11 @@ function AuxKeyboard({ onInsert, onControl, onHistoryNav }) {
               key={tab.id}
               onPointerDown={e => { e.preventDefault(); setActiveTab(isActive ? null : tab.id); }}
               style={{
-                flex: 1, minHeight: 34, background: isActive ? `${tab.color}18` : "#000000",
-                border: "none", borderRight: "1px solid #1A1A1A",
+                flex: 1, minHeight: 34, background: "#000000",
+                border: "none",
                 borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
                 cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-                color: isActive ? tab.color : "#666666",
+                color: isActive ? tab.color : "#555",
                 fontWeight: isActive ? 700 : 400,
                 letterSpacing: 1, userSelect: "none",
               }}
@@ -978,8 +976,7 @@ function AuxKeyboard({ onInsert, onControl, onHistoryNav }) {
         <div style={{
           display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
           scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
-          borderBottom: "1px solid #1A1A1A", minHeight: 38,
-          background: "#000000",
+          minHeight: 38, background: "#000000",
         }}>
           {activeTokens.tokens.length === 0 && (
             <span style={{ fontFamily: F.mono, fontSize: 11, color: "#444", alignSelf: "center" }}>
@@ -997,14 +994,14 @@ function AuxKeyboard({ onInsert, onControl, onHistoryNav }) {
         </div>
       )}
 
-      {/* Termux row 1 */}
-      <div style={{ display: "flex", borderBottom: "1px solid #1A1A1A" }}>
+      {/* Termux row 1: ESC / — HOME ↑ END PGUP */}
+      <div style={{ display: "flex" }}>
         {row1.map(k => (
           <AuxKey key={k.label} label={k.label} onPress={k.onPress} fontSize={k.fontSize ?? 12} />
         ))}
       </div>
 
-      {/* Termux row 2 */}
+      {/* Termux row 2: TAB CTRL ALT ← ↓ → PGDN */}
       <div style={{ display: "flex" }}>
         {row2.map(k => (
           <AuxKey key={k.label} label={k.label} onPress={k.onPress} fontSize={k.fontSize ?? 12} />
