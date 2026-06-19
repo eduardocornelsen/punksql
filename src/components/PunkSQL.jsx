@@ -1039,7 +1039,7 @@ function AuxKeyboard({ onInsert, onControl }) {
 
   // Termux row 2: TAB ( ) ← ↓ → PGDN→bottom
   const row2 = [
-    { label: "TAB",  onPress: () => onInsert("\t") },
+    { label: "TAB",  onPress: () => onInsert("  ") },
     { label: "(",    onPress: () => onInsert("(") },
     { label: ")",    onPress: () => onInsert(")") },
     { label: "←",    onPress: () => onControl("left"),  repeat: true },
@@ -1603,7 +1603,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               position: "absolute", top: 8, left: 18, right: 18,
               margin: 0, paddingTop: 6, border: "none",
               fontFamily: F.mono, fontSize: 18, lineHeight: 2,
-              whiteSpace: "pre", wordWrap: "normal", overflowWrap: "normal",
+              whiteSpace: "pre", wordWrap: "normal", overflowWrap: "normal", tabSize: 2,
               color: TOKEN_COLORS.text, background: "transparent",
               pointerEvents: "none", zIndex: 1, userSelect: "none",
             }}>
@@ -1650,7 +1650,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                 width: "100%",
                 minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`,
                 background: "transparent", border: "none", color: "transparent",
-                fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none",
+                fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none", tabSize: 2,
                 outline: "none", caretColor: editing ? C.cyan : "transparent",
                 paddingTop: 6, cursor: "text", whiteSpace: "pre",
                 overflowX: "hidden", overflowY: "hidden",
