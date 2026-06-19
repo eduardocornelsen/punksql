@@ -1239,12 +1239,20 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const isTouch = useRef(false);
   useEffect(() => {
     isTouch.current = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    // Desktop: auto-focus the textarea immediately so physical keyboard is always ready
+    if (!isTouch.current) {
+      setEditing(true);
+      requestAnimationFrame(() => { taRef.current?.focus(); });
+    }
   }, []);
 
   // Desktop mouse click only — touch is handled entirely by onEditorTouch*
   const onTap = (e) => {
     if (isTouch.current) return;
-    setCPos(tapToPos(e.clientX, e.clientY));
+    const newPos = tapToPos(e.clientX, e.clientY);
+    setCPos(newPos);
+    // Re-focus in case the user clicked outside and lost focus
+    taRef.current?.focus();
   };
 
   const onEditorTouchStart = (e) => {
