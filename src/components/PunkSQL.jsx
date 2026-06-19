@@ -951,10 +951,29 @@ function validateSQL(db, userSQL, expectedSQL) {
 // ═══════════════════════════════════════════════════════════
 
 // Shared key button used in both the Termux rows and the token panel
-function AuxKey({ label, onPress, flex = 1 }) {
+function AuxKey({ label, onPress, flex = 1, repeat = false }) {
+  const timerRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  const start = (e) => {
+    e.preventDefault();
+    onPress();
+    if (repeat) {
+      timerRef.current = setTimeout(() => {
+        intervalRef.current = setInterval(onPress, 80);
+      }, 380);
+    }
+  };
+  const stop = () => {
+    clearTimeout(timerRef.current);
+    clearInterval(intervalRef.current);
+  };
+
   return (
     <button
-      onPointerDown={e => { e.preventDefault(); onPress(); }}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
       style={{
         flex, minHeight: 40, background: "#000000",
         border: "none",
@@ -995,7 +1014,7 @@ function TokenChip({ text, color, onTap }) {
 
 function AuxKeyboard({ onInsert, onControl }) {
   const keyboardTokens = useGameStore(s => s.keyboardTokens);
-  const [activeTab, setActiveTab] = useState(null); // null | "tables" | "columns" | "sql"
+  const [activeTab, setActiveTab] = useState("sql");
 
   const tabDefs = [
     { id: "tables",  label: "TABLES",  color: C.orange, tokens: keyboardTokens.tables,   onTap: t => onInsert(t) },
@@ -1012,7 +1031,7 @@ function AuxKeyboard({ onInsert, onControl }) {
     { label: "*",    onPress: () => onInsert("*") },
     { label: ",",    onPress: () => onInsert(",") },
     { label: "HOME", onPress: () => onControl("home") },
-    { label: "↑",    onPress: () => onControl("up") },
+    { label: "↑",    onPress: () => onControl("up"),    repeat: true },
     { label: "END",  onPress: () => onControl("end") },
     { label: "PGUP", onPress: () => onControl("top") },
   ];
@@ -1022,9 +1041,9 @@ function AuxKeyboard({ onInsert, onControl }) {
     { label: "TAB",  onPress: () => onInsert("\t") },
     { label: "(",    onPress: () => onInsert("(") },
     { label: ")",    onPress: () => onInsert(")") },
-    { label: "←",    onPress: () => onControl("left") },
-    { label: "↓",    onPress: () => onControl("down") },
-    { label: "→",    onPress: () => onControl("right") },
+    { label: "←",    onPress: () => onControl("left"),  repeat: true },
+    { label: "↓",    onPress: () => onControl("down"),  repeat: true },
+    { label: "→",    onPress: () => onControl("right"), repeat: true },
     { label: "PGDN", onPress: () => onControl("bottom") },
   ];
 
@@ -1080,12 +1099,12 @@ function AuxKeyboard({ onInsert, onControl }) {
 
       {/* Termux row 1: ESC / — HOME ↑ END PGUP */}
       <div style={{ display: "flex" }}>
-        {row1.map(k => <AuxKey key={k.label} label={k.label} onPress={k.onPress} />)}
+        {row1.map(k => <AuxKey key={k.label} label={k.label} onPress={k.onPress} repeat={!!k.repeat} />)}
       </div>
 
       {/* Termux row 2: TAB CTRL ALT ← ↓ → PGDN */}
       <div style={{ display: "flex" }}>
-        {row2.map(k => <AuxKey key={k.label} label={k.label} onPress={k.onPress} />)}
+        {row2.map(k => <AuxKey key={k.label} label={k.label} onPress={k.onPress} repeat={!!k.repeat} />)}
       </div>
 
     </div>
@@ -1115,6 +1134,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [menuOpen, setMenuOpen] = useState(false);
   const [showExpected, setShowExpected] = useState(false);
   const taRef = useRef(null), edRef = useRef(null);
+  const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql without stale-closure issues in callbacks
   const sqlRef = useRef(sql);
   useEffect(() => { sqlRef.current = sql; }, [sql]);
@@ -1678,8 +1698,12 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         {!result && (
           <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
             <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
-            <button onClick={backspace} style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
-            <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 11, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0, letterSpacing: 1 }}>SPC</button>
+            <button
+              onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
+              onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
+              onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
+              style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
+            <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
             <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
             <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
             <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
