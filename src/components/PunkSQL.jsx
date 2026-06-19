@@ -1017,11 +1017,18 @@ function AuxKeyboard({ onInsert, onControl }) {
   const keyboardTokens = useGameStore(s => s.keyboardTokens);
   const [activeTab, setActiveTab] = useState("sql");
 
+  const SQL_SYMBOLS = [
+    "=", "!=", "<>", "<", ">", "<=", ">=",
+    "(", ")", "[", "]", "'", "\"",
+    "%", "_", ".", ";", "||", "::",
+    "+", "-", "/", "~", "&", "|",
+  ];
+
   const tabDefs = [
-    { id: "tables",  label: "TABLES",  color: C.orange, tokens: keyboardTokens.tables,   onTap: t => onInsert(t) },
-    { id: "columns", label: "COLUMNS", color: C.green,  tokens: keyboardTokens.columns,  onTap: c => onInsert(c) },
-    // No leading space — handleAuxInsert adds one only when cursor isn't already at whitespace
-    { id: "sql",     label: "SQL",     color: C.cyan,   tokens: keyboardTokens.keywords, onTap: k => onInsert(k + " ") },
+    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,   onTap: t => onInsert(t) },
+    { id: "columns", label: "COLUMNS", color: C.green,   tokens: keyboardTokens.columns,  onTap: c => onInsert(c) },
+    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords, onTap: k => onInsert(k + " ") },
+    { id: "symbols", label: "SYM",     color: "#CC88FF", tokens: SQL_SYMBOLS,             onTap: s => onInsert(s) },
   ];
 
   const activeTokens = tabDefs.find(t => t.id === activeTab);
