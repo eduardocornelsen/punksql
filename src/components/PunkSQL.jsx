@@ -1498,11 +1498,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   }, [sql, db]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#000000" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#000000", position: "relative" }}>
 
       {/* Hamburger exercise list overlay (lesson mode) */}
       {menuOpen && exercises && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", zIndex: 200, display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.97)", zIndex: 200, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <span style={{ fontFamily: F.mono, fontSize: 12, color: C.cyan, letterSpacing: 1 }}>// exercises</span>
             <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 10px" }}>✕</button>
