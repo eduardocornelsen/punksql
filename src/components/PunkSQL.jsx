@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useProgress } from "@/hooks/useProgress";
 import useGameStore from "@/stores/useGameStore";
