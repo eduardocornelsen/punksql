@@ -204,6 +204,79 @@ body{height:100%;min-height:-webkit-fill-available;background:#111}
 @media screen and (orientation:landscape) and (max-height:500px){.landscape-warn{display:flex}}
 `;
 
+// ── SQL Syntax Tokenizer ──────────────────────────────────
+const SQL_KW_SET = new Set([
+  "SELECT","FROM","WHERE","JOIN","ON","LEFT","RIGHT","INNER","OUTER","FULL","CROSS",
+  "GROUP","ORDER","BY","HAVING","LIMIT","OFFSET","AS","AND","OR","NOT","IN",
+  "LIKE","ILIKE","BETWEEN","IS","NULL","DISTINCT","COUNT","SUM","AVG","MIN","MAX",
+  "ROUND","SUBSTR","UPPER","LOWER","LENGTH","COALESCE","IFNULL","NULLIF","CAST","TYPEOF",
+  "DESC","ASC","WITH","OVER","PARTITION","ROW_NUMBER","RANK","LAG","LEAD",
+  "NTILE","DENSE_RANK","FIRST_VALUE","LAST_VALUE","PERCENT_RANK","CUME_DIST",
+  "CREATE","TABLE","INSERT","UPDATE","DELETE","DROP","ALTER","INDEX","VIEW",
+  "CASE","WHEN","THEN","ELSE","END","EXISTS","UNION","ALL","EXCEPT","INTERSECT",
+  "INTO","VALUES","SET","PRIMARY","KEY","FOREIGN","REFERENCES","UNIQUE","DEFAULT",
+  "TRUE","FALSE","RETURNING","EXPLAIN","PRAGMA","ATTACH","DETACH",
+]);
+
+const TOKEN_COLORS = {
+  keyword: "#00FFFF",   // cyan
+  table:   "#FF8800",   // orange
+  column:  "#00FF88",   // green
+  string:  "#FFBB00",   // amber
+  comment: "#444444",
+  number:  "#CC88FF",   // purple
+  text:    "#CCCCCC",
+  punct:   "#666666",
+};
+
+function tokenizeSQL(sql, tables = [], columns = []) {
+  const tableSet  = new Set(tables.map(t => t.toLowerCase()));
+  const colSet    = new Set(columns.map(c => c.toLowerCase()));
+  const out = [];
+  let i = 0;
+  while (i < sql.length) {
+    // Line comment
+    if (sql[i] === "-" && sql[i + 1] === "-") {
+      let j = i;
+      while (j < sql.length && sql[j] !== "\n") j++;
+      out.push({ type: "comment", value: sql.slice(i, j) });
+      i = j;
+    }
+    // String literal
+    else if (sql[i] === "'" || sql[i] === '"') {
+      const q = sql[i]; let j = i + 1;
+      while (j < sql.length && sql[j] !== q) { if (sql[j] === "\\") j++; j++; }
+      out.push({ type: "string", value: sql.slice(i, j + 1) });
+      i = j + 1;
+    }
+    // Word (keyword / table / column / identifier)
+    else if (/[A-Za-z_]/.test(sql[i])) {
+      let j = i;
+      while (j < sql.length && /[A-Za-z0-9_]/.test(sql[j])) j++;
+      const word = sql.slice(i, j);
+      let type = "text";
+      if (SQL_KW_SET.has(word.toUpperCase()))       type = "keyword";
+      else if (tableSet.has(word.toLowerCase()))     type = "table";
+      else if (colSet.has(word.toLowerCase()))       type = "column";
+      out.push({ type, value: word });
+      i = j;
+    }
+    // Number
+    else if (/[0-9]/.test(sql[i])) {
+      let j = i;
+      while (j < sql.length && /[0-9.]/.test(sql[j])) j++;
+      out.push({ type: "number", value: sql.slice(i, j) });
+      i = j;
+    }
+    // Whitespace / punctuation (single char to preserve newlines etc.)
+    else {
+      out.push({ type: "punct", value: sql[i] });
+      i++;
+    }
+  }
+  return out;
+}
+
 // ── Utilities ─────────────────────────────────────────────
 const Cursor = () => <span style={{ display: "inline-block", width: 9, height: "1em", background: C.green, marginLeft: 2, animation: "blink 600ms step-end infinite", verticalAlign: "text-bottom" }} />;
 
@@ -897,9 +970,17 @@ function AuxKey({ label, onPress, flex = 1 }) {
 }
 
 function TokenChip({ text, color, onTap }) {
+  const startX = useRef(0);
   return (
     <button
-      onPointerDown={e => { e.preventDefault(); onTap(); }}
+      // Touch: only fire if the finger didn't scroll horizontally (>8 px = scroll)
+      onTouchStart={e => { startX.current = e.touches[0].clientX; }}
+      onTouchEnd={e => {
+        const dx = Math.abs(e.changedTouches[0].clientX - startX.current);
+        if (dx < 8) { e.preventDefault(); onTap(); }
+      }}
+      // Desktop: plain click
+      onClick={onTap}
       style={{
         background: `${color}18`, border: `1px solid ${color}50`,
         cursor: "pointer", fontFamily: F.mono, fontSize: 11, color,
@@ -919,31 +1000,32 @@ function AuxKeyboard({ onInsert, onControl }) {
   const tabDefs = [
     { id: "tables",  label: "TABLES",  color: C.orange, tokens: keyboardTokens.tables,   onTap: t => onInsert(t) },
     { id: "columns", label: "COLUMNS", color: C.green,  tokens: keyboardTokens.columns,  onTap: c => onInsert(c) },
-    { id: "sql",     label: "SQL",     color: C.cyan,   tokens: keyboardTokens.keywords, onTap: k => onInsert(" " + k + " ") },
+    // No leading space — handleAuxInsert adds one only when cursor isn't already at whitespace
+    { id: "sql",     label: "SQL",     color: C.cyan,   tokens: keyboardTokens.keywords, onTap: k => onInsert(k + " ") },
   ];
 
   const activeTokens = tabDefs.find(t => t.id === activeTab);
 
-  // Termux row 1: ESC / — HOME ↑ END PGUP
+  // Termux row 1: ESC * , HOME ↑ END PGUP→top
   const row1 = [
     { label: "ESC",  onPress: () => onControl("escape") },
-    { label: "/",    onPress: () => onInsert("/") },
-    { label: "—",    onPress: () => onInsert("-") },
+    { label: "*",    onPress: () => onInsert("*") },
+    { label: ",",    onPress: () => onInsert(",") },
     { label: "HOME", onPress: () => onControl("home") },
     { label: "↑",    onPress: () => onControl("up") },
     { label: "END",  onPress: () => onControl("end") },
-    { label: "PGUP", onPress: () => onControl("pgup") },
+    { label: "PGUP", onPress: () => onControl("top") },
   ];
 
-  // Termux row 2: TAB CTRL ALT ← ↓ → PGDN
+  // Termux row 2: TAB ( ) ← ↓ → PGDN→bottom
   const row2 = [
     { label: "TAB",  onPress: () => onInsert("\t") },
-    { label: "CTRL", onPress: () => onControl("ctrl") },
-    { label: "ALT",  onPress: () => onControl("alt") },
+    { label: "(",    onPress: () => onInsert("(") },
+    { label: ")",    onPress: () => onInsert(")") },
     { label: "←",    onPress: () => onControl("left") },
     { label: "↓",    onPress: () => onControl("down") },
     { label: "→",    onPress: () => onControl("right") },
-    { label: "PGDN", onPress: () => onControl("pgdn") },
+    { label: "PGDN", onPress: () => onControl("bottom") },
   ];
 
   return (
@@ -1031,12 +1113,18 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [db, setDb] = useState(null);
   const [openPanel, setOpenPanel] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showExpected, setShowExpected] = useState(false);
   const taRef = useRef(null), edRef = useRef(null);
   // Mirrors current sql without stale-closure issues in callbacks
   const sqlRef = useRef(sql);
   useEffect(() => { sqlRef.current = sql; }, [sql]);
   // Saved before entering history navigation; restored on ↓ back to present
   const historyDraftRef = useRef("");
+
+  // Syntax highlight — memoised tokenizer output
+  const hlTables  = useMemo(() => ch.schema.split("\n").map(l => l.split(":")[0].trim()).filter(Boolean), [ch.schema]);
+  const hlColumns = useMemo(() => ch.schema.split("\n").flatMap(l => { const p = l.split(":"); return p.length > 1 ? p.slice(1).join(":").split(",").map(c => c.trim()) : []; }).filter(Boolean), [ch.schema]);
+  const hlTokens  = useMemo(() => tokenizeSQL(sql, hlTables, hlColumns), [sql, hlTables, hlColumns]);
 
   // Zustand store — set active challenge for keyboard token loading
   const { setActiveChallenge, pushQueryHistory, navigateHistory, resetHistoryIndex, setCursorPosition } = useGameStore(
@@ -1272,6 +1360,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   // AuxKeyboard handlers
   const handleAuxInsert = useCallback((text) => {
+    // Smart leading space: if inserting a word token and the char before cursor
+    // is not already whitespace / opening bracket, prepend a space
+    const isWord = /^[A-Za-z_]/.test(text);
+    if (isWord) {
+      const before = sqlRef.current.substring(0, cPos);
+      if (before.length > 0 && !/[\s(,]$/.test(before)) {
+        text = " " + text;
+      }
+    }
     insert(text);
     // Keep native keyboard open if already editing
     if (editing && taRef.current) {
@@ -1281,7 +1378,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         setCPos(prev => { ta.setSelectionRange(prev, prev); return prev; });
       });
     }
-  }, [insert, editing]);
+  }, [insert, editing, cPos]);
 
   const handleAuxControl = useCallback((action) => {
     if (action === "escape") { onBack(); return; }
@@ -1303,7 +1400,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     } else if (action === "up" || action === "down") {
       const s = sqlRef.current;
       const lines = s.split("\n");
-      // Find current line index and column
       let rem = cPos, lineIdx = 0;
       for (let i = 0; i < lines.length; i++) {
         if (rem <= lines[i].length) { lineIdx = i; break; }
@@ -1316,13 +1412,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       for (let i = 0; i < targetLine; i++) newPos += lines[i].length + 1;
       moveTo(newPos + Math.min(col, lines[targetLine].length));
     } else if (action === "home") {
-      const s = sqlRef.current;
-      const lineStart = s.lastIndexOf("\n", cPos - 1) + 1;
+      const lineStart = sqlRef.current.lastIndexOf("\n", cPos - 1) + 1;
       moveTo(lineStart);
     } else if (action === "end") {
       const s = sqlRef.current;
       const lineEnd = s.indexOf("\n", cPos);
       moveTo(lineEnd === -1 ? s.length : lineEnd);
+    } else if (action === "top") {
+      moveTo(0);
+    } else if (action === "bottom") {
+      moveTo(sqlRef.current.length);
     }
   }, [onBack, cPos]);
 
@@ -1374,7 +1473,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", zIndex: 200, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <span style={{ fontFamily: F.mono, fontSize: 12, color: C.cyan, letterSpacing: 1 }}>// exercises</span>
-            <button onPointerDown={e => { e.preventDefault(); setMenuOpen(false); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 10px" }}>✕</button>
+            <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 10px" }}>✕</button>
           </div>
           <div style={{ overflowY: "auto", flex: 1 }}>
             {exercises.map((ex, i) => {
@@ -1427,6 +1526,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
             <button onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
+            <button onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
           </div>
           {showSchema && (
             <div style={{ marginTop: 8, background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, animation: "fadeSlide 0.15s ease" }}>
@@ -1439,6 +1539,21 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           {showHint && (
             <div style={{ marginTop: 8, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>{ch.hint}</div>
           )}
+          {showExpected && db && (() => {
+            const er = runSQL(db, ch.validate);
+            if (!er.ok) return <div style={{ marginTop: 8, background: C.redGhost, border: `1px solid ${C.red}40`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.red }}>{er.msg}</div>;
+            return (
+              <div style={{ marginTop: 8, background: C.surface, border: `1px solid ${C.green}40`, padding: "8px 10px", overflowX: "auto" }}>
+                <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginBottom: 6 }}>-- expected result ({er.rows.length} rows)</div>
+                {er.rows.length > 0 && (
+                  <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 11 }}>
+                    <thead><tr>{er.columns.map(c => <th key={c} style={{ padding: "3px 8px", borderBottom: `1px solid ${C.border}`, color: C.green, textAlign: "left", fontWeight: 400, whiteSpace: "nowrap" }}>{c}</th>)}</tr></thead>
+                    <tbody>{er.rows.slice(0, 20).map((row, i) => <tr key={i}>{row.map((v, j) => <td key={j} style={{ padding: "3px 8px", borderBottom: `1px solid ${C.border}10`, color: v === null ? C.dim : C.white, fontStyle: v === null ? "italic" : "normal", whiteSpace: "nowrap" }}>{v === null ? "NULL" : String(v)}</td>)}</tr>)}</tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -1465,8 +1580,29 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               onBlur={handleBlur}
               onSelect={e => setCPos(e.target.selectionStart || 0)}
               onFocus={() => { if (!isTouch.current) setEditing(true); }}
+              onClick={isTouch.current && !editing ? (e) => { e.preventDefault(); toggleKeyboard(); } : undefined}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const pos = e.target.selectionStart;
+                  const before = sql.substring(0, pos);
+                  const lineStart = before.lastIndexOf("\n") + 1;
+                  const currentLine = before.substring(lineStart);
+                  const indentMatch = currentLine.match(/^(\s*)/);
+                  const indent = indentMatch ? indentMatch[1] : "";
+                  const extraIndent = /\(\s*$/.test(before) || /^\s*(SELECT|WITH)\b/i.test(currentLine) ? "  " : "";
+                  const ins = "\n" + indent + extraIndent;
+                  setSql(s => s.substring(0, pos) + ins + s.substring(pos));
+                  const newPos = pos + ins.length;
+                  setCPos(newPos);
+                  requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
+                }
+              }}
               readOnly={isTouch.current && !editing}
               spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+              autoComplete="off"
               placeholder="-- write SQL here"
               style={{
                 width: "100%",
@@ -1534,17 +1670,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           </div>
         )}
         {/* AuxKeyboard — always visible (dual-row virtual keyboard) */}
-        {!result && (
-          <AuxKeyboard
-            onInsert={handleAuxInsert}
-            onControl={handleAuxControl}
-          />
-        )}
+        <AuxKeyboard
+          onInsert={handleAuxInsert}
+          onControl={handleAuxControl}
+        />
         {/* ── RUN + utility bar ── */}
         {!result && (
           <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
             <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
             <button onClick={backspace} style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
+            <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 11, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0, letterSpacing: 1 }}>SPC</button>
             <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
             <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
             <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>

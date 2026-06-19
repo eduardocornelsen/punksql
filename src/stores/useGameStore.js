@@ -1,11 +1,12 @@
 import { create } from "zustand";
 
 const SQL_KEYWORDS = [
-  "SELECT","FROM","WHERE","JOIN","ON","LEFT JOIN","INNER JOIN",
-  "GROUP BY","ORDER BY","HAVING","LIMIT","AS","AND","OR","NOT",
-  "IN","LIKE","BETWEEN","IS NULL","DISTINCT","COUNT()","SUM()",
-  "AVG()","MIN()","MAX()","ROUND()","SUBSTR()","DESC","ASC",
-  "WITH","OVER","PARTITION BY","ROW_NUMBER()","RANK()","LAG()","LEAD()",
+  "AS","SELECT","DISTINCT","FROM","WHERE","JOIN","LEFT JOIN","INNER JOIN",
+  "GROUP BY","ORDER BY","HAVING","LIMIT","OFFSET","AND","OR","NOT",
+  "IN","LIKE","BETWEEN","IS NULL","IS NOT NULL","COUNT()","SUM()",
+  "AVG()","MIN()","MAX()","ROUND()","SUBSTR()","UPPER()","LOWER()","COALESCE()",
+  "DESC","ASC","ON","CASE","WHEN","THEN","ELSE","END",
+  "WITH","OVER","PARTITION BY","ROW_NUMBER()","RANK()","DENSE_RANK()","LAG()","LEAD()",
 ];
 
 const HISTORY_KEY = "punksql-query-history";
