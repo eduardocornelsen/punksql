@@ -1136,9 +1136,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [showExpected, setShowExpected] = useState(false);
   const taRef = useRef(null), edRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
-  // Mirrors current sql without stale-closure issues in callbacks
+  // Mirrors current sql/cPos without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
+  const cPosRef = useRef(0);
   useEffect(() => { sqlRef.current = sql; }, [sql]);
+  useEffect(() => { cPosRef.current = cPos; }, [cPos]);
   // Saved before entering history navigation; restored on ↓ back to present
   const historyDraftRef = useRef("");
 
@@ -1404,7 +1406,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const handleAuxControl = useCallback((action) => {
     if (action === "escape") { onBack(); return; }
 
+    // Always read cPosRef.current so repeat-interval calls see the latest position
     const moveTo = (newPos) => {
+      cPosRef.current = newPos;
       setCPos(newPos);
       requestAnimationFrame(() => {
         if (taRef.current) {
@@ -1414,14 +1418,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       });
     };
 
+    const pos = cPosRef.current;
     if (action === "left") {
-      moveTo(Math.max(0, cPos - 1));
+      moveTo(Math.max(0, pos - 1));
     } else if (action === "right") {
-      moveTo(Math.min(sqlRef.current.length, cPos + 1));
+      moveTo(Math.min(sqlRef.current.length, pos + 1));
     } else if (action === "up" || action === "down") {
       const s = sqlRef.current;
       const lines = s.split("\n");
-      let rem = cPos, lineIdx = 0;
+      let rem = pos, lineIdx = 0;
       for (let i = 0; i < lines.length; i++) {
         if (rem <= lines[i].length) { lineIdx = i; break; }
         rem -= lines[i].length + 1;
@@ -1433,18 +1438,17 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       for (let i = 0; i < targetLine; i++) newPos += lines[i].length + 1;
       moveTo(newPos + Math.min(col, lines[targetLine].length));
     } else if (action === "home") {
-      const lineStart = sqlRef.current.lastIndexOf("\n", cPos - 1) + 1;
-      moveTo(lineStart);
+      moveTo(sqlRef.current.lastIndexOf("\n", pos - 1) + 1);
     } else if (action === "end") {
       const s = sqlRef.current;
-      const lineEnd = s.indexOf("\n", cPos);
+      const lineEnd = s.indexOf("\n", pos);
       moveTo(lineEnd === -1 ? s.length : lineEnd);
     } else if (action === "top") {
       moveTo(0);
     } else if (action === "bottom") {
       moveTo(sqlRef.current.length);
     }
-  }, [onBack, cPos]);
+  }, [onBack]);
 
   const handleHistoryNav = useCallback((direction) => {
     const isUp = direction === "up";
