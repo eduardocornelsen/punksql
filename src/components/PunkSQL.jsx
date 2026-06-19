@@ -1056,7 +1056,10 @@ function AuxKeyboard({ onInsert, onControl }) {
   ];
 
   return (
-    <div style={{ background: "#000000", flexShrink: 0, userSelect: "none", borderTop: "1px solid #222" }}>
+    <div
+      style={{ background: "#000000", flexShrink: 0, userSelect: "none", borderTop: "1px solid #222" }}
+      onTouchStart={e => e.preventDefault()}
+    >
 
       {/* Tab selector row */}
       <div style={{ display: "flex" }}>
@@ -1143,11 +1146,33 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [showExpected, setShowExpected] = useState(false);
   const taRef = useRef(null), edRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
-  // Mirrors current sql/cPos without stale-closure issues in repeat callbacks
+  // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
   const cPosRef = useRef(0);
+  const editingRef = useRef(false);
   useEffect(() => { sqlRef.current = sql; }, [sql]);
   useEffect(() => { cPosRef.current = cPos; }, [cPos]);
+  useEffect(() => { editingRef.current = editing; }, [editing]);
+
+  // Android back button closes the keyboard instead of navigating away
+  useEffect(() => {
+    if (!isTouch.current) return;
+    const onPop = () => {
+      if (editingRef.current) {
+        taRef.current?.blur();
+        setEditing(false);
+        history.pushState(null, ""); // restore the state we just popped
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // Push a history entry whenever keyboard opens so back-button can pop it
+  useEffect(() => {
+    if (!isTouch.current) return;
+    if (editing) history.pushState({ kbd: true }, "");
+  }, [editing]);
   // Saved before entering history navigation; restored on ↓ back to present
   const historyDraftRef = useRef("");
 
@@ -1216,23 +1241,14 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     isTouch.current = "ontouchstart" in window || navigator.maxTouchPoints > 0;
   }, []);
 
+  // Desktop mouse click only — touch is handled entirely by onEditorTouch*
   const onTap = (e) => {
-    // On desktop (mouse click): don't preventDefault — let textarea get natural focus
-    if (!e.touches) {
-      const x = e.clientX, y = e.clientY;
-      setCPos(tapToPos(x, y));
-      return;
-    }
-    e.preventDefault();
-    const now = Date.now();
-    if (now - lastTapTime.current < 50) return;
-    lastTapTime.current = now;
-    const x = e.touches[0].clientX, y = e.touches[0].clientY;
-    setCPos(tapToPos(x, y));
-    isSwiping.current = false;
+    if (isTouch.current) return;
+    setCPos(tapToPos(e.clientX, e.clientY));
   };
 
   const onEditorTouchStart = (e) => {
+    e.preventDefault(); // block synthetic mouse/focus events from reaching textarea
     const touch = e.touches?.[0];
     if (!touch) return;
     swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: cPos };
@@ -1240,46 +1256,49 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   };
 
   const onEditorTouchMove = (e) => {
-    e.preventDefault(); // Always block native scroll
+    e.preventDefault();
     const touch = e.touches?.[0];
     if (!touch) return;
     const dx = touch.clientX - swipeStart.current.x;
     const dy = touch.clientY - swipeStart.current.y;
 
-    // Only activate cursor movement after 8px threshold
     if (!isSwiping.current && Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
     isSwiping.current = true;
 
-    // Calculate character and line offsets from swipe distance
-    const charOffset = Math.round(dx / (charW * 1.5)); // 1.5x dampening for precision
-    const lineOffset = Math.round(dy / (lineH * 0.8)); // 0.8x for comfortable vertical
-
+    const charOffset = Math.round(dx / (charW * 1.5));
+    const lineOffset = Math.round(dy / (lineH * 0.8));
     const startPos = swipeStart.current.pos;
     const lines = sql.split("\n");
-
-    // Get start row/col
     let count = 0, startRow = 0, startCol = 0;
     for (let i = 0; i < lines.length; i++) {
       if (count + lines[i].length >= startPos) { startRow = i; startCol = startPos - count; break; }
       count += lines[i].length + 1;
     }
-
-    // Apply offsets
     const newRow = Math.max(0, Math.min(lines.length - 1, startRow + lineOffset));
     const newCol = Math.max(0, Math.min(lines[newRow].length, startCol + charOffset));
-
-    // Convert back to position
     let newPos = 0;
     for (let i = 0; i < newRow; i++) newPos += lines[i].length + 1;
-    newPos += newCol;
-
-    setCPos(newPos);
+    setCPos(newPos + newCol);
   };
 
   const onEditorTouchEnd = (e) => {
+    e.preventDefault(); // block synthetic click that would re-focus textarea
     if (!isSwiping.current) {
       const touch = e.changedTouches?.[0];
       if (touch) setCPos(tapToPos(touch.clientX, touch.clientY));
+
+      const now = Date.now();
+      const isDouble = now - lastTapTime.current < 300;
+      lastTapTime.current = isDouble ? 0 : now; // reset after double so triple doesn't retrigger
+
+      if (editingRef.current) {
+        // Any tap while keyboard is open → close it
+        toggleKeyboard();
+      } else if (isDouble) {
+        // Double tap while closed → open keyboard
+        toggleKeyboard();
+      }
+      // Single tap while closed → just reposition cursor (already done above)
     }
     isSwiping.current = false;
   };
@@ -1628,7 +1647,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               onBlur={handleBlur}
               onSelect={e => setCPos(e.target.selectionStart || 0)}
               onFocus={() => { if (!isTouch.current) setEditing(true); }}
-              onClick={isTouch.current && !editing ? (e) => { e.preventDefault(); toggleKeyboard(); } : undefined}
               onKeyDown={e => {
                 if (e.key === "Enter") {
                   e.preventDefault();
