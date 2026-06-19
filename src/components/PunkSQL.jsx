@@ -1133,7 +1133,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [resOpen, setResOpen] = useState(true);
   const [showSchema, setShowSchema] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [probOpen, setProbOpen] = useState(false);
+  const [probOpen, setProbOpen] = useState(true);
   const [editing, setEditing] = useState(false);
   const [cPos, setCPos] = useState(0);
   const [dbReady, setDbReady] = useState(false);
