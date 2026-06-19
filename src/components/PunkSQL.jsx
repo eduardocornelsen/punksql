@@ -196,7 +196,7 @@ const globalCSS = `
 @keyframes badgeUnlock{0%{transform:scale(0) rotate(-180deg);opacity:0}50%{transform:scale(1.3) rotate(10deg);opacity:1}75%{transform:scale(0.9) rotate(-5deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 *{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
-textarea:focus{outline:none}button{-webkit-tap-highlight-color:transparent}
+textarea:focus{outline:none}textarea::placeholder{color:transparent}button{-webkit-tap-highlight-color:transparent}
 html{height:100%;height:-webkit-fill-available;background:#111}
 body{height:100%;min-height:-webkit-fill-available;background:#111}
 :root{--app-h:100dvh}@supports not (height:100dvh){:root{--app-h:100vh}}
@@ -235,11 +235,12 @@ function tokenizeSQL(sql, tables = [], columns = []) {
   const out = [];
   let i = 0;
   while (i < sql.length) {
-    // Line comment
+    // Line comment — include the newline so line offsets stay in sync
     if (sql[i] === "-" && sql[i + 1] === "-") {
       let j = i;
       while (j < sql.length && sql[j] !== "\n") j++;
       out.push({ type: "comment", value: sql.slice(i, j) });
+      if (j < sql.length) { out.push({ type: "punct", value: "\n" }); j++; }
       i = j;
     }
     // String literal
@@ -1593,6 +1594,22 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               <div style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>
             </div>}
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
+            {/* Syntax highlight layer — mirrors textarea content with token colors */}
+            <pre aria-hidden style={{
+              position: "absolute", top: 8, left: 18, right: 18,
+              margin: 0, paddingTop: 6, border: "none",
+              fontFamily: F.mono, fontSize: 18, lineHeight: 2,
+              whiteSpace: "pre", wordWrap: "normal", overflowWrap: "normal",
+              color: TOKEN_COLORS.text, background: "transparent",
+              pointerEvents: "none", zIndex: 1, userSelect: "none",
+            }}>
+              {sql === ""
+                ? <span style={{ color: "#333" }}>{"-- write SQL here"}</span>
+                : hlTokens.map((tok, i) => (
+                    <span key={i} style={{ color: TOKEN_COLORS[tok.type] }}>{tok.value}</span>
+                  ))
+              }
+            </pre>
             <textarea
               ref={taRef}
               value={sql}
@@ -1625,9 +1642,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               autoComplete="off"
               placeholder="-- write SQL here"
               style={{
+                position: "relative", zIndex: 2,
                 width: "100%",
                 minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`,
-                background: "transparent", border: "none", color: C.cyanHot,
+                background: "transparent", border: "none", color: "transparent",
                 fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none",
                 outline: "none", caretColor: editing ? C.cyan : "transparent",
                 paddingTop: 6, cursor: "text", whiteSpace: "pre",
