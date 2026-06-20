@@ -1061,30 +1061,30 @@ function AuxKeyboard({ onInsert, onControl }) {
   ];
 
   const tabDefs = [
-    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,   onTap: t => onInsert(t) },
-    { id: "columns", label: "COLUMNS", color: C.green,   tokens: keyboardTokens.columns,  onTap: c => onInsert(c) },
-    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords, onTap: k => onInsert(k + " ") },
-    { id: "symbols", label: "{}",      color: "#CC88FF", tokens: SQL_SYMBOLS,             onTap: s => onInsert(s) },
+    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,          onTap: t => onInsert(t) },
+    { id: "columns", label: "COLUMNS", color: C.green,   tokens: ["*", ...keyboardTokens.columns], onTap: c => onInsert(c) },
+    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords,         onTap: k => onInsert(k + " ") },
+    { id: "symbols", label: "{}",      color: "#CC88FF", tokens: SQL_SYMBOLS,                     onTap: s => onInsert(s) },
   ];
 
   const activeTokens = tabDefs.find(t => t.id === activeTab);
 
-  // Termux row 1: ESC * , HOME ↑ END PGUP→top
+  // Termux row 1: ESC ( ) HOME ↑ END PGUP→top
   const row1 = [
     { label: "ESC",  onPress: () => onControl("escape") },
-    { label: "*",    onPress: () => onInsert("*") },
-    { label: ",",    onPress: () => onInsert(",") },
+    { label: "(",    onPress: () => onInsert("(") },
+    { label: ")",    onPress: () => onInsert(")") },
     { label: "HOME", onPress: () => onControl("home") },
     { label: "↑",    onPress: () => onControl("up"),    repeat: true },
     { label: "END",  onPress: () => onControl("end") },
     { label: "PGUP", onPress: () => onControl("top") },
   ];
 
-  // Termux row 2: TAB ( ) ← ↓ → PGDN→bottom
+  // Termux row 2: TAB , ; ← ↓ → PGDN→bottom
   const row2 = [
     { label: "TAB",  onPress: () => onInsert("  ") },
-    { label: "(",    onPress: () => onInsert("(") },
-    { label: ")",    onPress: () => onInsert(")") },
+    { label: ",",    onPress: () => onInsert(",") },
+    { label: ";",    onPress: () => onInsert(";") },
     { label: "←",    onPress: () => onControl("left"),  repeat: true },
     { label: "↓",    onPress: () => onControl("down"),  repeat: true },
     { label: "→",    onPress: () => onControl("right"), repeat: true },
