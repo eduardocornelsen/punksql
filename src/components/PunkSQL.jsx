@@ -1231,12 +1231,15 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef }) {
 
   const H = typeof window !== "undefined" ? window.innerHeight : 800;
   const sp = spotRect;
-  const tooltipAbove = sp ? (sp.top + sp.height / 2) > H * 0.45 : false;
+  const spaceAbove = sp ? sp.top - 14 : 0;
+  const spaceBelow = sp ? H - (sp.top + sp.height) - 14 : H * 0.5;
+  const tooltipAbove = sp ? spaceAbove > spaceBelow : false;
+  const tooltipMaxH = sp ? Math.max(80, (tooltipAbove ? spaceAbove : spaceBelow) - 8) : H * 0.6;
 
   const tooltipPos = sp ? (tooltipAbove
     ? { bottom: H - sp.top + 14, left: "50%", transform: "translateX(-50%)" }
     : { top: sp.top + sp.height + 14, left: "50%", transform: "translateX(-50%)" }
-  ) : { top: "30%", left: "50%", transform: "translateX(-50%)" };
+  ) : { top: 8, left: "50%", transform: "translateX(-50%)" };
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9500, pointerEvents: "auto" }}
@@ -1266,6 +1269,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef }) {
       <div style={{
         position: "fixed", ...tooltipPos,
         width: "min(310px, 88vw)",
+        maxHeight: tooltipMaxH, overflowY: "auto",
         background: C.black, border: `1px solid ${current.color}50`,
         padding: "18px 20px",
         boxShadow: `0 0 40px ${current.color}25`,
