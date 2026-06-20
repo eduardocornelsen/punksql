@@ -1172,7 +1172,7 @@ function AuxKeyboard({ onInsert, onControl }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1284,8 +1284,11 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
   const rawExtra = current.extraHighlightRef?.current?.getBoundingClientRect();
   const extraHighlightRect = rawExtra ? { top: rawExtra.top - PAD, left: rawExtra.left - PAD, width: rawExtra.width + PAD * 2, height: rawExtra.height + PAD * 2 } : null;
   const MIN_CARD_H = 250;
+  const isPreviewStep = step === 0 || step === 1 || step === 2;
+  const PREVIEW_H = 150;
+  const previewOffset = isPreviewStep ? PREVIEW_H + 14 : 0;
   const spaceAbove = cardSp ? cardSp.top - 14 : 0;
-  const spaceBelow = cardSp ? H - (cardSp.top + cardSp.height) - 14 : H * 0.5;
+  const spaceBelow = cardSp ? H - (cardSp.top + cardSp.height) - 14 - previewOffset : H * 0.5;
 
   let tooltipPos, tooltipMaxH;
   if (!cardSp) {
@@ -1299,7 +1302,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
   } else if (spaceBelow >= MIN_CARD_H) {
     // Enough room below spotlight
     tooltipMaxH = spaceBelow - 8;
-    tooltipPos = { top: cardSp.top + cardSp.height + 14, left: "50%", transform: "translateX(-50%)" };
+    tooltipPos = { top: cardSp.top + cardSp.height + 14 + previewOffset, left: "50%", transform: "translateX(-50%)" };
   } else {
     // Large spotlight: float card in the lower portion of the spotlight itself
     tooltipMaxH = Math.min(320, Math.max(200, cardSp.height * 0.55));
@@ -1323,6 +1326,37 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           {/* Glowing border — extra highlight (no cutout, rendered above overlay) */}
           {extraHighlightRect && <div style={{ position: "fixed", top: extraHighlightRect.top, left: extraHighlightRect.left, width: extraHighlightRect.width, height: extraHighlightRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
           {/* Gesture animation overlaid on editor area */}
+          {/* Preview panel — shows example content for SCHEMA/HINT/EXPECTED steps */}
+          {isPreviewStep && (
+            <div style={{ position: "fixed", top: sp.top + sp.height + 4, left: 8, right: 8, maxHeight: PREVIEW_H, overflowY: "auto", overflowX: "auto", zIndex: 9501, pointerEvents: "none" }}>
+              {step === 0 && schema && (
+                <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11 }}>
+                  {schema.split("\n").map((l, i) => {
+                    const [t, ...c] = l.split(":");
+                    return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.orange }}>{t.trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.green }}>{c.join(":").trim()}</span></div>;
+                  })}
+                </div>
+              )}
+              {step === 1 && hint && (
+                <div style={{ background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>{hint}</div>
+              )}
+              {step === 2 && db && validateQuery && (() => {
+                const er = runSQL(db, validateQuery);
+                if (!er.ok) return <div style={{ background: C.redGhost, border: `1px solid ${C.red}40`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.red }}>{er.msg}</div>;
+                return (
+                  <div style={{ background: C.surface, border: `1px solid ${C.green}40`, padding: "8px 10px" }}>
+                    <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginBottom: 6 }}>-- expected result ({er.rows.length} rows)</div>
+                    {er.rows.length > 0 && (
+                      <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 11 }}>
+                        <thead><tr>{er.columns.map(c => <th key={c} style={{ padding: "3px 8px", borderBottom: `1px solid ${C.border}`, color: C.green, textAlign: "left", fontWeight: 400, whiteSpace: "nowrap" }}>{c}</th>)}</tr></thead>
+                        <tbody>{er.rows.slice(0, 5).map((row, i) => <tr key={i}>{row.map((v, j) => <td key={j} style={{ padding: "3px 8px", borderBottom: `1px solid ${C.border}10`, color: v === null ? C.dim : C.white, fontStyle: v === null ? "italic" : "normal", whiteSpace: "nowrap" }}>{v === null ? "NULL" : String(v)}</td>)}</tr>)}</tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
           {editorAnimRect && (
             <div style={{
               position: "fixed",
@@ -2137,6 +2171,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           tourBtnRef={tourBtnRef}
           hintBarRef={hintBarRef}
           bottomAreaRef={bottomAreaRef}
+          schema={ch.schema}
+          hint={ch.hint}
+          db={db}
+          validateQuery={ch.validate}
         />
       )}
     </div>
