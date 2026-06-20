@@ -711,7 +711,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
       const prevCh = CHALLENGES_DB.filter(c => c.mod === modDefs[i - 1].id);
       return prevCh.length > 0 && prevCh.every(c => solved.has(c.id));
     })();
-    const s = allDone ? "done" : prevDone ? "active" : "lock";
+    const s = allDone ? "done" : "active";
     const p = total > 0 ? solvedCount / total : 0;
     const xpEarned = modChallenges.filter(c => solved.has(c.id)).reduce((sum, c) => {
       return sum + (c.diff === "EASY" ? 25 : c.diff === "MED" ? 50 : c.diff === "HARD" ? 75 : 100);
@@ -2685,6 +2685,11 @@ export default function PunkSQLCLI() {
     setLastContext("learn");
   }, []);
 
+  const handleCodeNav = useCallback((id) => {
+    setLastCodeId(id);
+    setLastContext("code");
+  }, []);
+
   const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" };
   const ctx = { lang, t };
 
@@ -2714,7 +2719,7 @@ export default function PunkSQLCLI() {
 
   if (screen === "challenge") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} />
+      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
