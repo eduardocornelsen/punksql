@@ -711,7 +711,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
       const prevCh = CHALLENGES_DB.filter(c => c.mod === modDefs[i - 1].id);
       return prevCh.length > 0 && prevCh.every(c => solved.has(c.id));
     })();
-    const s = allDone ? "done" : prevDone ? "active" : "lock";
+    const s = allDone ? "done" : "active";
     const p = total > 0 ? solvedCount / total : 0;
     const xpEarned = modChallenges.filter(c => solved.has(c.id)).reduce((sum, c) => {
       return sum + (c.diff === "EASY" ? 25 : c.diff === "MED" ? 50 : c.diff === "HARD" ? 75 : 100);
