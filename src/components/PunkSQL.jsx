@@ -11,6 +11,7 @@ import { useShallow } from "zustand/react/shallow";
 // ── Persistent Storage Helpers ────────────────────────────
 const STORAGE_KEY = "qq-save";
 const SQL_DRAFT_PREFIX = "qq-draft-";
+const CODE_ONBOARDING_KEY = "punksql-code-tour-v1";
 
 function loadProgress() {
   try {
@@ -1161,6 +1162,213 @@ function AuxKeyboard({ onInsert, onControl }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  CODE SCREEN ONBOARDING — First-time walkthrough
+// ═══════════════════════════════════════════════════════════
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef }) {
+  const [step, setStep] = useState(0);
+  const [spotRect, setSpotRect] = useState(null);
+  const ispt = lang === "pt";
+  const PAD = 10;
+
+  const steps = [
+    {
+      ref: schemaRef,
+      icon: "◈",
+      color: C.cyan,
+      title: ispt ? "SCHEMA" : "SCHEMA",
+      body: ispt
+        ? "Veja as tabelas e colunas\ndisponíveis para este desafio.\nUse para montar sua query."
+        : "View the tables and columns\navailable for this challenge.\nUse them to build your query.",
+    },
+    {
+      ref: hintRef,
+      icon: "?",
+      color: C.amber,
+      title: ispt ? "DICA" : "HINT",
+      body: ispt
+        ? "Travado? Abra a dica para\num passo na direção certa\nsem entregar a resposta."
+        : "Stuck? Open the hint for\na nudge in the right direction\nwithout giving away the answer.",
+    },
+    {
+      ref: expectedRef,
+      icon: "✓",
+      color: C.green,
+      title: ispt ? "RESPOSTA ESPERADA" : "EXPECTED OUTPUT",
+      body: ispt
+        ? "Veja o resultado esperado\nantes de submeter para\nvalidar sua lógica."
+        : "Preview the expected output\nbefore submitting to\nvalidate your logic.",
+    },
+    {
+      ref: kbdRef,
+      icon: "⌨",
+      color: C.amber,
+      title: ispt ? "ABRIR TECLADO" : "OPEN KEYBOARD",
+      body: ispt
+        ? "Toque duas vezes na tela\nou pressione este botão ⌨\npara abrir o teclado nativo."
+        : "Double tap the editor\nor press this ⌨ button\nto open the native keyboard.",
+    },
+    {
+      ref: editorRef,
+      icon: "✕",
+      color: C.cyan,
+      title: ispt ? "FECHAR TECLADO" : "CLOSE KEYBOARD",
+      body: ispt
+        ? "Com o teclado aberto,\ntoque uma vez na tela\npara fechá-lo."
+        : "With the keyboard open,\ntap anywhere on the editor\nto close it.",
+    },
+    {
+      ref: editorRef,
+      icon: "↔",
+      color: C.green,
+      title: ispt ? "MOVER CURSOR" : "MOVE CURSOR",
+      body: ispt
+        ? "Deslize o dedo para mover\no cursor suavemente.\nOu toque para posicioná-lo."
+        : "Slide your finger to move\nthe cursor smoothly.\nOr tap to place it anywhere.",
+    },
+    {
+      ref: bottomAreaRef,
+      icon: "▶",
+      color: C.green,
+      title: ispt ? "ESCREVER E EXECUTAR" : "TYPE & RUN",
+      body: ispt
+        ? "Use os botões SQL, TABLES\ne COLUMNS para inserir tokens.\nPressione ▶ RUN para executar."
+        : "Use SQL, TABLES & COLUMNS\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
+    },
+    {
+      ref: tourBtnRef,
+      icon: "?",
+      color: C.purple,
+      title: ispt ? "REPETIR TUTORIAL" : "REPLAY TUTORIAL",
+      body: ispt
+        ? "Toque neste botão ? a qualquer\nmomento para rever este tutorial\ne relembrar os controles."
+        : "Tap this ? button at any time\nto replay this tutorial\nand review the controls.",
+    },
+  ];
+
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
+
+  useEffect(() => {
+    const ref = current.ref;
+    if (!ref?.current) { setSpotRect(null); return; }
+    const update = () => {
+      const r = ref.current?.getBoundingClientRect();
+      if (r) setSpotRect({ top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [step]);
+
+  const done = () => {
+    try { localStorage.setItem(CODE_ONBOARDING_KEY, "1"); } catch(e) {}
+    onComplete();
+  };
+
+  const H = typeof window !== "undefined" ? window.innerHeight : 800;
+  const sp = spotRect;
+  const MIN_CARD_H = 250;
+  const spaceAbove = sp ? sp.top - 14 : 0;
+  const spaceBelow = sp ? H - (sp.top + sp.height) - 14 : H * 0.5;
+
+  let tooltipPos, tooltipMaxH;
+  if (!sp) {
+    // No spotlight — center card in viewport
+    tooltipPos = { top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
+    tooltipMaxH = H * 0.55;
+  } else if (spaceAbove >= MIN_CARD_H && spaceAbove >= spaceBelow) {
+    // Enough room above spotlight
+    tooltipMaxH = spaceAbove - 8;
+    tooltipPos = { bottom: H - sp.top + 14, left: "50%", transform: "translateX(-50%)" };
+  } else if (spaceBelow >= MIN_CARD_H) {
+    // Enough room below spotlight
+    tooltipMaxH = spaceBelow - 8;
+    tooltipPos = { top: sp.top + sp.height + 14, left: "50%", transform: "translateX(-50%)" };
+  } else {
+    // Large spotlight (e.g. editor): float card in the lower portion of the spotlight itself
+    tooltipMaxH = Math.min(320, Math.max(200, sp.height * 0.55));
+    tooltipPos = { top: sp.top + sp.height * 0.38, left: "50%", transform: "translateX(-50%)" };
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9500, pointerEvents: "auto" }}
+      onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}>
+
+      {/* Dark overlay — four panels around spotlight */}
+      {sp ? (
+        <>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: Math.max(0, sp.top), background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          <div style={{ position: "fixed", top: sp.top, left: 0, width: Math.max(0, sp.left), height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          <div style={{ position: "fixed", top: sp.top, left: sp.left + sp.width, right: 0, height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          {/* Glowing border around spotlight */}
+          <div style={{
+            position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height,
+            border: `2px solid ${current.color}`,
+            boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`,
+            pointerEvents: "none", animation: "pulseGlow 2s ease infinite",
+          }} />
+        </>
+      ) : (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+      )}
+
+      {/* Tooltip card */}
+      <div style={{
+        position: "fixed", ...tooltipPos,
+        width: "min(310px, 88vw)",
+        maxHeight: tooltipMaxH, overflowY: "auto",
+        background: C.black, border: `1px solid ${current.color}50`,
+        padding: "18px 20px",
+        boxShadow: `0 0 40px ${current.color}25`,
+        zIndex: 9501,
+      }}>
+        {/* Step indicator dots */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, justifyContent: "center" }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{
+              width: i === step ? 22 : 7, height: 7,
+              background: i === step ? current.color : C.border,
+              transition: "all 0.3s ease",
+              boxShadow: i === step ? `0 0 6px ${current.color}70` : "none",
+            }} />
+          ))}
+        </div>
+        {/* Icon */}
+        <div style={{ textAlign: "center", marginBottom: 8 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 30, color: current.color, textShadow: `0 0 20px ${current.color}70` }}>
+            {current.icon}
+          </span>
+        </div>
+        {/* Title */}
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: current.color, letterSpacing: 2.5, textAlign: "center", marginBottom: 10 }}>
+          {current.title}
+        </div>
+        {/* Body */}
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, lineHeight: 1.9, textAlign: "center", whiteSpace: "pre-wrap", marginBottom: 18 }}>
+          {current.body}
+        </div>
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onPointerDown={e => { e.preventDefault(); done(); }} style={{
+            flex: 1, padding: "10px 0", cursor: "pointer", minHeight: 42,
+            fontFamily: F.mono, fontSize: 12, color: C.muted, letterSpacing: 1,
+            background: "none", border: `1px solid ${C.border}`,
+          }}>{ispt ? "PULAR" : "SKIP"}</button>
+          <button onPointerDown={e => { e.preventDefault(); isLast ? done() : setStep(s => s + 1); }} style={{
+            flex: 2, padding: "10px 0", cursor: "pointer", minHeight: 42,
+            fontFamily: F.mono, fontSize: 13, color: C.black, fontWeight: 700, letterSpacing: 2,
+            background: current.color, border: `1px solid ${current.color}`,
+            boxShadow: `0 0 18px ${current.color}35`,
+          }}>{isLast ? (ispt ? "ENTENDIDO ▶" : "GOT IT ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 //  CHALLENGE EDITOR — Real SQL execution
 // ═══════════════════════════════════════════════════════════
 function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, exercises = null, onExNav = null }) {
@@ -1182,7 +1390,14 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [openPanel, setOpenPanel] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showExpected, setShowExpected] = useState(false);
+  const [showCodeOnboarding, setShowCodeOnboarding] = useState(() => {
+    try { return !localStorage.getItem(CODE_ONBOARDING_KEY); } catch(e) { return false; }
+  });
+
   const taRef = useRef(null), edRef = useRef(null);
+  const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
+  const hintBarRef = useRef(null), bottomAreaRef = useRef(null);
+  const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
@@ -1662,10 +1877,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       </button>
       {probOpen && (
         <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
-            <button onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
-            <button onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
+            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
+            <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
+            <button ref={tourBtnRef} onClick={e => { e.stopPropagation(); setProbOpen(true); setShowCodeOnboarding(true); }} style={{ background: "none", border: `1px solid ${C.purple}60`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.purple, padding: "4px 8px", marginLeft: "auto" }}>?</button>
           </div>
           {showSchema && (
             <div style={{ marginTop: 8, background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, animation: "fadeSlide 0.15s ease" }}>
@@ -1785,7 +2001,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           </div>
         </div>
         {/* Hint bar */}
-        <div style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+        <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
           {!dbReady ? "loading sql engine..." : "swipe to move cursor · tap to focus"}
         </div>
         {/* Results — shown in BOTH modes */}
@@ -1835,27 +2051,46 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             ))}
           </div>
         )}
-        {/* AuxKeyboard — always visible (dual-row virtual keyboard) */}
-        <AuxKeyboard
-          onInsert={handleAuxInsert}
-          onControl={handleAuxControl}
-        />
-        {/* ── RUN + utility bar ── */}
-        {!result && (
-          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
-            <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
-            <button
-              onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
-              onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
-              onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
-              style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
-            <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
-            <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
-            <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
-            <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
-          </div>
-        )}
+        {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
+        <div ref={bottomAreaRef}>
+          <AuxKeyboard
+            onInsert={handleAuxInsert}
+            onControl={handleAuxControl}
+          />
+          {/* ── RUN + utility bar ── */}
+          {!result && (
+            <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
+              <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
+              <button
+                onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
+                onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
+                onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
+                style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
+              <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
+              <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
+              <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
+              <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Code screen onboarding — shows on first visit */}
+      {showCodeOnboarding && (
+        <CodeScreenOnboarding
+          onComplete={() => setShowCodeOnboarding(false)}
+          lang={lang}
+          editorRef={edRef}
+          kbdRef={kbdBtnRef}
+          auxRef={auxKbRef}
+          schemaRef={schemaBtnRef}
+          hintRef={hintBtnRef}
+          expectedRef={expectedBtnRef}
+          tourBtnRef={tourBtnRef}
+          hintBarRef={hintBarRef}
+          bottomAreaRef={bottomAreaRef}
+        />
+      )}
     </div>
   );
 }
