@@ -1315,6 +1315,22 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
             boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`,
             pointerEvents: "none", animation: "pulseGlow 2s ease infinite",
           }} />
+          {/* Tap gesture animation overlaid on spotlight */}
+          {(step === 3 || step === 4) && (
+            <div style={{
+              position: "fixed",
+              top: step === 4 ? sp.top + sp.height * 0.2 : sp.top + sp.height * 0.5,
+              left: sp.left + sp.width * 0.5,
+              zIndex: 9502, pointerEvents: "none",
+            }}>
+              <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
+              {step === 3 && <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: "tapDouble2 2.2s ease-out infinite" }} />}
+              <div style={{ position: "absolute", width: 8, height: 8, marginTop: -4, marginLeft: -4, background: current.color, borderRadius: "50%", boxShadow: `0 0 10px ${current.color}`, animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
+              <div style={{ position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
+                {step === 3 ? (ispt ? "TOQUE×2" : "DOUBLE TAP") : (ispt ? "TOQUE" : "TAP")}
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
@@ -1352,27 +1368,9 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           {current.title}
         </div>
         {/* Body */}
-        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, lineHeight: 1.9, textAlign: "center", whiteSpace: "pre-wrap", marginBottom: (step === 3 || step === 4) ? 10 : 18 }}>
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, lineHeight: 1.9, textAlign: "center", whiteSpace: "pre-wrap", marginBottom: 18 }}>
           {current.body}
         </div>
-        {/* Tap gesture animation for keyboard steps */}
-        {(step === 3 || step === 4) && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ position: "relative", width: 96, height: 44, border: `1px solid ${current.color}22`, background: "#060606" }}>
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: F.mono, fontSize: 9, color: `${current.color}28`, letterSpacing: 1 }}>SELECT *</span>
-              </div>
-              <div style={{ position: "absolute", top: "50%", left: "50%" }}>
-                <div style={{ position: "absolute", width: 20, height: 20, marginTop: -10, marginLeft: -10, border: `1.5px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
-                {step === 3 && <div style={{ position: "absolute", width: 20, height: 20, marginTop: -10, marginLeft: -10, border: `1.5px solid ${current.color}`, borderRadius: "50%", animation: "tapDouble2 2.2s ease-out infinite" }} />}
-                <div style={{ position: "absolute", width: 5, height: 5, marginTop: -2.5, marginLeft: -2.5, background: current.color, borderRadius: "50%", animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
-              </div>
-            </div>
-            <div style={{ marginTop: 5, fontFamily: F.mono, fontSize: 9, color: `${current.color}60`, letterSpacing: 2 }}>
-              {step === 3 ? (ispt ? "TOQUE×2" : "DOUBLE TAP") : (ispt ? "TOQUE" : "TAP")}
-            </div>
-          </div>
-        )}
         {/* Buttons */}
         <div style={{ display: "flex", gap: 8 }}>
           <button onPointerDown={e => { e.preventDefault(); done(); }} style={{
