@@ -1210,7 +1210,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                 <>
                   <div style={{ display: "flex", gap: 0, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
                     {panels.map(p => (
-                      <button key={p.key} onClick={() => setOpenPanel(openPanel === p.key ? null : p.key)} style={{
+                      <button key={p.key} onClick={() => setOpenPanel(p.key)} style={{
                         flex: 1, padding: "9px 0", cursor: "pointer",
                         fontFamily: F.mono, fontSize: 14, fontWeight: 700, letterSpacing: 1,
                         color: openPanel === p.key ? C.black : p.color,

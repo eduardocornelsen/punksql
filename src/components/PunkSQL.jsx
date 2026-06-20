@@ -1068,7 +1068,7 @@ function AuxKeyboard({ onInsert, onControl }) {
           return (
             <button
               key={tab.id}
-              onPointerDown={e => { e.preventDefault(); setActiveTab(isActive ? null : tab.id); }}
+              onPointerDown={e => { e.preventDefault(); setActiveTab(tab.id); }}
               style={{
                 flex: 1, minHeight: 34, background: "#000000",
                 border: "none",
