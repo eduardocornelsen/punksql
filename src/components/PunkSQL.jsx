@@ -1064,10 +1064,11 @@ function AuxKeyboard({ onInsert, onControl }) {
   ];
 
   const tabDefs = [
-    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,          onTap: t => onInsert(t) },
+    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,            onTap: t => onInsert(t) },
     { id: "columns", label: "COLUMNS", color: C.green,   tokens: ["*", ...keyboardTokens.columns], onTap: c => onInsert(c) },
-    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords,         onTap: k => onInsert(k + " ") },
-    { id: "symbols", label: "{}",      color: "#CC88FF", tokens: SQL_SYMBOLS,                     onTap: s => onInsert(s) },
+    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords,           onTap: k => onInsert(k + " ") },
+    { id: "agg",     label: "AGG",     color: C.amber,   tokens: keyboardTokens.agg || [],          onTap: k => onInsert(k) },
+    { id: "symbols", label: "{}",      color: "#CC88FF", tokens: SQL_SYMBOLS,                       onTap: s => onInsert(s) },
   ];
 
   const activeTokens = tabDefs.find(t => t.id === activeTab);
