@@ -1206,6 +1206,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
     },
     {
       ref: kbdRef,
+      extraHighlightRef: editorRef,
       icon: "⌨",
       color: C.amber,
       title: ispt ? "ABRIR TECLADO" : "OPEN KEYBOARD",
@@ -1214,7 +1215,8 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "Double tap the editor\nor press this ⌨ button\nto open the native keyboard.",
     },
     {
-      ref: editorRef,
+      ref: kbdRef,
+      highlightRef: editorRef,
       icon: "✕",
       color: C.cyan,
       title: ispt ? "FECHAR TECLADO" : "CLOSE KEYBOARD",
@@ -1274,6 +1276,10 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
   const H = typeof window !== "undefined" ? window.innerHeight : 800;
   const sp = spotRect;
   const editorAnimRect = (step === 3 || step === 4) ? editorRef?.current?.getBoundingClientRect() : null;
+  const rawPrimary = (current.highlightRef || current.ref)?.current?.getBoundingClientRect();
+  const primaryHighlightRect = rawPrimary ? { top: rawPrimary.top - PAD, left: rawPrimary.left - PAD, width: rawPrimary.width + PAD * 2, height: rawPrimary.height + PAD * 2 } : sp;
+  const rawExtra = current.extraHighlightRef?.current?.getBoundingClientRect();
+  const extraHighlightRect = rawExtra ? { top: rawExtra.top - PAD, left: rawExtra.left - PAD, width: rawExtra.width + PAD * 2, height: rawExtra.height + PAD * 2 } : null;
   const MIN_CARD_H = 250;
   const spaceAbove = sp ? sp.top - 14 : 0;
   const spaceBelow = sp ? H - (sp.top + sp.height) - 14 : H * 0.5;
@@ -1302,20 +1308,18 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}>
 
-      {/* Dark overlay — four panels around spotlight */}
+      {/* Dark overlay with cutouts for each spotlight */}
       {sp ? (
         <>
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: Math.max(0, sp.top), background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
-          <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
-          <div style={{ position: "fixed", top: sp.top, left: 0, width: Math.max(0, sp.left), height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
-          <div style={{ position: "fixed", top: sp.top, left: sp.left + sp.width, right: 0, height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
-          {/* Glowing border around spotlight */}
-          <div style={{
-            position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height,
-            border: `2px solid ${current.color}`,
-            boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`,
-            pointerEvents: "none", animation: "pulseGlow 2s ease infinite",
-          }} />
+          <div style={{ position: "fixed", inset: 0, pointerEvents: "none", isolation: "isolate" }}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.88)" }} />
+            {primaryHighlightRect && <div style={{ position: "absolute", top: primaryHighlightRect.top, left: primaryHighlightRect.left, width: primaryHighlightRect.width, height: primaryHighlightRect.height, background: "black", mixBlendMode: "destination-out" }} />}
+            {extraHighlightRect && <div style={{ position: "absolute", top: extraHighlightRect.top, left: extraHighlightRect.left, width: extraHighlightRect.width, height: extraHighlightRect.height, background: "black", mixBlendMode: "destination-out" }} />}
+          </div>
+          {/* Glowing border — primary highlight */}
+          {primaryHighlightRect && <div style={{ position: "fixed", top: primaryHighlightRect.top, left: primaryHighlightRect.left, width: primaryHighlightRect.width, height: primaryHighlightRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
+          {/* Glowing border — extra highlight */}
+          {extraHighlightRect && <div style={{ position: "fixed", top: extraHighlightRect.top, left: extraHighlightRect.left, width: extraHighlightRect.width, height: extraHighlightRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
           {/* Tap gesture animation overlaid on editor area */}
           {editorAnimRect && (
             <div style={{
