@@ -10,24 +10,26 @@ import { useShallow } from "zustand/react/shallow";
 
 // ── Persistent Storage Helpers ────────────────────────────
 const STORAGE_KEY = "qq-save";
-async function loadProgress() {
+const SQL_DRAFT_PREFIX = "qq-draft-";
+
+function loadProgress() {
   try {
-    const r = await window.storage.get(STORAGE_KEY);
-    if (r?.value) return JSON.parse(r.value);
-  } catch(e) {}
-  // Fallback to window globals
-  try {
-    if (typeof window.__qq_xp === "number") return { xp: window.__qq_xp, solved: [...(window.__qq_solved || [])], lang: "en" };
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
   } catch(e) {}
   return null;
 }
-async function saveProgress(xp, solved, lang) {
+function saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext) {
   try {
-    const data = JSON.stringify({ xp, solved: [...solved], lang, ts: Date.now() });
-    await window.storage.set(STORAGE_KEY, data);
+    const data = JSON.stringify({ xp, solved: [...solved], lang, lastCodeId, lastLearnId, lastContext, ts: Date.now() });
+    localStorage.setItem(STORAGE_KEY, data);
   } catch(e) {}
-  // Also keep window globals as fallback
-  try { window.__qq_xp = xp; window.__qq_solved = solved; } catch(e) {}
+}
+function loadSQLDraft(challengeId) {
+  try { return localStorage.getItem(SQL_DRAFT_PREFIX + challengeId) || ""; } catch(e) { return ""; }
+}
+function saveSQLDraft(challengeId, sql) {
+  try { localStorage.setItem(SQL_DRAFT_PREFIX + challengeId, sql); } catch(e) {}
 }
 
 // ── Sound Effects (Tone.js) ──────────────────────────────
@@ -1166,7 +1168,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
 
-  const [sql, setSql] = useState("SELECT \n  \nFROM ");
+  const [sql, setSql] = useState(() => loadSQLDraft(challengeId) || "SELECT \n  \nFROM ");
   const [result, setResult] = useState(null);
   const [verdict, setVerdict] = useState(null);
   const [resOpen, setResOpen] = useState(true);
@@ -1189,6 +1191,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   useEffect(() => { sqlRef.current = sql; }, [sql]);
   useEffect(() => { cPosRef.current = cPos; }, [cPos]);
   useEffect(() => { editingRef.current = editing; }, [editing]);
+  useEffect(() => { saveSQLDraft(challengeId, sql); }, [challengeId, sql]);
 
   // Android back button closes the keyboard instead of navigating away
   useEffect(() => {
@@ -1228,7 +1231,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     }))
   );
 
-  useEffect(() => { setActiveChallenge(ch); return () => setActiveChallenge(null); }, [challengeId]);
+  useEffect(() => {
+    setActiveChallenge(ch);
+    const draft = loadSQLDraft(challengeId);
+    setSql(draft || "SELECT \n  \nFROM ");
+    setCPos(0);
+    setVerdict(null);
+    setResult(null);
+    return () => setActiveChallenge(null);
+  }, [challengeId]);
 
   useEffect(() => { getDB().then(d => { setDb(d); setDbReady(true); }); }, []);
 
@@ -2550,20 +2561,22 @@ export default function PunkSQLCLI() {
 
   // Load progress from persistent storage on mount
   useEffect(() => {
-    loadProgress().then(data => {
-      if (data) {
-        setXp(data.xp || 0);
-        setSolved(new Set(data.solved || []));
-        if (data.lang) setLang(data.lang);
-      }
-      setStorageLoaded(true);
-    });
+    const data = loadProgress();
+    if (data) {
+      setXp(data.xp || 0);
+      setSolved(new Set(data.solved || []));
+      if (data.lang) setLang(data.lang);
+      if (data.lastCodeId) setLastCodeId(data.lastCodeId);
+      if (data.lastLearnId) setLastLearnId(data.lastLearnId);
+      if (data.lastContext) setLastContext(data.lastContext);
+    }
+    setStorageLoaded(true);
   }, []);
 
-  // Save progress whenever xp/solved/lang changes (after initial load)
+  // Save progress whenever xp/solved/lang/resume state changes (after initial load)
   useEffect(() => {
-    if (storageLoaded) saveProgress(xp, solved, lang);
-  }, [xp, solved, lang, storageLoaded]);
+    if (storageLoaded) saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext);
+  }, [xp, solved, lang, lastCodeId, lastLearnId, lastContext, storageLoaded]);
   // Level up & badge overlays
   const [levelUpShow, setLevelUpShow] = useState(null);
   const [badgeShow, setBadgeShow] = useState(null);
