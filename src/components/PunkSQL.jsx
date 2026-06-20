@@ -1239,8 +1239,8 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "Slide your finger to move\nthe cursor smoothly.\nOr tap to place it anywhere.",
     },
     {
-      ref: bottomAreaRef,
-      extraHighlightRef: [auxTabsRef, runBtnRef],
+      ref: auxTabsRef,
+      secondarySpotRef: runBtnRef,
       icon: "▶",
       color: C.green,
       title: ispt ? "ESCREVER E EXECUTAR" : "TYPE & RUN",
@@ -1291,6 +1291,8 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
     const r = ref?.current?.getBoundingClientRect();
     return r ? { top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 } : null;
   }).filter(Boolean);
+  const secRaw = current.secondarySpotRef?.current?.getBoundingClientRect();
+  const secRect = secRaw ? { top: secRaw.top - PAD, left: secRaw.left - PAD, width: secRaw.width + PAD * 2, height: secRaw.height + PAD * 2 } : null;
   const MIN_CARD_H = 250;
   const isPreviewStep = step === 0 || step === 1 || step === 2;
   const PREVIEW_H = 150;
@@ -1326,11 +1328,23 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       {sp ? (
         <>
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: Math.max(0, sp.top), background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
-          <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
           <div style={{ position: "fixed", top: sp.top, left: 0, width: Math.max(0, sp.left), height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
           <div style={{ position: "fixed", top: sp.top, left: sp.left + sp.width, right: 0, height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          {/* Bottom area — split into faded + dark sections when a secondary spot exists */}
+          {secRect ? (
+            <>
+              <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, height: Math.max(0, secRect.top - (sp.top + sp.height)), background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+              <div style={{ position: "fixed", top: secRect.top, left: 0, width: Math.max(0, secRect.left), height: secRect.height, background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+              <div style={{ position: "fixed", top: secRect.top, left: secRect.left + secRect.width, right: 0, height: secRect.height, background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+              <div style={{ position: "fixed", top: secRect.top + secRect.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+            </>
+          ) : (
+            <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          )}
           {/* Glowing border — primary spotlight */}
           <div style={{ position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
+          {/* Glowing border — secondary spot */}
+          {secRect && <div style={{ position: "fixed", top: secRect.top, left: secRect.left, width: secRect.width, height: secRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
           {/* Glowing borders — extra highlights (no cutout, rendered above overlay) */}
           {extraHighlightRects.map((rect, i) => (
             <div key={i} style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width, height: rect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
