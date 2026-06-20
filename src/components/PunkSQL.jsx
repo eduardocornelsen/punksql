@@ -198,6 +198,13 @@ const globalCSS = `
 @keyframes levelUp{0%{transform:scale(0.5);opacity:0}20%{transform:scale(1.2);opacity:1}40%{transform:scale(0.95)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
 @keyframes badgeUnlock{0%{transform:scale(0) rotate(-180deg);opacity:0}50%{transform:scale(1.3) rotate(10deg);opacity:1}75%{transform:scale(0.9) rotate(-5deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes tapRippleSingle{0%{transform:scale(0.1);opacity:0.9}30%{transform:scale(1.5);opacity:0.5}42%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
+@keyframes tapDouble1{0%{transform:scale(0.1);opacity:0.9}22%{transform:scale(1.5);opacity:0.5}32%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
+@keyframes tapDouble2{0%,17%{transform:scale(0.1);opacity:0}18%{transform:scale(0.1);opacity:0.9}40%{transform:scale(1.5);opacity:0.5}50%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
+@keyframes dotSingle{0%{transform:scale(2);opacity:0.9}18%{transform:scale(1);opacity:0.35}100%{transform:scale(1);opacity:0.35}}
+@keyframes dotDouble{0%{transform:scale(2);opacity:0.9}14%{transform:scale(1);opacity:0.35}17%{transform:scale(1);opacity:0.35}18%{transform:scale(2);opacity:0.9}32%{transform:scale(1);opacity:0.35}100%{transform:scale(1);opacity:0.35}}
+@keyframes swipeFingerLR{0%,5%{transform:translateX(-44px);opacity:0}12%{opacity:1}82%{opacity:1}92%,100%{transform:translateX(44px);opacity:0}}
+@keyframes swipeCursorLR{0%,5%{transform:translateX(-36px);opacity:0}12%{opacity:1}82%{opacity:1}92%,100%{transform:translateX(36px);opacity:0}}
 *{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
 textarea:focus{outline:none}textarea::placeholder{color:transparent}button{-webkit-tap-highlight-color:transparent}
 html{height:100%;height:-webkit-fill-available;background:#111}
@@ -1052,7 +1059,7 @@ function TokenChip({ text, color, onTap }) {
   );
 }
 
-function AuxKeyboard({ onInsert, onControl }) {
+function AuxKeyboard({ onInsert, onControl, tabsRef }) {
   const keyboardTokens = useGameStore(s => s.keyboardTokens);
   const [activeTab, setActiveTab] = useState("sql");
 
@@ -1101,52 +1108,54 @@ function AuxKeyboard({ onInsert, onControl }) {
       onTouchStart={e => e.preventDefault()}
     >
 
-      {/* Tab selector row */}
-      <div style={{ display: "flex" }}>
-        {tabDefs.map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onPointerDown={e => { e.preventDefault(); setActiveTab(tab.id); }}
-              style={{
-                flex: 1, minHeight: 34, background: "#000000",
-                border: "none",
-                borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
-                cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-                color: isActive ? tab.color : "#555",
-                fontWeight: isActive ? 700 : 400,
-                letterSpacing: 1, userSelect: "none",
-              }}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Token chip panel — visible only when a tab is active */}
-      {activeTokens && (
-        <div style={{
-          display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
-          scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
-          minHeight: 38, background: "#000000",
-        }}>
-          {activeTokens.tokens.length === 0 && (
-            <span style={{ fontFamily: F.mono, fontSize: 11, color: "#444", alignSelf: "center" }}>
-              no {activeTokens.id} loaded
-            </span>
-          )}
-          {activeTokens.tokens.map(tok => (
-            <TokenChip
-              key={tok}
-              text={tok}
-              color={activeTokens.color}
-              onTap={() => activeTokens.onTap(tok)}
-            />
-          ))}
+      <div ref={tabsRef}>
+        {/* Tab selector row */}
+        <div style={{ display: "flex" }}>
+          {tabDefs.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onPointerDown={e => { e.preventDefault(); setActiveTab(tab.id); }}
+                style={{
+                  flex: 1, minHeight: 34, background: "#000000",
+                  border: "none",
+                  borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
+                  cursor: "pointer", fontFamily: F.mono, fontSize: 11,
+                  color: isActive ? tab.color : "#555",
+                  fontWeight: isActive ? 700 : 400,
+                  letterSpacing: 1, userSelect: "none",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {/* Token chip panel — visible only when a tab is active */}
+        {activeTokens && (
+          <div style={{
+            display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
+            scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
+            minHeight: 38, background: "#000000",
+          }}>
+            {activeTokens.tokens.length === 0 && (
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: "#444", alignSelf: "center" }}>
+                no {activeTokens.id} loaded
+              </span>
+            )}
+            {activeTokens.tokens.map(tok => (
+              <TokenChip
+                key={tok}
+                text={tok}
+                color={activeTokens.color}
+                onTap={() => activeTokens.onTap(tok)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Termux row 1: ESC / — HOME ↑ END PGUP */}
       <div style={{ display: "flex" }}>
@@ -1165,7 +1174,7 @@ function AuxKeyboard({ onInsert, onControl }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1201,6 +1210,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
     },
     {
       ref: kbdRef,
+      extraHighlightRef: editorRef,
       icon: "⌨",
       color: C.amber,
       title: ispt ? "ABRIR TECLADO" : "OPEN KEYBOARD",
@@ -1210,6 +1220,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
     },
     {
       ref: editorRef,
+      cardRef: kbdRef,
       icon: "✕",
       color: C.cyan,
       title: ispt ? "FECHAR TECLADO" : "CLOSE KEYBOARD",
@@ -1219,6 +1230,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
     },
     {
       ref: editorRef,
+      cardRef: kbdRef,
       icon: "↔",
       color: C.green,
       title: ispt ? "MOVER CURSOR" : "MOVE CURSOR",
@@ -1227,13 +1239,14 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "Slide your finger to move\nthe cursor smoothly.\nOr tap to place it anywhere.",
     },
     {
-      ref: bottomAreaRef,
+      ref: auxTabsRef,
+      secondarySpotRef: runBtnRef,
       icon: "▶",
       color: C.green,
       title: ispt ? "ESCREVER E EXECUTAR" : "TYPE & RUN",
       body: ispt
-        ? "Use os botões SQL, TABLES\ne COLUMNS para inserir tokens.\nPressione ▶ RUN para executar."
-        : "Use SQL, TABLES & COLUMNS\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
+        ? "Use os botões TABLES, COLUMNS,\nSQL e AGG para inserir tokens.\nPressione ▶ RUN para executar."
+        : "Use TABLES, COLUMNS, SQL & AGG\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
     },
     {
       ref: tourBtnRef,
@@ -1268,27 +1281,42 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
 
   const H = typeof window !== "undefined" ? window.innerHeight : 800;
   const sp = spotRect;
+  const editorAnimRect = (step === 3 || step === 4 || step === 5) ? editorRef?.current?.getBoundingClientRect() : null;
+  const rawCard = current.cardRef?.current?.getBoundingClientRect();
+  const cardSp = rawCard ? { top: rawCard.top - PAD, left: rawCard.left - PAD, width: rawCard.width + PAD * 2, height: rawCard.height + PAD * 2 } : sp;
+  const extraHighlightRefs = current.extraHighlightRef
+    ? (Array.isArray(current.extraHighlightRef) ? current.extraHighlightRef : [current.extraHighlightRef])
+    : [];
+  const extraHighlightRects = extraHighlightRefs.map(ref => {
+    const r = ref?.current?.getBoundingClientRect();
+    return r ? { top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 } : null;
+  }).filter(Boolean);
+  const secRaw = current.secondarySpotRef?.current?.getBoundingClientRect();
+  const secRect = secRaw ? { top: secRaw.top - PAD, left: secRaw.left - PAD, width: secRaw.width + PAD * 2, height: secRaw.height + PAD * 2 } : null;
   const MIN_CARD_H = 250;
-  const spaceAbove = sp ? sp.top - 14 : 0;
-  const spaceBelow = sp ? H - (sp.top + sp.height) - 14 : H * 0.5;
+  const isPreviewStep = step === 0 || step === 1 || step === 2;
+  const PREVIEW_H = 150;
+  const previewOffset = isPreviewStep ? PREVIEW_H + 14 : 0;
+  const spaceAbove = cardSp ? cardSp.top - 14 : 0;
+  const spaceBelow = cardSp ? H - (cardSp.top + cardSp.height) - 14 - previewOffset : H * 0.5;
 
   let tooltipPos, tooltipMaxH;
-  if (!sp) {
+  if (!cardSp) {
     // No spotlight — center card in viewport
     tooltipPos = { top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
     tooltipMaxH = H * 0.55;
   } else if (spaceAbove >= MIN_CARD_H && spaceAbove >= spaceBelow) {
     // Enough room above spotlight
     tooltipMaxH = spaceAbove - 8;
-    tooltipPos = { bottom: H - sp.top + 14, left: "50%", transform: "translateX(-50%)" };
+    tooltipPos = { bottom: H - cardSp.top + 14, left: "50%", transform: "translateX(-50%)" };
   } else if (spaceBelow >= MIN_CARD_H) {
     // Enough room below spotlight
     tooltipMaxH = spaceBelow - 8;
-    tooltipPos = { top: sp.top + sp.height + 14, left: "50%", transform: "translateX(-50%)" };
+    tooltipPos = { top: cardSp.top + cardSp.height + 14 + previewOffset, left: "50%", transform: "translateX(-50%)" };
   } else {
-    // Large spotlight (e.g. editor): float card in the lower portion of the spotlight itself
-    tooltipMaxH = Math.min(320, Math.max(200, sp.height * 0.55));
-    tooltipPos = { top: sp.top + sp.height * 0.38, left: "50%", transform: "translateX(-50%)" };
+    // Large spotlight: float card in the lower portion of the spotlight itself
+    tooltipMaxH = Math.min(320, Math.max(200, cardSp.height * 0.55));
+    tooltipPos = { top: cardSp.top + cardSp.height * 0.38, left: "50%", transform: "translateX(-50%)" };
   }
 
   return (
@@ -1296,20 +1324,97 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}>
 
-      {/* Dark overlay — four panels around spotlight */}
+      {/* Dark overlay — four panels around primary spotlight */}
       {sp ? (
         <>
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: Math.max(0, sp.top), background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
-          <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
           <div style={{ position: "fixed", top: sp.top, left: 0, width: Math.max(0, sp.left), height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
           <div style={{ position: "fixed", top: sp.top, left: sp.left + sp.width, right: 0, height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
-          {/* Glowing border around spotlight */}
-          <div style={{
-            position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height,
-            border: `2px solid ${current.color}`,
-            boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`,
-            pointerEvents: "none", animation: "pulseGlow 2s ease infinite",
-          }} />
+          {/* Bottom area — split into faded + dark sections when a secondary spot exists */}
+          {secRect ? (
+            <>
+              <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, height: Math.max(0, secRect.top - (sp.top + sp.height)), background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+              <div style={{ position: "fixed", top: secRect.top, left: 0, width: Math.max(0, secRect.left), height: secRect.height, background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+              <div style={{ position: "fixed", top: secRect.top, left: secRect.left + secRect.width, right: 0, height: secRect.height, background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+              <div style={{ position: "fixed", top: secRect.top + secRect.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+            </>
+          ) : (
+            <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          )}
+          {/* Glowing border — primary spotlight */}
+          <div style={{ position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
+          {/* Glowing border — secondary spot */}
+          {secRect && <div style={{ position: "fixed", top: secRect.top, left: secRect.left, width: secRect.width, height: secRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
+          {/* Glowing borders — extra highlights (no cutout, rendered above overlay) */}
+          {extraHighlightRects.map((rect, i) => (
+            <div key={i} style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width, height: rect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
+          ))}
+          {/* Gesture animation overlaid on editor area */}
+          {/* Preview panel — shows example content for SCHEMA/HINT/EXPECTED steps */}
+          {isPreviewStep && (
+            <div style={{ position: "fixed", top: sp.top + sp.height + 4, left: 8, right: 8, maxHeight: PREVIEW_H, overflowY: "auto", overflowX: "auto", zIndex: 9501, pointerEvents: "none" }}>
+              {step === 0 && schema && (
+                <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11 }}>
+                  {schema.split("\n").map((l, i) => {
+                    const [t, ...c] = l.split(":");
+                    return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.orange }}>{t.trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.green }}>{c.join(":").trim()}</span></div>;
+                  })}
+                </div>
+              )}
+              {step === 1 && hint && (
+                <div style={{ background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>{hint}</div>
+              )}
+              {step === 2 && db && validateQuery && (() => {
+                const er = runSQL(db, validateQuery);
+                if (!er.ok) return <div style={{ background: C.redGhost, border: `1px solid ${C.red}40`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.red }}>{er.msg}</div>;
+                return (
+                  <div style={{ background: C.surface, border: `1px solid ${C.green}40`, padding: "8px 10px" }}>
+                    <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginBottom: 6 }}>-- expected result ({er.rows.length} rows)</div>
+                    {er.rows.length > 0 && (
+                      <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 11 }}>
+                        <thead><tr>{er.columns.map(c => <th key={c} style={{ padding: "3px 8px", borderBottom: `1px solid ${C.border}`, color: C.green, textAlign: "left", fontWeight: 400, whiteSpace: "nowrap" }}>{c}</th>)}</tr></thead>
+                        <tbody>{er.rows.slice(0, 5).map((row, i) => <tr key={i}>{row.map((v, j) => <td key={j} style={{ padding: "3px 8px", borderBottom: `1px solid ${C.border}10`, color: v === null ? C.dim : C.white, fontStyle: v === null ? "italic" : "normal", whiteSpace: "nowrap" }}>{v === null ? "NULL" : String(v)}</td>)}</tr>)}</tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+          {editorAnimRect && (
+            <div style={{
+              position: "fixed",
+              top: editorAnimRect.top + editorAnimRect.height * 0.2,
+              left: editorAnimRect.left + editorAnimRect.width * 0.5,
+              zIndex: 9502, pointerEvents: "none",
+            }}>
+              {step === 5 ? (
+                <>
+                  {/* Swipe track */}
+                  <div style={{ position: "absolute", top: 0, left: -50, width: 100, height: 1, background: `${current.color}35` }} />
+                  {/* Sliding finger */}
+                  <div style={{ position: "absolute", width: 14, height: 14, marginTop: -7, marginLeft: -7, background: current.color, borderRadius: "50%", boxShadow: `0 0 14px ${current.color}90`, animation: "swipeFingerLR 2.5s ease-in-out infinite" }} />
+                  {/* Text cursor following below */}
+                  <div style={{ position: "absolute", width: 2, height: 20, marginTop: 5, marginLeft: -1, background: current.color, boxShadow: `0 0 6px ${current.color}`, animation: "swipeCursorLR 2.5s ease-in-out infinite" }} />
+                  {/* Direction arrows */}
+                  <div style={{ position: "absolute", top: -24, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 11, color: `${current.color}80`, letterSpacing: 8, whiteSpace: "nowrap" }}>← →</div>
+                  {/* Label */}
+                  <div style={{ position: "absolute", top: 34, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
+                    {ispt ? "DESLIZE" : "SWIPE"}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
+                  {step === 3 && <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: "tapDouble2 2.2s ease-out infinite" }} />}
+                  <div style={{ position: "absolute", width: 8, height: 8, marginTop: -4, marginLeft: -4, background: current.color, borderRadius: "50%", boxShadow: `0 0 10px ${current.color}`, animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
+                  <div style={{ position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
+                    {step === 3 ? (ispt ? "TOQUE×2" : "DOUBLE TAP") : (ispt ? "TOQUE" : "TAP")}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
@@ -1397,7 +1502,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
-  const hintBarRef = useRef(null), bottomAreaRef = useRef(null);
+  const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
@@ -2057,6 +2162,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
+            tabsRef={auxTabsRef}
           />
           {/* ── RUN + utility bar ── */}
           {!result && (
@@ -2070,7 +2176,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
               <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
               <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
-              <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
+              <button ref={runBtnRef} onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
             </div>
           )}
         </div>
@@ -2090,6 +2196,12 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           tourBtnRef={tourBtnRef}
           hintBarRef={hintBarRef}
           bottomAreaRef={bottomAreaRef}
+          schema={ch.schema}
+          hint={ch.hint}
+          db={db}
+          validateQuery={ch.validate}
+          auxTabsRef={auxTabsRef}
+          runBtnRef={runBtnRef}
         />
       )}
     </div>
