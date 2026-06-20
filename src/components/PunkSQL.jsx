@@ -1059,7 +1059,7 @@ function TokenChip({ text, color, onTap }) {
   );
 }
 
-function AuxKeyboard({ onInsert, onControl }) {
+function AuxKeyboard({ onInsert, onControl, tabsRef }) {
   const keyboardTokens = useGameStore(s => s.keyboardTokens);
   const [activeTab, setActiveTab] = useState("sql");
 
@@ -1108,52 +1108,54 @@ function AuxKeyboard({ onInsert, onControl }) {
       onTouchStart={e => e.preventDefault()}
     >
 
-      {/* Tab selector row */}
-      <div style={{ display: "flex" }}>
-        {tabDefs.map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onPointerDown={e => { e.preventDefault(); setActiveTab(tab.id); }}
-              style={{
-                flex: 1, minHeight: 34, background: "#000000",
-                border: "none",
-                borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
-                cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-                color: isActive ? tab.color : "#555",
-                fontWeight: isActive ? 700 : 400,
-                letterSpacing: 1, userSelect: "none",
-              }}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Token chip panel — visible only when a tab is active */}
-      {activeTokens && (
-        <div style={{
-          display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
-          scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
-          minHeight: 38, background: "#000000",
-        }}>
-          {activeTokens.tokens.length === 0 && (
-            <span style={{ fontFamily: F.mono, fontSize: 11, color: "#444", alignSelf: "center" }}>
-              no {activeTokens.id} loaded
-            </span>
-          )}
-          {activeTokens.tokens.map(tok => (
-            <TokenChip
-              key={tok}
-              text={tok}
-              color={activeTokens.color}
-              onTap={() => activeTokens.onTap(tok)}
-            />
-          ))}
+      <div ref={tabsRef}>
+        {/* Tab selector row */}
+        <div style={{ display: "flex" }}>
+          {tabDefs.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onPointerDown={e => { e.preventDefault(); setActiveTab(tab.id); }}
+                style={{
+                  flex: 1, minHeight: 34, background: "#000000",
+                  border: "none",
+                  borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
+                  cursor: "pointer", fontFamily: F.mono, fontSize: 11,
+                  color: isActive ? tab.color : "#555",
+                  fontWeight: isActive ? 700 : 400,
+                  letterSpacing: 1, userSelect: "none",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {/* Token chip panel — visible only when a tab is active */}
+        {activeTokens && (
+          <div style={{
+            display: "flex", overflowX: "auto", padding: "5px 8px", gap: 5,
+            scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
+            minHeight: 38, background: "#000000",
+          }}>
+            {activeTokens.tokens.length === 0 && (
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: "#444", alignSelf: "center" }}>
+                no {activeTokens.id} loaded
+              </span>
+            )}
+            {activeTokens.tokens.map(tok => (
+              <TokenChip
+                key={tok}
+                text={tok}
+                color={activeTokens.color}
+                onTap={() => activeTokens.onTap(tok)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Termux row 1: ESC / — HOME ↑ END PGUP */}
       <div style={{ display: "flex" }}>
@@ -1172,7 +1174,7 @@ function AuxKeyboard({ onInsert, onControl }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1238,12 +1240,13 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
     },
     {
       ref: bottomAreaRef,
+      extraHighlightRef: [auxTabsRef, runBtnRef],
       icon: "▶",
       color: C.green,
       title: ispt ? "ESCREVER E EXECUTAR" : "TYPE & RUN",
       body: ispt
-        ? "Use os botões SQL, TABLES\ne COLUMNS para inserir tokens.\nPressione ▶ RUN para executar."
-        : "Use SQL, TABLES & COLUMNS\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
+        ? "Use os botões TABLES, COLUMNS,\nSQL e AGG para inserir tokens.\nPressione ▶ RUN para executar."
+        : "Use TABLES, COLUMNS, SQL & AGG\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
     },
     {
       ref: tourBtnRef,
@@ -1281,8 +1284,13 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
   const editorAnimRect = (step === 3 || step === 4 || step === 5) ? editorRef?.current?.getBoundingClientRect() : null;
   const rawCard = current.cardRef?.current?.getBoundingClientRect();
   const cardSp = rawCard ? { top: rawCard.top - PAD, left: rawCard.left - PAD, width: rawCard.width + PAD * 2, height: rawCard.height + PAD * 2 } : sp;
-  const rawExtra = current.extraHighlightRef?.current?.getBoundingClientRect();
-  const extraHighlightRect = rawExtra ? { top: rawExtra.top - PAD, left: rawExtra.left - PAD, width: rawExtra.width + PAD * 2, height: rawExtra.height + PAD * 2 } : null;
+  const extraHighlightRefs = current.extraHighlightRef
+    ? (Array.isArray(current.extraHighlightRef) ? current.extraHighlightRef : [current.extraHighlightRef])
+    : [];
+  const extraHighlightRects = extraHighlightRefs.map(ref => {
+    const r = ref?.current?.getBoundingClientRect();
+    return r ? { top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 } : null;
+  }).filter(Boolean);
   const MIN_CARD_H = 250;
   const isPreviewStep = step === 0 || step === 1 || step === 2;
   const PREVIEW_H = 150;
@@ -1323,8 +1331,10 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           <div style={{ position: "fixed", top: sp.top, left: sp.left + sp.width, right: 0, height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
           {/* Glowing border — primary spotlight */}
           <div style={{ position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
-          {/* Glowing border — extra highlight (no cutout, rendered above overlay) */}
-          {extraHighlightRect && <div style={{ position: "fixed", top: extraHighlightRect.top, left: extraHighlightRect.left, width: extraHighlightRect.width, height: extraHighlightRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
+          {/* Glowing borders — extra highlights (no cutout, rendered above overlay) */}
+          {extraHighlightRects.map((rect, i) => (
+            <div key={i} style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width, height: rect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
+          ))}
           {/* Gesture animation overlaid on editor area */}
           {/* Preview panel — shows example content for SCHEMA/HINT/EXPECTED steps */}
           {isPreviewStep && (
@@ -1478,7 +1488,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
-  const hintBarRef = useRef(null), bottomAreaRef = useRef(null);
+  const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
@@ -2138,6 +2148,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
+            tabsRef={auxTabsRef}
           />
           {/* ── RUN + utility bar ── */}
           {!result && (
@@ -2151,7 +2162,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
               <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
               <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
-              <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
+              <button ref={runBtnRef} onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
             </div>
           )}
         </div>
@@ -2175,6 +2186,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           hint={ch.hint}
           db={db}
           validateQuery={ch.validate}
+          auxTabsRef={auxTabsRef}
+          runBtnRef={runBtnRef}
         />
       )}
     </div>
