@@ -11,6 +11,7 @@ import { useShallow } from "zustand/react/shallow";
 // ── Persistent Storage Helpers ────────────────────────────
 const STORAGE_KEY = "qq-save";
 const SQL_DRAFT_PREFIX = "qq-draft-";
+const CODE_ONBOARDING_KEY = "punksql-code-tour-v1";
 
 function loadProgress() {
   try {
@@ -1161,6 +1162,160 @@ function AuxKeyboard({ onInsert, onControl }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  CODE SCREEN ONBOARDING — First-time walkthrough
+// ═══════════════════════════════════════════════════════════
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef }) {
+  const [step, setStep] = useState(0);
+  const [spotRect, setSpotRect] = useState(null);
+  const ispt = lang === "pt";
+  const PAD = 10;
+
+  const steps = [
+    {
+      ref: kbdRef,
+      icon: "⌨",
+      color: C.amber,
+      title: ispt ? "ABRIR TECLADO" : "OPEN KEYBOARD",
+      body: ispt
+        ? "Toque duas vezes na tela\nou pressione este botão ⌨\npara abrir o teclado nativo."
+        : "Double tap the editor\nor press this ⌨ button\nto open the native keyboard.",
+    },
+    {
+      ref: editorRef,
+      icon: "✕",
+      color: C.cyan,
+      title: ispt ? "FECHAR TECLADO" : "CLOSE KEYBOARD",
+      body: ispt
+        ? "Com o teclado aberto,\ntoque uma vez na tela\npara fechá-lo."
+        : "With the keyboard open,\ntap anywhere on the editor\nto close it.",
+    },
+    {
+      ref: editorRef,
+      icon: "↔",
+      color: C.green,
+      title: ispt ? "MOVER CURSOR" : "MOVE CURSOR",
+      body: ispt
+        ? "Deslize o dedo para mover\no cursor suavemente.\nOu toque para posicioná-lo."
+        : "Slide your finger to move\nthe cursor smoothly.\nOr tap to place it anywhere.",
+    },
+    {
+      ref: auxRef,
+      icon: "▶",
+      color: C.green,
+      title: ispt ? "ESCREVER E EXECUTAR" : "TYPE & RUN",
+      body: ispt
+        ? "Use os botões SQL, TABLES\ne COLUMNS para inserir tokens.\nPressione ▶ RUN para executar."
+        : "Use SQL, TABLES & COLUMNS\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
+    },
+  ];
+
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
+
+  useEffect(() => {
+    const ref = current.ref;
+    if (!ref?.current) { setSpotRect(null); return; }
+    const update = () => {
+      const r = ref.current?.getBoundingClientRect();
+      if (r) setSpotRect({ top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [step]);
+
+  const done = () => {
+    try { localStorage.setItem(CODE_ONBOARDING_KEY, "1"); } catch(e) {}
+    onComplete();
+  };
+
+  const H = typeof window !== "undefined" ? window.innerHeight : 800;
+  const sp = spotRect;
+  const tooltipAbove = sp ? (sp.top + sp.height / 2) > H * 0.45 : false;
+
+  const tooltipPos = sp ? (tooltipAbove
+    ? { bottom: H - sp.top + 14, left: "50%", transform: "translateX(-50%)" }
+    : { top: sp.top + sp.height + 14, left: "50%", transform: "translateX(-50%)" }
+  ) : { top: "30%", left: "50%", transform: "translateX(-50%)" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9500, pointerEvents: "auto" }}
+      onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}>
+
+      {/* Dark overlay — four panels around spotlight */}
+      {sp ? (
+        <>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: Math.max(0, sp.top), background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          <div style={{ position: "fixed", top: sp.top, left: 0, width: Math.max(0, sp.left), height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          <div style={{ position: "fixed", top: sp.top, left: sp.left + sp.width, right: 0, height: sp.height, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+          {/* Glowing border around spotlight */}
+          <div style={{
+            position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height,
+            border: `2px solid ${current.color}`,
+            boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`,
+            pointerEvents: "none", animation: "pulseGlow 2s ease infinite",
+          }} />
+        </>
+      ) : (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
+      )}
+
+      {/* Tooltip card */}
+      <div style={{
+        position: "fixed", ...tooltipPos,
+        width: "min(310px, 88vw)",
+        background: C.black, border: `1px solid ${current.color}50`,
+        padding: "18px 20px",
+        boxShadow: `0 0 40px ${current.color}25`,
+        zIndex: 9501,
+      }}>
+        {/* Step indicator dots */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, justifyContent: "center" }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{
+              width: i === step ? 22 : 7, height: 7,
+              background: i === step ? current.color : C.border,
+              transition: "all 0.3s ease",
+              boxShadow: i === step ? `0 0 6px ${current.color}70` : "none",
+            }} />
+          ))}
+        </div>
+        {/* Icon */}
+        <div style={{ textAlign: "center", marginBottom: 8 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 30, color: current.color, textShadow: `0 0 20px ${current.color}70` }}>
+            {current.icon}
+          </span>
+        </div>
+        {/* Title */}
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: current.color, letterSpacing: 2.5, textAlign: "center", marginBottom: 10 }}>
+          {current.title}
+        </div>
+        {/* Body */}
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, lineHeight: 1.9, textAlign: "center", whiteSpace: "pre-wrap", marginBottom: 18 }}>
+          {current.body}
+        </div>
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onPointerDown={e => { e.preventDefault(); done(); }} style={{
+            flex: 1, padding: "10px 0", cursor: "pointer", minHeight: 42,
+            fontFamily: F.mono, fontSize: 12, color: C.muted, letterSpacing: 1,
+            background: "none", border: `1px solid ${C.border}`,
+          }}>{ispt ? "PULAR" : "SKIP"}</button>
+          <button onPointerDown={e => { e.preventDefault(); isLast ? done() : setStep(s => s + 1); }} style={{
+            flex: 2, padding: "10px 0", cursor: "pointer", minHeight: 42,
+            fontFamily: F.mono, fontSize: 13, color: C.black, fontWeight: 700, letterSpacing: 2,
+            background: current.color, border: `1px solid ${current.color}`,
+            boxShadow: `0 0 18px ${current.color}35`,
+          }}>{isLast ? (ispt ? "ENTENDIDO ▶" : "GOT IT ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 //  CHALLENGE EDITOR — Real SQL execution
 // ═══════════════════════════════════════════════════════════
 function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, exercises = null, onExNav = null }) {
@@ -1182,7 +1337,12 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [openPanel, setOpenPanel] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showExpected, setShowExpected] = useState(false);
+  const [showCodeOnboarding, setShowCodeOnboarding] = useState(() => {
+    try { return !localStorage.getItem(CODE_ONBOARDING_KEY); } catch(e) { return false; }
+  });
+
   const taRef = useRef(null), edRef = useRef(null);
+  const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
@@ -1836,14 +1996,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           </div>
         )}
         {/* AuxKeyboard — always visible (dual-row virtual keyboard) */}
-        <AuxKeyboard
-          onInsert={handleAuxInsert}
-          onControl={handleAuxControl}
-        />
+        <div ref={auxKbRef}>
+          <AuxKeyboard
+            onInsert={handleAuxInsert}
+            onControl={handleAuxControl}
+          />
+        </div>
         {/* ── RUN + utility bar ── */}
         {!result && (
           <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
-            <button onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
+            <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
             <button
               onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
               onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
@@ -1856,6 +2018,17 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           </div>
         )}
       </div>
+
+      {/* Code screen onboarding — shows on first visit */}
+      {showCodeOnboarding && (
+        <CodeScreenOnboarding
+          onComplete={() => setShowCodeOnboarding(false)}
+          lang={lang}
+          editorRef={edRef}
+          kbdRef={kbdBtnRef}
+          auxRef={auxKbRef}
+        />
+      )}
     </div>
   );
 }
