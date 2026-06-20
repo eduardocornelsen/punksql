@@ -1164,7 +1164,7 @@ function AuxKeyboard({ onInsert, onControl }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1208,7 +1208,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "Double tap the editor\nor press this ⌨ button\nto open the native keyboard.",
     },
     {
-      ref: editorRef,
+      ref: hintBarRef,
       icon: "✕",
       color: C.cyan,
       title: ispt ? "FECHAR TECLADO" : "CLOSE KEYBOARD",
@@ -1217,7 +1217,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "With the keyboard open,\ntap anywhere on the editor\nto close it.",
     },
     {
-      ref: editorRef,
+      ref: hintBarRef,
       icon: "↔",
       color: C.green,
       title: ispt ? "MOVER CURSOR" : "MOVE CURSOR",
@@ -1226,7 +1226,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "Slide your finger to move\nthe cursor smoothly.\nOr tap to place it anywhere.",
     },
     {
-      ref: auxRef,
+      ref: bottomAreaRef,
       icon: "▶",
       color: C.green,
       title: ispt ? "ESCREVER E EXECUTAR" : "TYPE & RUN",
@@ -1383,6 +1383,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
+  const hintBarRef = useRef(null), bottomAreaRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
@@ -1987,7 +1988,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           </div>
         </div>
         {/* Hint bar */}
-        <div style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+        <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
           {!dbReady ? "loading sql engine..." : "swipe to move cursor · tap to focus"}
         </div>
         {/* Results — shown in BOTH modes */}
@@ -2037,28 +2038,28 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             ))}
           </div>
         )}
-        {/* AuxKeyboard — always visible (dual-row virtual keyboard) */}
-        <div ref={auxKbRef}>
+        {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
+        <div ref={bottomAreaRef}>
           <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
           />
+          {/* ── RUN + utility bar ── */}
+          {!result && (
+            <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
+              <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
+              <button
+                onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
+                onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
+                onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
+                style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
+              <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
+              <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
+              <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
+              <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
+            </div>
+          )}
         </div>
-        {/* ── RUN + utility bar ── */}
-        {!result && (
-          <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
-            <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
-            <button
-              onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
-              onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
-              onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
-              style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
-            <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
-            <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
-            <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
-            <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
-          </div>
-        )}
       </div>
 
       {/* Code screen onboarding — shows on first visit */}
@@ -2073,6 +2074,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           hintRef={hintBtnRef}
           expectedRef={expectedBtnRef}
           tourBtnRef={tourBtnRef}
+          hintBarRef={hintBarRef}
+          bottomAreaRef={bottomAreaRef}
         />
       )}
     </div>
