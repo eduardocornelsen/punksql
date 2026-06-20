@@ -198,6 +198,11 @@ const globalCSS = `
 @keyframes levelUp{0%{transform:scale(0.5);opacity:0}20%{transform:scale(1.2);opacity:1}40%{transform:scale(0.95)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
 @keyframes badgeUnlock{0%{transform:scale(0) rotate(-180deg);opacity:0}50%{transform:scale(1.3) rotate(10deg);opacity:1}75%{transform:scale(0.9) rotate(-5deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes tapRippleSingle{0%{transform:scale(0.1);opacity:0.9}30%{transform:scale(1.5);opacity:0.5}42%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
+@keyframes tapDouble1{0%{transform:scale(0.1);opacity:0.9}22%{transform:scale(1.5);opacity:0.5}32%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
+@keyframes tapDouble2{0%,17%{transform:scale(0.1);opacity:0}18%{transform:scale(0.1);opacity:0.9}40%{transform:scale(1.5);opacity:0.5}50%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
+@keyframes dotSingle{0%{transform:scale(2);opacity:0.9}18%{transform:scale(1);opacity:0.35}100%{transform:scale(1);opacity:0.35}}
+@keyframes dotDouble{0%{transform:scale(2);opacity:0.9}14%{transform:scale(1);opacity:0.35}17%{transform:scale(1);opacity:0.35}18%{transform:scale(2);opacity:0.9}32%{transform:scale(1);opacity:0.35}100%{transform:scale(1);opacity:0.35}}
 *{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
 textarea:focus{outline:none}textarea::placeholder{color:transparent}button{-webkit-tap-highlight-color:transparent}
 html{height:100%;height:-webkit-fill-available;background:#111}
@@ -1347,9 +1352,27 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           {current.title}
         </div>
         {/* Body */}
-        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, lineHeight: 1.9, textAlign: "center", whiteSpace: "pre-wrap", marginBottom: 18 }}>
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, lineHeight: 1.9, textAlign: "center", whiteSpace: "pre-wrap", marginBottom: (step === 3 || step === 4) ? 10 : 18 }}>
           {current.body}
         </div>
+        {/* Tap gesture animation for keyboard steps */}
+        {(step === 3 || step === 4) && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ position: "relative", width: 96, height: 44, border: `1px solid ${current.color}22`, background: "#060606" }}>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: F.mono, fontSize: 9, color: `${current.color}28`, letterSpacing: 1 }}>SELECT *</span>
+              </div>
+              <div style={{ position: "absolute", top: "50%", left: "50%" }}>
+                <div style={{ position: "absolute", width: 20, height: 20, marginTop: -10, marginLeft: -10, border: `1.5px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
+                {step === 3 && <div style={{ position: "absolute", width: 20, height: 20, marginTop: -10, marginLeft: -10, border: `1.5px solid ${current.color}`, borderRadius: "50%", animation: "tapDouble2 2.2s ease-out infinite" }} />}
+                <div style={{ position: "absolute", width: 5, height: 5, marginTop: -2.5, marginLeft: -2.5, background: current.color, borderRadius: "50%", animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
+              </div>
+            </div>
+            <div style={{ marginTop: 5, fontFamily: F.mono, fontSize: 9, color: `${current.color}60`, letterSpacing: 2 }}>
+              {step === 3 ? (ispt ? "TOQUE×2" : "DOUBLE TAP") : (ispt ? "TOQUE" : "TAP")}
+            </div>
+          </div>
+        )}
         {/* Buttons */}
         <div style={{ display: "flex", gap: 8 }}>
           <button onPointerDown={e => { e.preventDefault(); done(); }} style={{
