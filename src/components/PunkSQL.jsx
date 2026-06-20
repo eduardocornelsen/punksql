@@ -1164,13 +1164,40 @@ function AuxKeyboard({ onInsert, onControl }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
   const PAD = 10;
 
   const steps = [
+    {
+      ref: schemaRef,
+      icon: "◈",
+      color: C.cyan,
+      title: ispt ? "SCHEMA" : "SCHEMA",
+      body: ispt
+        ? "Veja as tabelas e colunas\ndisponíveis para este desafio.\nUse para montar sua query."
+        : "View the tables and columns\navailable for this challenge.\nUse them to build your query.",
+    },
+    {
+      ref: hintRef,
+      icon: "?",
+      color: C.amber,
+      title: ispt ? "DICA" : "HINT",
+      body: ispt
+        ? "Travado? Abra a dica para\num passo na direção certa\nsem entregar a resposta."
+        : "Stuck? Open the hint for\na nudge in the right direction\nwithout giving away the answer.",
+    },
+    {
+      ref: expectedRef,
+      icon: "✓",
+      color: C.green,
+      title: ispt ? "RESPOSTA ESPERADA" : "EXPECTED OUTPUT",
+      body: ispt
+        ? "Veja o resultado esperado\nantes de submeter para\nvalidar sua lógica."
+        : "Preview the expected output\nbefore submitting to\nvalidate your logic.",
+    },
     {
       ref: kbdRef,
       icon: "⌨",
@@ -1347,6 +1374,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
+  const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
@@ -1826,10 +1854,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       </button>
       {probOpen && (
         <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
-            <button onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
-            <button onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
+            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
+            <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
+            <button onClick={e => { e.stopPropagation(); setProbOpen(true); setShowCodeOnboarding(true); }} style={{ background: "none", border: `1px solid ${C.purple}60`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.purple, padding: "4px 8px", marginLeft: "auto" }}>?</button>
           </div>
           {showSchema && (
             <div style={{ marginTop: 8, background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, animation: "fadeSlide 0.15s ease" }}>
@@ -2031,6 +2060,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           editorRef={edRef}
           kbdRef={kbdBtnRef}
           auxRef={auxKbRef}
+          schemaRef={schemaBtnRef}
+          hintRef={hintBtnRef}
+          expectedRef={expectedBtnRef}
         />
       )}
     </div>
