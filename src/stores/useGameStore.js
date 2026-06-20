@@ -3,10 +3,15 @@ import { create } from "zustand";
 const SQL_KEYWORDS = [
   "AS","SELECT","DISTINCT","FROM","WHERE","JOIN","LEFT JOIN","INNER JOIN",
   "GROUP BY","ORDER BY","HAVING","LIMIT","OFFSET","AND","OR","NOT",
-  "IN","LIKE","BETWEEN","IS NULL","IS NOT NULL","COUNT()","SUM()",
-  "AVG()","MIN()","MAX()","ROUND()","SUBSTR()","UPPER()","LOWER()","COALESCE()",
+  "IN","LIKE","BETWEEN","IS NULL","IS NOT NULL",
   "DESC","ASC","ON","CASE","WHEN","THEN","ELSE","END",
-  "WITH","OVER","PARTITION BY","ROW_NUMBER()","RANK()","DENSE_RANK()","LAG()","LEAD()",
+  "WITH","OVER","PARTITION BY",
+];
+
+const SQL_AGG_KEYWORDS = [
+  "COUNT()","SUM()","AVG()","MIN()","MAX()",
+  "ROUND()","SUBSTR()","UPPER()","LOWER()","COALESCE()",
+  "ROW_NUMBER()","RANK()","DENSE_RANK()","LAG()","LEAD()",
 ];
 
 const HISTORY_KEY = "punksql-query-history";
@@ -27,6 +32,7 @@ const useGameStore = create((set, get) => ({
   setActiveChallenge: (challenge) => {
     const tokens = challenge ? {
       keywords: SQL_KEYWORDS,
+      agg: SQL_AGG_KEYWORDS,
       tables: challenge.schema
         .split("\n")
         .map(l => l.split(":")[0].trim())
@@ -40,7 +46,7 @@ const useGameStore = create((set, get) => ({
             : [];
         })
         .filter((v, i, a) => v && a.indexOf(v) === i),
-    } : { keywords: SQL_KEYWORDS, tables: [], columns: [] };
+    } : { keywords: SQL_KEYWORDS, agg: SQL_AGG_KEYWORDS, tables: [], columns: [] };
     set({ activeChallenge: challenge, keyboardTokens: tokens });
   },
 
@@ -49,7 +55,7 @@ const useGameStore = create((set, get) => ({
   setCursorPosition: (pos) => set({ cursorPosition: pos }),
 
   // Keyboard tokens loaded dynamically based on active exercise
-  keyboardTokens: { keywords: SQL_KEYWORDS, tables: [], columns: [] },
+  keyboardTokens: { keywords: SQL_KEYWORDS, agg: SQL_AGG_KEYWORDS, tables: [], columns: [] },
   setKeyboardTokens: (tokens) =>
     set({ keyboardTokens: { ...get().keyboardTokens, ...tokens } }),
 
