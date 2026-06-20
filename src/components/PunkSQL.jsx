@@ -2685,6 +2685,11 @@ export default function PunkSQLCLI() {
     setLastContext("learn");
   }, []);
 
+  const handleCodeNav = useCallback((id) => {
+    setLastCodeId(id);
+    setLastContext("code");
+  }, []);
+
   const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" };
   const ctx = { lang, t };
 
@@ -2714,7 +2719,7 @@ export default function PunkSQLCLI() {
 
   if (screen === "challenge") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} />
+      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
