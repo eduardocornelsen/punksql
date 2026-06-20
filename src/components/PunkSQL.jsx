@@ -1656,18 +1656,52 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               onSelect={e => setCPos(e.target.selectionStart || 0)}
               onFocus={() => { if (!isTouch.current) setEditing(true); }}
               onKeyDown={e => {
+                const pos = e.target.selectionStart;
+                const text = e.target.value;
+                const before = text.substring(0, pos);
+                const lineStart = before.lastIndexOf("\n") + 1;
+                const currentLine = before.substring(lineStart);
+                const indentMatch = currentLine.match(/^(\s*)/);
+                const indent = indentMatch ? indentMatch[1] : "";
+
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  const pos = e.target.selectionStart;
-                  const before = sql.substring(0, pos);
-                  const lineStart = before.lastIndexOf("\n") + 1;
-                  const currentLine = before.substring(lineStart);
-                  const indentMatch = currentLine.match(/^(\s*)/);
-                  const indent = indentMatch ? indentMatch[1] : "";
-                  const extraIndent = /\(\s*$/.test(before) || /^\s*(SELECT|WITH)\b/i.test(currentLine) ? "  " : "";
+                  // paren check uses currentLine (not full `before`) to avoid false matches across lines
+                  const endsWithParen = /\(\s*$/.test(currentLine);
+                  // SELECT always indents next line (column list); other clauses only when standalone
+                  const isSelectClause = /^\s*SELECT\b/i.test(currentLine);
+                  const isStandaloneClause =
+                    /^\s*(WITH|FROM|WHERE|HAVING|ON|SET|VALUES)\s*$/i.test(currentLine) ||
+                    /^\s*(GROUP\s+BY|ORDER\s+BY|UNION(\s+ALL)?|EXCEPT(\s+ALL)?|INTERSECT(\s+ALL)?)\s*$/i.test(currentLine) ||
+                    /^\s*((LEFT|RIGHT|FULL)(\s+OUTER)?\s+JOIN|INNER\s+JOIN|CROSS\s+JOIN|JOIN)\s*$/i.test(currentLine);
+                  const extraIndent = (endsWithParen || isSelectClause || isStandaloneClause) ? "  " : "";
                   const ins = "\n" + indent + extraIndent;
-                  setSql(s => s.substring(0, pos) + ins + s.substring(pos));
+                  setSql(text.substring(0, pos) + ins + text.substring(pos));
                   const newPos = pos + ins.length;
+                  setCPos(newPos);
+                  requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
+                } else if (e.key === "Tab") {
+                  e.preventDefault();
+                  const ins = "  ";
+                  setSql(text.substring(0, pos) + ins + text.substring(pos));
+                  const newPos = pos + 2;
+                  setCPos(newPos);
+                  requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
+                } else if (e.key === ")" && /^\s*$/.test(currentLine)) {
+                  // Auto-dedent closing paren to match its opening paren's indent level
+                  e.preventDefault();
+                  let depth = 1, i = pos - 1, matchPos = -1;
+                  while (i >= 0 && depth > 0) {
+                    if (text[i] === ")") depth++;
+                    else if (text[i] === "(") { if (--depth === 0) matchPos = i; }
+                    i--;
+                  }
+                  const targetIndent = matchPos >= 0
+                    ? (text.substring(text.lastIndexOf("\n", matchPos) + 1, matchPos).match(/^(\s*)/) || ["", ""])[1]
+                    : indent.slice(0, Math.max(0, indent.length - 2));
+                  const ins = targetIndent + ")";
+                  setSql(text.substring(0, lineStart) + ins + text.substring(pos));
+                  const newPos = lineStart + ins.length;
                   setCPos(newPos);
                   requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
                 }
