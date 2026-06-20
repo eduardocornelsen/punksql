@@ -1273,6 +1273,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
 
   const H = typeof window !== "undefined" ? window.innerHeight : 800;
   const sp = spotRect;
+  const editorAnimRect = (step === 3 || step === 4) ? editorRef?.current?.getBoundingClientRect() : null;
   const MIN_CARD_H = 250;
   const spaceAbove = sp ? sp.top - 14 : 0;
   const spaceBelow = sp ? H - (sp.top + sp.height) - 14 : H * 0.5;
@@ -1315,12 +1316,12 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
             boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`,
             pointerEvents: "none", animation: "pulseGlow 2s ease infinite",
           }} />
-          {/* Tap gesture animation overlaid on spotlight */}
-          {(step === 3 || step === 4) && (
+          {/* Tap gesture animation overlaid on editor area */}
+          {editorAnimRect && (
             <div style={{
               position: "fixed",
-              top: step === 4 ? sp.top + sp.height * 0.2 : sp.top + sp.height * 0.5,
-              left: sp.left + sp.width * 0.5,
+              top: editorAnimRect.top + editorAnimRect.height * 0.2,
+              left: editorAnimRect.left + editorAnimRect.width * 0.5,
               zIndex: 9502, pointerEvents: "none",
             }}>
               <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
