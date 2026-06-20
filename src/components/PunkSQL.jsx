@@ -1061,14 +1061,13 @@ function AuxKeyboard({ onInsert, onControl }) {
   ];
 
   const tabDefs = [
-    { id: "star",    label: "*",       color: "#FFFF88", direct: "*" },
-    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,   onTap: t => onInsert(t) },
-    { id: "columns", label: "COLUMNS", color: C.green,   tokens: keyboardTokens.columns,  onTap: c => onInsert(c) },
-    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords, onTap: k => onInsert(k + " ") },
-    { id: "symbols", label: "{}",      color: "#CC88FF", tokens: SQL_SYMBOLS,             onTap: s => onInsert(s) },
+    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,          onTap: t => onInsert(t) },
+    { id: "columns", label: "COLUMNS", color: C.green,   tokens: ["*", ...keyboardTokens.columns], onTap: c => onInsert(c) },
+    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords,         onTap: k => onInsert(k + " ") },
+    { id: "symbols", label: "{}",      color: "#CC88FF", tokens: SQL_SYMBOLS,                     onTap: s => onInsert(s) },
   ];
 
-  const activeTokens = tabDefs.find(t => t.id === activeTab && !t.direct);
+  const activeTokens = tabDefs.find(t => t.id === activeTab);
 
   // Termux row 1: ESC ( ) HOME ↑ END PGUP→top
   const row1 = [
@@ -1105,14 +1104,14 @@ function AuxKeyboard({ onInsert, onControl }) {
           return (
             <button
               key={tab.id}
-              onPointerDown={e => { e.preventDefault(); tab.direct ? onInsert(tab.direct) : setActiveTab(tab.id); }}
+              onPointerDown={e => { e.preventDefault(); setActiveTab(tab.id); }}
               style={{
                 flex: 1, minHeight: 34, background: "#000000",
                 border: "none",
-                borderBottom: !tab.direct && isActive ? `2px solid ${tab.color}` : "2px solid transparent",
+                borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
                 cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-                color: (!tab.direct && isActive) ? tab.color : (tab.direct ? tab.color : "#555"),
-                fontWeight: tab.direct ? 700 : (isActive ? 700 : 400),
+                color: isActive ? tab.color : "#555",
+                fontWeight: isActive ? 700 : 400,
                 letterSpacing: 1, userSelect: "none",
               }}
             >
