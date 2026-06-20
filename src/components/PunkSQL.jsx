@@ -1477,7 +1477,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
 // ═══════════════════════════════════════════════════════════
 //  CHALLENGE EDITOR — Real SQL execution
 // ═══════════════════════════════════════════════════════════
-function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, exercises = null, onExNav = null }) {
+function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
   const { t, lang } = useLang();
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
@@ -1939,6 +1939,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           <div style={{ overflowY: "auto", flex: 1 }}>
             {exercises.map((ex, i) => {
               const isCurrent = ex.id === challengeId;
+              const isCompleted = solved?.has(ex.id);
               return (
                 <button key={ex.id} onPointerDown={e => { e.preventDefault(); onExNav?.(ex.id); setMenuOpen(false); }} style={{
                   display: "flex", alignItems: "center", gap: 10, width: "100%",
@@ -1949,6 +1950,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                   <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? C.cyan : C.muted, minWidth: 24 }}>{i + 1}.</span>
                   <span style={{ fontFamily: F.mono, fontSize: 13, color: isCurrent ? C.cyan : C.text, flex: 1 }}>{ex.title}</span>
                   <span style={{ fontFamily: F.mono, fontSize: 10, color: ex.color, border: `1px solid ${ex.color}40`, padding: "1px 5px" }}>{ex.diff}</span>
+                  {isCompleted && <span style={{ color: C.green, fontSize: 13, fontFamily: F.mono }}>✓</span>}
                   {isCurrent && <span style={{ color: C.cyan, fontSize: 12 }}>◀</span>}
                 </button>
               );
@@ -3067,7 +3069,7 @@ export default function PunkSQLCLI() {
 
   if (screen === "challenge") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} />
+      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
@@ -3075,7 +3077,7 @@ export default function PunkSQLCLI() {
 
   if (screen === "lesson") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} />
+      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
