@@ -203,6 +203,8 @@ const globalCSS = `
 @keyframes tapDouble2{0%,17%{transform:scale(0.1);opacity:0}18%{transform:scale(0.1);opacity:0.9}40%{transform:scale(1.5);opacity:0.5}50%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
 @keyframes dotSingle{0%{transform:scale(2);opacity:0.9}18%{transform:scale(1);opacity:0.35}100%{transform:scale(1);opacity:0.35}}
 @keyframes dotDouble{0%{transform:scale(2);opacity:0.9}14%{transform:scale(1);opacity:0.35}17%{transform:scale(1);opacity:0.35}18%{transform:scale(2);opacity:0.9}32%{transform:scale(1);opacity:0.35}100%{transform:scale(1);opacity:0.35}}
+@keyframes swipeFingerLR{0%,5%{transform:translateX(-44px);opacity:0}12%{opacity:1}82%{opacity:1}92%,100%{transform:translateX(44px);opacity:0}}
+@keyframes swipeCursorLR{0%,5%{transform:translateX(-36px);opacity:0}12%{opacity:1}82%{opacity:1}92%,100%{transform:translateX(36px);opacity:0}}
 *{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
 textarea:focus{outline:none}textarea::placeholder{color:transparent}button{-webkit-tap-highlight-color:transparent}
 html{height:100%;height:-webkit-fill-available;background:#111}
@@ -1226,6 +1228,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
     },
     {
       ref: editorRef,
+      cardRef: kbdRef,
       icon: "↔",
       color: C.green,
       title: ispt ? "MOVER CURSOR" : "MOVE CURSOR",
@@ -1275,7 +1278,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
 
   const H = typeof window !== "undefined" ? window.innerHeight : 800;
   const sp = spotRect;
-  const editorAnimRect = (step === 3 || step === 4) ? editorRef?.current?.getBoundingClientRect() : null;
+  const editorAnimRect = (step === 3 || step === 4 || step === 5) ? editorRef?.current?.getBoundingClientRect() : null;
   const rawCard = current.cardRef?.current?.getBoundingClientRect();
   const cardSp = rawCard ? { top: rawCard.top - PAD, left: rawCard.left - PAD, width: rawCard.width + PAD * 2, height: rawCard.height + PAD * 2 } : sp;
   const rawExtra = current.extraHighlightRef?.current?.getBoundingClientRect();
@@ -1319,7 +1322,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           <div style={{ position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
           {/* Glowing border — extra highlight (no cutout, rendered above overlay) */}
           {extraHighlightRect && <div style={{ position: "fixed", top: extraHighlightRect.top, left: extraHighlightRect.left, width: extraHighlightRect.width, height: extraHighlightRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
-          {/* Tap gesture animation overlaid on editor area */}
+          {/* Gesture animation overlaid on editor area */}
           {editorAnimRect && (
             <div style={{
               position: "fixed",
@@ -1327,12 +1330,31 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
               left: editorAnimRect.left + editorAnimRect.width * 0.5,
               zIndex: 9502, pointerEvents: "none",
             }}>
-              <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
-              {step === 3 && <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: "tapDouble2 2.2s ease-out infinite" }} />}
-              <div style={{ position: "absolute", width: 8, height: 8, marginTop: -4, marginLeft: -4, background: current.color, borderRadius: "50%", boxShadow: `0 0 10px ${current.color}`, animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
-              <div style={{ position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
-                {step === 3 ? (ispt ? "TOQUE×2" : "DOUBLE TAP") : (ispt ? "TOQUE" : "TAP")}
-              </div>
+              {step === 5 ? (
+                <>
+                  {/* Swipe track */}
+                  <div style={{ position: "absolute", top: 0, left: -50, width: 100, height: 1, background: `${current.color}35` }} />
+                  {/* Sliding finger */}
+                  <div style={{ position: "absolute", width: 14, height: 14, marginTop: -7, marginLeft: -7, background: current.color, borderRadius: "50%", boxShadow: `0 0 14px ${current.color}90`, animation: "swipeFingerLR 2.5s ease-in-out infinite" }} />
+                  {/* Text cursor following below */}
+                  <div style={{ position: "absolute", width: 2, height: 20, marginTop: 5, marginLeft: -1, background: current.color, boxShadow: `0 0 6px ${current.color}`, animation: "swipeCursorLR 2.5s ease-in-out infinite" }} />
+                  {/* Direction arrows */}
+                  <div style={{ position: "absolute", top: -24, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 11, color: `${current.color}80`, letterSpacing: 8, whiteSpace: "nowrap" }}>← →</div>
+                  {/* Label */}
+                  <div style={{ position: "absolute", top: 34, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
+                    {ispt ? "DESLIZE" : "SWIPE"}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
+                  {step === 3 && <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: "tapDouble2 2.2s ease-out infinite" }} />}
+                  <div style={{ position: "absolute", width: 8, height: 8, marginTop: -4, marginLeft: -4, background: current.color, borderRadius: "50%", boxShadow: `0 0 10px ${current.color}`, animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
+                  <div style={{ position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
+                    {step === 3 ? (ispt ? "TOQUE×2" : "DOUBLE TAP") : (ispt ? "TOQUE" : "TAP")}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </>
