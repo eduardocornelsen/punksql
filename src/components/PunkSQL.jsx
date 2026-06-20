@@ -218,6 +218,42 @@ const SQL_KW_SET = new Set([
   "TRUE","FALSE","RETURNING","EXPLAIN","PRAGMA","ATTACH","DETACH",
 ]);
 
+// ── SQL smart-indentation helpers (shared by keyboard and UI buttons) ─────────
+function sqlLineContext(text, pos) {
+  const before = text.substring(0, pos);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const currentLine = before.substring(lineStart);
+  const indent = (currentLine.match(/^(\s*)/) || ["", ""])[1];
+  return { before, lineStart, currentLine, indent };
+}
+
+function sqlSmartNewline(text, pos) {
+  const { currentLine, indent } = sqlLineContext(text, pos);
+  const endsWithParen    = /\(\s*$/.test(currentLine);
+  const isSelectClause   = /^\s*SELECT\b/i.test(currentLine);
+  const isStandalone     =
+    /^\s*(WITH|FROM|WHERE|HAVING|ON|SET|VALUES)\s*$/i.test(currentLine) ||
+    /^\s*(GROUP\s+BY|ORDER\s+BY|UNION(\s+ALL)?|EXCEPT(\s+ALL)?|INTERSECT(\s+ALL)?)\s*$/i.test(currentLine) ||
+    /^\s*((LEFT|RIGHT|FULL)(\s+OUTER)?\s+JOIN|INNER\s+JOIN|CROSS\s+JOIN|JOIN)\s*$/i.test(currentLine);
+  const extra = (endsWithParen || isSelectClause || isStandalone) ? "  " : "";
+  return "\n" + indent + extra;
+}
+
+function sqlSmartCloseParen(text, pos) {
+  const { lineStart, currentLine, indent } = sqlLineContext(text, pos);
+  if (!/^\s*$/.test(currentLine)) return null; // only act on blank/whitespace lines
+  let depth = 1, i = pos - 1, matchPos = -1;
+  while (i >= 0 && depth > 0) {
+    if (text[i] === ")") depth++;
+    else if (text[i] === "(") { if (--depth === 0) matchPos = i; }
+    i--;
+  }
+  const targetIndent = matchPos >= 0
+    ? (text.substring(text.lastIndexOf("\n", matchPos) + 1, matchPos).match(/^(\s*)/) || ["", ""])[1]
+    : indent.slice(0, Math.max(0, indent.length - 2));
+  return { lineStart, ins: targetIndent + ")" };
+}
+
 const TOKEN_COLORS = {
   keyword: "#00FFFF",   // cyan
   table:   "#FF8800",   // orange
@@ -1319,6 +1355,24 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       return prev + text.length;
     });
   };
+
+  // Smart Enter for the UI ↵ button — applies the same indentation logic as the physical key
+  const smartEnter = useCallback(() => {
+    const pos = cPosRef.current;
+    const text = sqlRef.current;
+    const ins = sqlSmartNewline(text, pos);
+    const newSql = text.substring(0, pos) + ins + text.substring(pos);
+    const newPos = pos + ins.length;
+    setSql(newSql);
+    sqlRef.current = newSql;
+    setCPos(newPos);
+    cPosRef.current = newPos;
+    if (taRef.current) {
+      requestAnimationFrame(() => {
+        if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
+      });
+    }
+  }, []);
   const backspace = () => {
     setCPos(prev => {
       if (prev <= 0) return prev;
@@ -1417,6 +1471,22 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   // AuxKeyboard handlers
   const handleAuxInsert = useCallback((text) => {
+    // Smart close paren: dedent to matching open paren's indent level (mirrors physical ) key)
+    if (text === ")") {
+      const result = sqlSmartCloseParen(sqlRef.current, cPosRef.current);
+      if (result) {
+        const newSql = sqlRef.current.substring(0, result.lineStart) + result.ins + sqlRef.current.substring(cPosRef.current);
+        const newPos = result.lineStart + result.ins.length;
+        setSql(newSql);
+        sqlRef.current = newSql;
+        setCPos(newPos);
+        cPosRef.current = newPos;
+        if (editing && taRef.current) {
+          requestAnimationFrame(() => { if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); } });
+        }
+        return;
+      }
+    }
     // Smart leading space: if inserting a word token and the char before cursor
     // is not already whitespace / opening bracket, prepend a space
     const isWord = /^[A-Za-z_]/.test(text);
@@ -1657,52 +1727,29 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               onKeyDown={e => {
                 const pos = e.target.selectionStart;
                 const text = e.target.value;
-                const before = text.substring(0, pos);
-                const lineStart = before.lastIndexOf("\n") + 1;
-                const currentLine = before.substring(lineStart);
-                const indentMatch = currentLine.match(/^(\s*)/);
-                const indent = indentMatch ? indentMatch[1] : "";
 
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  // paren check uses currentLine (not full `before`) to avoid false matches across lines
-                  const endsWithParen = /\(\s*$/.test(currentLine);
-                  // SELECT always indents next line (column list); other clauses only when standalone
-                  const isSelectClause = /^\s*SELECT\b/i.test(currentLine);
-                  const isStandaloneClause =
-                    /^\s*(WITH|FROM|WHERE|HAVING|ON|SET|VALUES)\s*$/i.test(currentLine) ||
-                    /^\s*(GROUP\s+BY|ORDER\s+BY|UNION(\s+ALL)?|EXCEPT(\s+ALL)?|INTERSECT(\s+ALL)?)\s*$/i.test(currentLine) ||
-                    /^\s*((LEFT|RIGHT|FULL)(\s+OUTER)?\s+JOIN|INNER\s+JOIN|CROSS\s+JOIN|JOIN)\s*$/i.test(currentLine);
-                  const extraIndent = (endsWithParen || isSelectClause || isStandaloneClause) ? "  " : "";
-                  const ins = "\n" + indent + extraIndent;
+                  const ins = sqlSmartNewline(text, pos);
                   setSql(text.substring(0, pos) + ins + text.substring(pos));
                   const newPos = pos + ins.length;
                   setCPos(newPos);
                   requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
                 } else if (e.key === "Tab") {
                   e.preventDefault();
-                  const ins = "  ";
-                  setSql(text.substring(0, pos) + ins + text.substring(pos));
+                  setSql(text.substring(0, pos) + "  " + text.substring(pos));
                   const newPos = pos + 2;
                   setCPos(newPos);
                   requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
-                } else if (e.key === ")" && /^\s*$/.test(currentLine)) {
-                  // Auto-dedent closing paren to match its opening paren's indent level
-                  e.preventDefault();
-                  let depth = 1, i = pos - 1, matchPos = -1;
-                  while (i >= 0 && depth > 0) {
-                    if (text[i] === ")") depth++;
-                    else if (text[i] === "(") { if (--depth === 0) matchPos = i; }
-                    i--;
+                } else if (e.key === ")") {
+                  const result = sqlSmartCloseParen(text, pos);
+                  if (result) {
+                    e.preventDefault();
+                    setSql(text.substring(0, result.lineStart) + result.ins + text.substring(pos));
+                    const newPos = result.lineStart + result.ins.length;
+                    setCPos(newPos);
+                    requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
                   }
-                  const targetIndent = matchPos >= 0
-                    ? (text.substring(text.lastIndexOf("\n", matchPos) + 1, matchPos).match(/^(\s*)/) || ["", ""])[1]
-                    : indent.slice(0, Math.max(0, indent.length - 2));
-                  const ins = targetIndent + ")";
-                  setSql(text.substring(0, lineStart) + ins + text.substring(pos));
-                  const newPos = lineStart + ins.length;
-                  setCPos(newPos);
-                  requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
                 }
               }}
               readOnly={isTouch.current && !editing}
@@ -1792,7 +1839,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
               style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
             <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
-            <button onClick={() => insert("\n")} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
+            <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
             <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
             <button onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
           </div>
