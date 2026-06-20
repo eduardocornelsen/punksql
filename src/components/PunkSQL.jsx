@@ -1134,7 +1134,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [result, setResult] = useState(null);
   const [verdict, setVerdict] = useState(null);
   const [resOpen, setResOpen] = useState(true);
-  const [showSchema, setShowSchema] = useState(false);
+  const [showSchema, setShowSchema] = useState(true);
   const [showHint, setShowHint] = useState(false);
   const [probOpen, setProbOpen] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -1576,7 +1576,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       }}>
         <span style={{ fontFamily: F.mono, fontSize: 11, color: C.dim }}>{probOpen ? "▼" : "▶"}</span>
         <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-          <span style={{ color: C.dim }}>-- </span>{desc}
+          {!probOpen && <><span style={{ color: C.dim }}>-- </span>{desc}</>}
         </div>
       </button>
       {probOpen && (
