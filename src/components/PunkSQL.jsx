@@ -1208,7 +1208,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "Double tap the editor\nor press this ⌨ button\nto open the native keyboard.",
     },
     {
-      ref: hintBarRef,
+      ref: editorRef,
       icon: "✕",
       color: C.cyan,
       title: ispt ? "FECHAR TECLADO" : "CLOSE KEYBOARD",
@@ -1217,7 +1217,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         : "With the keyboard open,\ntap anywhere on the editor\nto close it.",
     },
     {
-      ref: hintBarRef,
+      ref: editorRef,
       icon: "↔",
       color: C.green,
       title: ispt ? "MOVER CURSOR" : "MOVE CURSOR",
@@ -1267,15 +1267,28 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
 
   const H = typeof window !== "undefined" ? window.innerHeight : 800;
   const sp = spotRect;
+  const MIN_CARD_H = 250;
   const spaceAbove = sp ? sp.top - 14 : 0;
   const spaceBelow = sp ? H - (sp.top + sp.height) - 14 : H * 0.5;
-  const tooltipAbove = sp ? spaceAbove > spaceBelow : false;
-  const tooltipMaxH = sp ? Math.max(80, (tooltipAbove ? spaceAbove : spaceBelow) - 8) : H * 0.6;
 
-  const tooltipPos = sp ? (tooltipAbove
-    ? { bottom: H - sp.top + 14, left: "50%", transform: "translateX(-50%)" }
-    : { top: sp.top + sp.height + 14, left: "50%", transform: "translateX(-50%)" }
-  ) : { top: 8, left: "50%", transform: "translateX(-50%)" };
+  let tooltipPos, tooltipMaxH;
+  if (!sp) {
+    // No spotlight — center card in viewport
+    tooltipPos = { top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
+    tooltipMaxH = H * 0.55;
+  } else if (spaceAbove >= MIN_CARD_H && spaceAbove >= spaceBelow) {
+    // Enough room above spotlight
+    tooltipMaxH = spaceAbove - 8;
+    tooltipPos = { bottom: H - sp.top + 14, left: "50%", transform: "translateX(-50%)" };
+  } else if (spaceBelow >= MIN_CARD_H) {
+    // Enough room below spotlight
+    tooltipMaxH = spaceBelow - 8;
+    tooltipPos = { top: sp.top + sp.height + 14, left: "50%", transform: "translateX(-50%)" };
+  } else {
+    // Large spotlight (e.g. editor): float card in the lower portion of the spotlight itself
+    tooltipMaxH = Math.min(320, Math.max(200, sp.height * 0.55));
+    tooltipPos = { top: sp.top + sp.height * 0.38, left: "50%", transform: "translateX(-50%)" };
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9500, pointerEvents: "auto" }}
