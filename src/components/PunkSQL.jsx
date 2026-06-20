@@ -1645,8 +1645,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         padding: "5px 12px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
       }}>
         <span style={{ fontFamily: F.mono, fontSize: 11, color: C.dim }}>{probOpen ? "▼" : "▶"}</span>
-        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-          {!probOpen && <><span style={{ color: C.dim }}>-- </span>{desc}</>}
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+          <span style={{ color: C.dim }}>-- </span>{desc}
         </div>
       </button>
       {probOpen && (
