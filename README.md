@@ -259,16 +259,16 @@ The **mobile-first + offline + no-signup** combination is a genuine moat — no 
 
 ### Prioritized backlog
 
-| Priority | Feature | Why it matters |
-|---|---|---|
-| 1 | **Solution explanations** — annotated query + plain-English breakdown shown after solve | Closes the biggest gap vs. DataLemur; turns a pass/fail into actual learning |
-| 2 | **3-level hints** — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost | Reduces abandonment; matches LeetCode/DataLemur UX |
-| 3 | **Supabase auth + shareable profile card** — activate existing auth wiring, generate a linkable SQL rank card | Lets users prove skills; shareable cards drive organic growth |
-| 4 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Gives users a study direction; closes StrataScratch gap |
-| 5 | **Company archetype tags** — label challenges as e-commerce / fintech / analytics / social media interview-style | Zero-effort credibility boost; no real sourcing needed |
-| 6 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
-| 7 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | Addresses the #1 reason people stay on LeetCode |
-| 8 | **Premium tier** — gate company tags, skills radar, and shareable certificate | Sustainability; mirrors DataLemur/StrataScratch monetization model |
+| Priority | Feature | Effort | Impact | Why it matters |
+|---|---|---|---|---|
+| 1 | **Solution explanations** — annotated query + plain-English breakdown shown after solve | Medium | Very High | Closes the biggest gap vs. DataLemur; turns a pass/fail into actual learning |
+| 2 | **3-level hints** — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost | Low | High | Reduces abandonment; matches LeetCode/DataLemur UX |
+| 3 | **Supabase auth + shareable profile card** — activate existing auth wiring, generate a linkable SQL rank card | Medium | High | Lets users prove skills; shareable cards drive organic growth |
+| 4 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Low | High | Gives users a study direction; closes StrataScratch gap |
+| 5 | **Company archetype tags** — label challenges as e-commerce / fintech / analytics / social media interview-style | Very Low | Medium | Zero-effort credibility boost; no real sourcing needed |
+| 6 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | High | Medium | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
+| 7 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | High | High | Addresses the #1 reason people stay on LeetCode |
+| 8 | **Premium tier** — gate company tags, skills radar, and shareable certificate | High | High | Sustainability; mirrors DataLemur/StrataScratch monetization model |
 
 ### Also planned
 
