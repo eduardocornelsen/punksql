@@ -1992,6 +1992,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const s = sqlRef.current;
     const newSql = s.substring(0, pos) + text + s.substring(pos);
     const newPos = pos + text.length;
+    if (taRef.current) taRef.current.value = newSql;
     setSql(newSql);
     sqlRef.current = newSql;
     setCPos(newPos);
@@ -2020,6 +2021,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const s = sqlRef.current;
     const newSql = s.substring(0, pos - 1) + s.substring(pos);
     const newPos = pos - 1;
+    if (taRef.current) taRef.current.value = newSql;
     setSql(newSql);
     sqlRef.current = newSql;
     setCPos(newPos);
