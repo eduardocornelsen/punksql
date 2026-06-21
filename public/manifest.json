@@ -1,6 +1,6 @@
 {
-  "name": "PunkSQL",
-  "short_name": "PunkSQL",
+  "name": "SQL Odyssey",
+  "short_name": "SQL Odyssey",
   "description": "Learn SQL by solving real challenges",
   "start_url": "/",
   "display": "standalone",

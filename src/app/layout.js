@@ -3,8 +3,8 @@ import AuthProvider from "@/components/AuthProvider";
 
 export const metadata = {
 // ... existing metadata
-  title: "PunkSQL — Learn SQL Like a Game",
-  description: "80 SQL challenges with real in-browser execution. Cyberpunk CLI aesthetic. From SELECT to CTEs. Free, no signup required.",
+  title: "SQL Odyssey — Learn SQL Like a Game",
+  description: "80 SQL challenges with real in-browser execution. Minimalist terminal CLI. From SELECT to CTEs. Free, no signup required.",
   keywords: ["SQL", "learn SQL", "SQL practice", "SQL challenges", "database", "coding game"],
 
   // Favicon + icon suite
@@ -23,7 +23,7 @@ export const metadata = {
   },
 
   openGraph: {
-    title: "PunkSQL — Learn SQL Like a Game",
+    title: "SQL Odyssey — Learn SQL Like a Game",
     description: "80 SQL challenges, 8 modules, real in-browser execution. Level up from SELECT to CTEs.",
     type: "website",
     locale: "en_US",
@@ -32,14 +32,14 @@ export const metadata = {
         url: "/icon.png",
         width: 512,
         height: 512,
-        alt: "PunkSQL — Learn SQL Like a Game",
+        alt: "SQL Odyssey — Learn SQL Like a Game",
       },
     ],
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "PunkSQL — Learn SQL Like a Game",
+    title: "SQL Odyssey — Learn SQL Like a Game",
     description: "80 SQL challenges with real in-browser execution. Free.",
     images: ["/icon.png"],
   },
@@ -78,7 +78,7 @@ export default function RootLayout({ children }) {
         }}>
           <div style={{ fontSize: 40 }}>⟳</div>
           <div style={{ color: "#00FF88", fontSize: 16, letterSpacing: 1 }}>rotate device</div>
-          <div style={{ color: "#555555", fontSize: 12 }}>PunkSQL requires portrait mode</div>
+          <div style={{ color: "#555555", fontSize: 12 }}>SQL Odyssey requires portrait mode</div>
         </div>
         <AuthProvider>
           {children}

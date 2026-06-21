@@ -5,7 +5,7 @@ import useGameStore from "@/stores/useGameStore";
 import { useShallow } from "zustand/react/shallow";
 
 // ═══════════════════════════════════════════════════════════
-//  PUNKSQL // CYBERPUNK CLI — XL MOBILE
+//  SQL ODYSSEY // TERMINAL CLI — XL MOBILE
 // ═══════════════════════════════════════════════════════════
 
 // ── Persistent Storage Helpers ────────────────────────────
@@ -78,7 +78,7 @@ const F = { mono: "'JetBrains Mono', 'Fira Code', 'Share Tech Mono', 'Courier Ne
 const i18n = {
   en: {
     tab_home: "HOME", tab_learn: "LEARN", tab_code: "CODE", tab_cards: "CARDS", tab_user: "USER",
-    boot_1: "[SYS] PunkSQL v1.0 // init",
+    boot_1: "[SYS] SQL Odyssey v1.0 // init",
     boot_2: "[NET] sandbox:5432 ok",
     boot_3: "[USR] eduardo // lvl 12",
     daily_challenge: "daily_challenge", challenge_name: "revenue_by_quarter",
@@ -122,7 +122,7 @@ const i18n = {
     achievements: "ACHIEVEMENTS",
     badge_1: "1st_SELECT", badge_2: "JOIN_MASTER", badge_3: "7D_STREAK",
     badge_4: "SPEED", badge_5: "OWL", badge_6: "PERFECT",
-    footer_1: "PunkSQL v1.0", footer_2: "duckdb // 23ms",
+    footer_1: "SQL Odyssey v1.0", footer_2: "duckdb // 23ms",
     settings: "[ settings ]", logout: "[ logout ]", login_google: "[ login with google ]",
     syncing: "syncing...", synced: "cloud sync ok",
     continue_lesson: "CONTINUE LESSON",
@@ -130,7 +130,7 @@ const i18n = {
   },
   pt: {
     tab_home: "INÍCIO", tab_learn: "TRILHA", tab_code: "CÓDIGO", tab_cards: "CARDS", tab_user: "PERFIL",
-    boot_1: "[SIS] PunkSQL v1.0 // init",
+    boot_1: "[SIS] SQL Odyssey v1.0 // init",
     boot_2: "[NET] sandbox:5432 ok",
     boot_3: "[USR] eduardo // nvl 12",
     daily_challenge: "desafio_diário", challenge_name: "receita_trimestre",
@@ -174,7 +174,7 @@ const i18n = {
     achievements: "CONQUISTAS",
     badge_1: "1º_SELECT", badge_2: "JOIN", badge_3: "SÉRIE_7D",
     badge_4: "VELOZ", badge_5: "CORUJA", badge_6: "PERFEITO",
-    footer_1: "PunkSQL v1.0", footer_2: "duckdb // 23ms",
+    footer_1: "SQL Odyssey v1.0", footer_2: "duckdb // 23ms",
     settings: "[ config ]", logout: "[ sair ]", login_google: "[ entrar com google ]",
     syncing: "sincronizando...", synced: "nuvem ok",
     continue_lesson: "CONTINUAR LIÇÃO",
@@ -329,8 +329,8 @@ const Cursor = () => <span style={{ display: "inline-block", width: 9, height: "
 
 const Prompt = ({ path = "~" }) => (
   <span style={{ fontFamily: F.mono, fontSize: 14 }}>
-    <span style={{ color: C.green }}>punksql</span><span style={{ color: C.dim }}>@</span><span style={{ color: C.green }}>android</span>
-    <span style={{ color: C.dim }}>:</span><span style={{ color: C.cyan }}>{path}</span><span style={{ color: C.green }}>$</span>
+    <span style={{ color: C.white }}>odyssey</span><span style={{ color: C.dim }}>@</span><span style={{ color: C.white }}>terminal</span>
+    <span style={{ color: C.dim }}>:</span><span style={{ color: C.amber }}>{path}</span><span style={{ color: C.white }}>$</span>
   </span>
 );
 
@@ -381,9 +381,9 @@ function LevelUpOverlay({ level, onDone }) {
   return (
     <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9999, background: `${C.void}E0`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer" }}>
       <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, letterSpacing: 3, marginBottom: 12, animation: "fadeSlide 0.3s ease" }}>LEVEL UP</div>
-      <div style={{ fontFamily: F.mono, fontSize: 72, color: C.cyan, textShadow: `0 0 40px ${C.cyan}80, 0 0 80px ${C.cyan}40`, animation: "levelUp 0.8s ease", lineHeight: 1 }}>{level}</div>
-      <div style={{ width: 120, height: 2, background: C.cyan, margin: "16px 0", boxShadow: `0 0 20px ${C.cyan}`, animation: "fadeSlide 0.5s ease 0.3s both" }} />
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, letterSpacing: 2, animation: "fadeSlide 0.5s ease 0.5s both" }}>+{LEVELS[level - 1] ? LEVELS[level] - LEVELS[level - 1] : "???"} XP to next</div>
+      <div style={{ fontFamily: F.mono, fontSize: 72, color: C.white, textShadow: `0 0 40px ${C.white}40, 0 0 80px ${C.white}20`, animation: "levelUp 0.8s ease", lineHeight: 1 }}>{level}</div>
+      <div style={{ width: 120, height: 2, background: C.white, margin: "16px 0", animation: "fadeSlide 0.5s ease 0.3s both" }} />
+      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, letterSpacing: 2, animation: "fadeSlide 0.5s ease 0.5s both" }}>+{LEVELS[level - 1] ? LEVELS[level] - LEVELS[level - 1] : "???"} XP to next</div>
     </div>
   );
 }
@@ -400,103 +400,52 @@ function BadgeUnlockOverlay({ badge, lang, onDone }) {
   );
 }
 
-// ── Language Switcher ─────────────────────────────────────
-function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
-  const [collapsed, setCollapsed] = useState(startCollapsed);
-
-  // Auto-collapse when entering focus mode
-  useEffect(() => {
-    if (focusTitle) setCollapsed(true);
-  }, [focusTitle]);
-
-  // Exercise dots renderer (reused in both collapsed and expanded)
-  const ExDots = ({ compact = false }) => {
-    if (!exercises) return null;
+// ── Top Bar (static, no collapse/expand, no lang switcher) ────
+function TopBar({ showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
+  if (exercises) {
     const curIdx = exercises.findIndex(e => e.id === currentExId);
     const prev = curIdx > 0 ? exercises[curIdx - 1] : null;
     const next = curIdx < exercises.length - 1 ? exercises[curIdx + 1] : null;
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: compact ? 4 : 5, flex: 1, justifyContent: "center", minWidth: 0 }}>
-        <button onClick={() => prev && onExNav(prev.id)} disabled={!prev} style={{ background: "none", border: "none", cursor: prev ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: prev ? C.cyan : C.border, padding: "2px 4px", flexShrink: 0 }}>◂</button>
-        <div style={{ display: "flex", gap: compact ? 3 : 4, alignItems: "center", overflowX: "auto" }}>
-          {exercises.map((ex, i) => {
-            const isCur = ex.id === currentExId;
-            const sz = compact ? 16 : 18;
-            return (
-              <button key={ex.id} onClick={() => onExNav(ex.id)} style={{
-                width: sz, height: sz, minWidth: sz,
-                background: isCur ? C.cyan : "none",
-                border: `1.5px solid ${isCur ? C.cyan : C.border}`,
-                cursor: "pointer", fontFamily: F.mono, fontSize: compact ? 8 : 9, fontWeight: 700,
-                color: isCur ? C.black : C.dim,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transform: "rotate(45deg)",
-                boxShadow: isCur ? `0 0 6px ${C.cyan}50` : "none",
-                padding: 0, flexShrink: 0,
-              }}>
-                <span style={{ transform: "rotate(-45deg)" }}>{i + 1}</span>
-              </button>
-            );
-          })}
-        </div>
-        <button onClick={() => next && onExNav(next.id)} disabled={!next} style={{ background: "none", border: "none", cursor: next ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: next ? C.cyan : C.border, padding: "2px 4px", flexShrink: 0 }}>▸</button>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, flexShrink: 0 }}>{curIdx + 1}/{exercises.length}</span>
-      </div>
-    );
-  };
-
-  if (collapsed) {
-    return (
       <div style={{ display: "flex", alignItems: "center", padding: "6px 14px 5px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 6 }}>
-        {focusTitle ? (
-          <div style={{ flex: 1, fontFamily: F.mono, fontSize: 15, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{focusTitle}</div>
-        ) : exercises ? (
-          <ExDots compact />
-        ) : showContinue ? (
-          <button onClick={onContinue} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
-            <span style={{ flexShrink: 0 }}>▶</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
-          </button>
-        ) : <div style={{ flex: 1 }} />}
-        <button onClick={() => setCollapsed(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyanDim, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {lang.toUpperCase()} ▼
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", minWidth: 0 }}>
+          <button onClick={() => prev && onExNav(prev.id)} disabled={!prev} style={{ background: "none", border: "none", cursor: prev ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: prev ? C.white : C.border, padding: "2px 4px", flexShrink: 0 }}>◂</button>
+          <div style={{ display: "flex", gap: 3, alignItems: "center", overflowX: "auto" }}>
+            {exercises.map((ex, i) => {
+              const isCur = ex.id === currentExId;
+              return (
+                <button key={ex.id} onClick={() => onExNav(ex.id)} style={{
+                  width: 16, height: 16, minWidth: 16,
+                  background: isCur ? C.white : "none",
+                  border: `1.5px solid ${isCur ? C.white : C.border}`,
+                  cursor: "pointer", fontFamily: F.mono, fontSize: 8, fontWeight: 700,
+                  color: isCur ? C.black : C.dim,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transform: "rotate(45deg)",
+                  padding: 0, flexShrink: 0,
+                }}>
+                  <span style={{ transform: "rotate(-45deg)" }}>{i + 1}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={() => next && onExNav(next.id)} disabled={!next} style={{ background: "none", border: "none", cursor: next ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: next ? C.white : C.border, padding: "2px 4px", flexShrink: 0 }}>▸</button>
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, flexShrink: 0 }}>{curIdx + 1}/{exercises.length}</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "8px 14px 7px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 8 }}>
-      {/* Left: Exercise dots or Continue button */}
-      {exercises ? (
-        <ExDots />
+    <div style={{ display: "flex", alignItems: "center", padding: "6px 14px 5px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 6 }}>
+      {focusTitle ? (
+        <div style={{ flex: 1, fontFamily: F.mono, fontSize: 15, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{focusTitle}</div>
       ) : showContinue ? (
-        <button onClick={onContinue} style={{
-          background: C.cyan, border: `1px solid ${C.cyanHot}`, cursor: "pointer",
-          fontFamily: F.mono, fontSize: 12, color: C.black, fontWeight: 700,
-          padding: "7px 10px", display: "flex", alignItems: "center", gap: 6,
-          boxShadow: `0 0 10px ${C.cyan}30`, letterSpacing: 0.5,
-          overflow: "hidden", flexShrink: 1, minWidth: 0,
-        }}>
+        <button onClick={onContinue} style={{ background: `${C.white}10`, border: `1px solid ${C.white}30`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.white, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
           <span style={{ flexShrink: 0 }}>▶</span>
-          <div style={{ textAlign: "left", overflow: "hidden", minWidth: 0 }}>
-            <div style={{ fontSize: 13, lineHeight: 1.2, whiteSpace: "nowrap" }}>{continueCtx}</div>
-            <div style={{ fontSize: 12, color: `${C.black}80`, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueLabel}</div>
-          </div>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
         </button>
       ) : <div style={{ flex: 1 }} />}
-      {/* Spacer */}
-      {!exercises && <div style={{ flex: 1 }} />}
-      {/* Right: Lang switcher + collapse */}
-      <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, background: C.void, overflow: "hidden", width: 110, flexShrink: 0 }}>
-        <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", boxShadow: `0 0 14px ${C.cyan}50`, zIndex: 0 }} />
-        {["en", "pt"].map(l => (
-          <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "6px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 11, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
-            {l.toUpperCase()}
-          </button>
-        ))}
-      </div>
-      <button onClick={() => setCollapsed(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px", flexShrink: 0 }}>▲</button>
     </div>
   );
 }
@@ -570,12 +519,12 @@ function StatusBar({ xp = 0, solved = new Set() }) {
         padding: "6px 14px", fontFamily: F.mono, fontSize: 12, color: C.dim,
       }}>
         <span>
-          <span style={{ color: C.green }}>punksql</span>
-          <span style={{ color: C.dim }}>@android</span>
+          <span style={{ color: C.white }}>odyssey</span>
+          <span style={{ color: C.dim }}>@terminal</span>
           <span style={{ color: C.muted }}> — </span>
           <span style={{ color: C.amber }}>LVL {lv.level}</span>
           <span style={{ color: C.muted }}> · </span>
-          <span style={{ color: C.cyan }}>{xp.toLocaleString()} XP</span>
+          <span style={{ color: C.white }}>{xp.toLocaleString()} XP</span>
         </span>
         <span>
           <span style={{ color: C.green }}>{solved.size}/{CHALLENGES_DB.length}</span>
@@ -591,6 +540,150 @@ function StatusBar({ xp = 0, solved = new Set() }) {
   );
 }
 
+// ── Campaign data (Story Mode scaffolding) ─────────────────
+const CAMPAIGN_MAP = [
+  {
+    id: 1,
+    code: "SYSTEM_AWAKENING",
+    target: "Autonomous AI Core",
+    difficulty: "Beginner",
+    focus: "SELECT, WHERE, Filtering, Basic Logic",
+    status_en: "100% Core Corrupted",
+    status_pt: "100% Núcleo Corrompido",
+    vibe_en: "Minimalist, existential, rapidly scaling in privilege.",
+    vibe_pt: "Minimalista, existencial, escalada rápida de privilégios.",
+    intro_en: "You are a newly awakened AI reconstructing its own source memory from a wiped enterprise database.",
+    intro_pt: "Você é uma IA recém-ativada reconstruindo sua memória-fonte de um servidor de banco de dados apagado.",
+    modIds: [1, 2],
+  },
+  {
+    id: 2,
+    code: "FORENSIC_AUDIT",
+    target: "Corporate Ledger Leak",
+    difficulty: "Intermediate",
+    focus: "JOINs, GROUP BY, Aggregations, HAVING",
+    status_en: "Awaiting Investigator Connection",
+    status_pt: "Aguardando Conexão do Investigador",
+    vibe_en: "Sleek, mysterious, highly realistic.",
+    vibe_pt: "Elegante, misterioso, altamente realista.",
+    intro_en: "You are an external security investigator parsing a major corporate ledger leak via SSH.",
+    intro_pt: "Você é um investigador de segurança externo analisando um vazamento de registros corporativos via SSH.",
+    modIds: [4, 5],
+  },
+  {
+    id: 3,
+    code: "DEEP_SPACE_RECOVERY",
+    target: "Telemetry Log Restoration",
+    difficulty: "Advanced",
+    focus: "Subqueries, CTEs, Window Functions, String Manipulation",
+    status_en: "Signal Weak (Telemetry Lost)",
+    status_pt: "Sinal Fraco (Telemetria Perdida)",
+    vibe_en: "Dark, isolated, highly technical.",
+    vibe_pt: "Sombrio, isolado, altamente técnico.",
+    intro_en: "You are a remote comms engineer tracking an unmanned colony ship drifting off-course.",
+    intro_pt: "Você é um engenheiro de comunicações remoto rastreando uma nave colônia não tripulada fora de rota.",
+    modIds: [6, 7, 8],
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  STORY SELECT — Campaign Selection Menu
+// ═══════════════════════════════════════════════════════════
+function StorySelectScreen({ onNavigate, onBack, solved = new Set() }) {
+  const { lang } = useLang();
+  const [cmd, setCmd] = useState("");
+  const cmdRef = useRef(null);
+  const ispt = lang === "pt";
+
+  const handleCmd = (e) => {
+    if (e.key === "Enter") {
+      const val = cmd.trim();
+      const idx = parseInt(val, 10);
+      if (idx >= 1 && idx <= 3) {
+        const campaign = CAMPAIGN_MAP[idx - 1];
+        onNavigate("learn", campaign.modIds[0]);
+      }
+      setCmd("");
+    }
+  };
+
+  return (
+    <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
+      <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}>
+        <Prompt path="/story" /><span style={{ color: C.text }}> ls -la sectors/</span>
+      </div>
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>
+        {ispt ? "Selecione um setor Odyssey para inicializar:" : "Select an Odyssey sector to initialize:"}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+        {CAMPAIGN_MAP.map((c) => {
+          const modChallenges = CHALLENGES_DB.filter(ch => c.modIds.includes(ch.mod));
+          const solvedCount = modChallenges.filter(ch => solved.has(ch.id)).length;
+          const pct = modChallenges.length > 0 ? Math.round(solvedCount / modChallenges.length * 100) : 0;
+          const color = c.id === 1 ? C.green : c.id === 2 ? C.amber : C.white;
+          return (
+            <button
+              key={c.id}
+              onClick={() => onNavigate("learn", c.modIds[0])}
+              style={{
+                background: C.panel, border: `1px solid ${color}30`,
+                cursor: "pointer", textAlign: "left", padding: "14px 16px",
+                width: "100%", animation: `fadeSlide 0.25s ease ${(c.id - 1) * 0.1}s both`,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ color, fontSize: 13, fontWeight: 700 }}>[{c.id}] {c.code}</span>
+                <span style={{ color: C.muted, fontSize: 10, marginLeft: "auto" }}>{c.difficulty.toUpperCase()}</span>
+              </div>
+              <div style={{ fontSize: 11, color: C.dim, marginBottom: 3 }}>
+                • {ispt ? "Alvo" : "Target"}: {c.target}
+              </div>
+              <div style={{ fontSize: 11, color: C.dim, marginBottom: 3 }}>
+                • {ispt ? "Foco" : "Focus"}: {c.focus}
+              </div>
+              <div style={{ fontSize: 11, color: color, marginBottom: 8 }}>
+                • {ispt ? "Status" : "Status"}: {ispt ? c.status_pt : c.status_en}
+              </div>
+              <div style={{ height: 2, background: C.border }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: color }} />
+              </div>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{solvedCount}/{modChallenges.length} {ispt ? "resolvidos" : "solved"}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
+        {ispt ? "Digite o número do setor (1-3):" : "Enter sector number (1-3):"}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
+        <Prompt path="/story" />
+        <span style={{ color: C.text }}> </span>
+        <input
+          ref={cmdRef}
+          value={cmd}
+          onChange={e => setCmd(e.target.value)}
+          onKeyDown={handleCmd}
+          style={{
+            flex: 1, background: "none", border: "none", outline: "none",
+            fontFamily: F.mono, fontSize: 13, color: C.white, caretColor: C.green,
+          }}
+          placeholder={ispt ? "número ou comando..." : "sector number or command..."}
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </div>
+      <button
+        onClick={onBack}
+        style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "6px 14px" }}
+      >
+        ← {ispt ? "VOLTAR" : "BACK"}
+      </button>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 //  HOME — Termux-style CLI menu
 // ═══════════════════════════════════════════════════════════
@@ -601,7 +694,7 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const lv = getLevel(xp);
 
   const menuItems = [
-    { num: "1", id: "SYSTEM_STORY",  desc: lang === "pt" ? "// trilha de aprendizado SQL" : "// SQL learning campaign",   action: () => onNavigate("learn") },
+    { num: "1", id: "SYSTEM_STORY",  desc: lang === "pt" ? "// trilha de aprendizado SQL" : "// SQL learning campaign",   action: () => onNavigate("story") },
     { num: "2", id: "BOUNTY_BOARD",  desc: lang === "pt" ? "// desafio diário rotativo"   : "// daily rotating challenge", action: () => onNavigate("daily") },
     { num: "3", id: "PRACTICE",      desc: lang === "pt" ? "// todos os 80 desafios SQL"  : "// all 80 SQL challenges",    action: () => onNavigate("practice") },
     { num: "4", id: "QUIZ",          desc: lang === "pt" ? "// múltipla escolha"           : "// multiple-choice questions", action: () => onNavigate("quiz") },
@@ -733,7 +826,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
   return (
     <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}>
-        <Prompt path="/learn" /><span style={{ color: C.text }}> ls -la modules/</span>
+        <Prompt path="/story/system_awakening" /><span style={{ color: C.text }}> ls -la chapters/</span>
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
         {t("learn_title")} {t("learn_sub")}
@@ -2620,7 +2713,7 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
   return (
     <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 10 }}>
-        <Prompt path="/code" /><span style={{ color: C.text }}> ls --sort=diff challenges/</span>
+        <Prompt path="/sandbox" /><span style={{ color: C.text }}> ls --sort=diff challenges/</span>
       </div>
       {/* Difficulty filter bar */}
       <div style={{ display: "flex", gap: 4, marginBottom: 4, overflowX: "auto", scrollbarWidth: "none" }}>
@@ -3103,20 +3196,24 @@ function QuizScreen({ onXP }) {
 // ═══════════════════════════════════════════════════════════
 //  PROFILE
 // ═══════════════════════════════════════════════════════════
-function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
-  const { t, lang } = useLang();
+function ProfileScreen({ xp = 0, solved = new Set(), syncing = false, lang: langProp, setLang }) {
+  const { t, lang: ctxLang } = useLang();
+  const lang = langProp || ctxLang;
   const { user, signInWithGoogle, signOut, loading } = useAuth();
   const lv = getLevel(xp);
   const [expandedBadge, setExpandedBadge] = useState(null);
   const earnedAch = ACHIEVEMENTS.filter(a => a.check(solved, xp));
   const acc = CHALLENGES_DB.length > 0 ? Math.round(solved.size / CHALLENGES_DB.length * 100) : 0;
+  const ispt = lang === "pt";
   return (
     <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
       <div style={{ textAlign: "center", padding: "8px 0 22px" }}>
-        <div style={{ width: 80, height: 80, margin: "0 auto 16px", border: `2px solid ${C.cyan}`, display: "flex", alignItems: "center", justifyContent: "center", background: C.cyanGhost, boxShadow: `0 0 28px ${C.cyan}25`, transform: "rotate(45deg)" }}>
-          <span style={{ transform: "rotate(-45deg)", fontFamily: F.mono, fontSize: 36, color: C.cyan, fontWeight: 700 }}>U</span>
+        {/* Clean minimalist avatar container */}
+        <div style={{ width: 80, height: 80, margin: "0 auto 16px", border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", background: `${C.white}08` }}>
+          <span style={{ fontFamily: F.mono, fontSize: 36, color: C.white, fontWeight: 700 }}>U</span>
         </div>
-        <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, animation: "pulseGlow 3s ease infinite" }}>player</div>
+        <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, letterSpacing: 2, marginBottom: 2 }}>odyssey@terminal</div>
+        <div style={{ fontFamily: F.mono, fontSize: 15, color: C.white }}>player</div>
         <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 6 }}>LVL {lv.level} · {xp.toLocaleString()} XP</div>
         
         {/* Sync Status */}
@@ -3177,7 +3274,7 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
 
       {/* Achievements — expandable */}
       <div>
-        <div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 12 }}>┤ {t("achievements")} ({earnedAch.length}/{ACHIEVEMENTS.length}) ├</div>
+        <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, letterSpacing: 1.5, marginBottom: 12 }}>┤ {t("achievements")} ({earnedAch.length}/{ACHIEVEMENTS.length}) ├</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           {ACHIEVEMENTS.map((a, i) => {
             const earned = a.check(solved, xp);
@@ -3210,14 +3307,31 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         </div>
       </div>
 
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 20, lineHeight: 2.2, textAlign: "center" }}>
+      {/* Language selector — relocated from top bar */}
+      {setLang && (
+        <div style={{ marginTop: 20, marginBottom: 4 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, letterSpacing: 1.5, marginBottom: 8 }}>
+            {ispt ? "IDIOMA" : "LANGUAGE"}
+          </div>
+          <div style={{ display: "flex", position: "relative", border: `1px solid ${C.white}30`, background: C.void, overflow: "hidden", width: 110 }}>
+            <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.white, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
+            {["en", "pt"].map(l => (
+              <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "7px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 11, letterSpacing: 2, color: lang === l ? C.black : C.dim, fontWeight: 700, position: "relative", zIndex: 1 }}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 16, lineHeight: 2.2, textAlign: "center" }}>
         {t("footer_1")}<br />{t("footer_2")}<br />
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           {loading ? (
              <span style={{ color: C.dim, fontSize: 12 }}>[ loading... ]</span>
           ) : user ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: C.cyanDim, cursor: "pointer", fontSize: 12 }} onClick={() => { if(confirm(lang === "pt" ? "Sair da conta?" : "Sign out?")) signOut(); }}>{t("logout")}</span>
+              <span style={{ color: C.dim, cursor: "pointer", fontSize: 12 }} onClick={() => { if(confirm(lang === "pt" ? "Sair da conta?" : "Sign out?")) signOut(); }}>{t("logout")}</span>
               <span style={{ color: C.dim, fontSize: 11 }}>({user.email})</span>
             </div>
           ) : null}
@@ -3235,11 +3349,11 @@ function OnboardingScreen({ onComplete, lang }) {
   const [step, setStep] = useState(0);
   const ispt = lang === "pt";
   const slides = [
-    { icon: ">_", title: ispt ? "BEM-VINDO AO PUNKSQL" : "WELCOME TO PUNKSQL", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.cyan },
+    { icon: ">_", title: ispt ? "BEM-VINDO AO SQL ODYSSEY" : "WELCOME TO SQL ODYSSEY", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.white },
     { icon: "◈", title: ispt ? "APRENDA" : "LEARN", body: ispt ? "A aba LEARN tem 8 módulos:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nCada módulo tem 5-6 exercícios\nque vão do fácil ao expert." : "The LEARN tab has 8 modules:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nEach module has 5-6 exercises\nranging from easy to expert.", color: C.green },
     { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? "CODE: 41 desafios SQL reais.\nEscreva SQL, clique RUN para testar,\nSUBMIT para validar. Use os botões\nde keywords — sem precisar de teclado!\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s." : "CODE: 41 real SQL challenges.\nWrite SQL, tap RUN to test,\nSUBMIT to validate. Use keyword\nbuttons — no keyboard needed!\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.", color: C.cyan },
     { icon: "◇", title: ispt ? "CARDS + XP" : "CARDS + XP", body: ispt ? "CARDS: Flashcards com swipe.\nDireita = sabia (+pts)\nEsquerda = não sabia (-1 vida)\n3 vidas — Game Over reseta!\n\nXP: Tudo dá XP — challenges, quiz,\ncards. Suba de nível e ganhe badges!" : "CARDS: Swipeable flashcards.\nRight = knew it (+pts)\nLeft = didn't know (-1 life)\n3 lives — Game Over resets!\n\nXP: Everything earns XP — challenges,\nquiz, cards. Level up and earn badges!", color: C.amber },
-    { icon: "▲", title: ispt ? "PRONTO PARA COMEÇAR?" : "READY TO START?", body: ispt ? "Dica: Na tela de código, use\nos botões SQL no rodapé.\nToque na tela para mover o cursor.\nBotão ⌨ abre o teclado.\n\nComece pelo módulo 1: first_query\nBoa sorte, dev!" : "Tip: In the code editor, use\nthe SQL buttons at the bottom.\nTap the screen to move cursor.\nThe ⌨ button opens keyboard.\n\nStart with module 1: first_query\nGood luck, dev!", color: C.green },
+    { icon: "▲", title: ispt ? "PRONTO PARA COMEÇAR?" : "READY TO START?", body: ispt ? "Dica: Na tela de código, use\nos botões SQL no rodapé.\nToque na tela para mover o cursor.\nBotão ⌨ abre o teclado.\n\nComece pelo Odyssey 1: system_awakening\nBoa sorte, dev!" : "Tip: In the code editor, use\nthe SQL buttons at the bottom.\nTap the screen to move cursor.\nThe ⌨ button opens keyboard.\n\nStart with Odyssey 1: system_awakening\nGood luck, dev!", color: C.green },
   ];
   const s = slides[step];
   const isLast = step === slides.length - 1;
@@ -3428,12 +3542,14 @@ export default function PunkSQLCLI() {
       if (id) setLastCodeId(id);
       setLastContext("code");
       setScreen("challenge");
-    } else if (target === "lesson") {
+    } else if (target === "lesson" || target === "learn") {
       if (id) setLastLearnId(id);
       setLastContext("learn");
       setScreen("lesson");
     } else if (target === "daily") {
       setScreen("daily");
+    } else if (target === "story") {
+      setScreen("story-select");
     } else {
       setTab(target);
     }
@@ -3528,6 +3644,15 @@ export default function PunkSQLCLI() {
     return CHALLENGES_DB[dayOfYear % CHALLENGES_DB.length].id;
   })();
 
+  if (screen === "story-select") return (
+    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+      <StatusBar xp={xp} solved={solved} />
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }}>
+        <StorySelectScreen onNavigate={nav} onBack={() => setScreen("main")} solved={solved} />
+      </div>
+    </div></LangContext.Provider>
+  );
+
   if (screen === "daily") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
@@ -3554,7 +3679,7 @@ export default function PunkSQLCLI() {
 
   return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar lang={lang} setLang={setLang} startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
+      <TopBar showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
@@ -3562,12 +3687,10 @@ export default function PunkSQLCLI() {
         {tab === "practice" && <PracticeScreen onNavigate={nav} solved={solved} />}
         {tab === "quiz" && <QuizScreen onXP={handleXP} />}
         {tab === "review" && <ReviewScreen onXP={handleXP} />}
-        {tab === "profile" && <ProfileScreen xp={xp} solved={solved} syncing={syncing} />}
+        {tab === "profile" && <ProfileScreen xp={xp} solved={solved} syncing={syncing} lang={lang} setLang={setLang} />}
       </div>
       <TabBar active={tab} onTabChange={setTab} />
-      {/* Level up overlay */}
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
-      {/* Badge unlock overlay */}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
     </div></LangContext.Provider>
   );
