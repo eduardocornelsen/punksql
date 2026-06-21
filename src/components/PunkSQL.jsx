@@ -1979,6 +1979,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         toggleKeyboard();
       }
       // Single tap while closed → just reposition cursor (already done above)
+    } else if (editingRef.current && isTouch.current) {
+      // Swipe ended while keyboard is open — refocus hidden input so keystrokes keep working
+      hiddenInputRef.current?.focus();
     }
     isSwiping.current = false;
   };
@@ -2445,11 +2448,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           </div>
           <div ref={edRef} style={{ height: "100%", padding: "8px 18px", overflowY: "scroll", overflowX: "scroll", background: `linear-gradient(180deg,${C.void},${C.black})`, position: "relative", touchAction: "none" }}
             onTouchStart={onEditorTouchStart} onTouchMove={onEditorTouchMove} onTouchEnd={onEditorTouchEnd} onClick={onTap}>
-            {/* Custom cursor handle — hidden when keyboard is open */}
-          {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
+            {/* Cursor — always visible; drag handle only shown when keyboard is closed */}
+            <div style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: editing ? "none" : "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
               <div style={{ width: 2, height: lineH * 0.7, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}80`, animation: "blink 1s step-end infinite" }} />
-              <div style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>
-            </div>}
+              {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>}
+            </div>
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
             {/* Syntax highlight layer — mirrors textarea content with token colors */}
             <pre aria-hidden style={{
