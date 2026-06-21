@@ -1802,7 +1802,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
-  const bsTimerRef = useRef(null), bsIntervalRef = useRef(null), bsHandledRef = useRef(false);
+  const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
   const cPosRef = useRef(0);
@@ -2082,9 +2082,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   };
 
   const handleHiddenKeyDown = (e) => {
-    if (e.key === "Backspace") {
-      e.preventDefault(); bsHandledRef.current = true; backspace();
-    } else if (e.key === "Tab") {
+    if (e.key === "Tab") {
       e.preventDefault(); insert("  ");
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -2099,8 +2097,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const handleHiddenInput = (e) => {
     if (e.inputType === "deleteContentBackward") {
-      if (!bsHandledRef.current) backspace();
-      bsHandledRef.current = false;
+      backspace();
     } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
       smartEnter();
     } else {
