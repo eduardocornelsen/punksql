@@ -1,0 +1,67 @@
+{
+  "campaigns": [
+    {
+      "id": 1,
+      "code": "SYSTEM_AWAKENING",
+      "target": "Autonomous AI Core",
+      "difficulty": "Beginner",
+      "focus": ["SELECT", "WHERE", "Filtering", "Basic Logic"],
+      "status": {
+        "en": "100% Core Corrupted",
+        "pt": "100% Núcleo Corrompido"
+      },
+      "intro": {
+        "en": "You are a newly awakened AI reconstructing its own source memory from a wiped enterprise database.",
+        "pt": "Você é uma IA recém-ativada reconstruindo sua memória-fonte de um servidor de banco de dados apagado."
+      },
+      "vibe": {
+        "en": "Minimalist, existential, rapidly scaling in privilege.",
+        "pt": "Minimalista, existencial, escalada rápida de privilégios."
+      },
+      "modIds": [1, 2],
+      "challengeIds": []
+    },
+    {
+      "id": 2,
+      "code": "FORENSIC_AUDIT",
+      "target": "Corporate Ledger Leak",
+      "difficulty": "Intermediate",
+      "focus": ["JOINs", "GROUP BY", "Aggregations", "HAVING"],
+      "status": {
+        "en": "Awaiting Investigator Connection",
+        "pt": "Aguardando Conexão do Investigador"
+      },
+      "intro": {
+        "en": "You are an external security investigator parsing a major corporate ledger leak via SSH.",
+        "pt": "Você é um investigador de segurança externo analisando um vazamento de registros corporativos via SSH."
+      },
+      "vibe": {
+        "en": "Sleek, mysterious, highly realistic.",
+        "pt": "Elegante, misterioso, altamente realista."
+      },
+      "modIds": [4, 5],
+      "challengeIds": []
+    },
+    {
+      "id": 3,
+      "code": "DEEP_SPACE_RECOVERY",
+      "target": "Telemetry Log Restoration",
+      "difficulty": "Advanced",
+      "focus": ["Subqueries", "CTEs", "Window Functions", "String Manipulation"],
+      "status": {
+        "en": "Signal Weak (Telemetry Lost)",
+        "pt": "Sinal Fraco (Telemetria Perdida)"
+      },
+      "intro": {
+        "en": "You are a remote comms engineer tracking an unmanned colony ship drifting off-course.",
+        "pt": "Você é um engenheiro de comunicações remoto rastreando uma nave colônia não tripulada fora de rota."
+      },
+      "vibe": {
+        "en": "Dark, isolated, highly technical.",
+        "pt": "Sombrio, isolado, altamente técnico."
+      },
+      "modIds": [6, 7, 8],
+      "challengeIds": []
+    }
+  ]
+}

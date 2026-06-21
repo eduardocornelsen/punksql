@@ -13,8 +13,8 @@ const PunkSQL = dynamic(() => import("@/components/PunkSQL"), {
       alignItems: "center",
       fontFamily: "'Share Tech Mono', monospace",
     }}>
-      <div style={{ fontSize: 24, color: "#00F0FF", marginBottom: 16, letterSpacing: 4 }}>
-        PUNKSQL
+      <div style={{ fontSize: 24, color: "#FFFFFF", marginBottom: 16, letterSpacing: 4 }}>
+        SQL ODYSSEY
       </div>
       <div style={{ fontSize: 14, color: "#5A7E98", animation: "pulse 1.5s ease infinite" }}>
         loading sql engine...
