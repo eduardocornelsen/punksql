@@ -2099,7 +2099,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       <button onClick={() => setProbOpen(!probOpen)} style={{
         background: C.black, border: "none", borderBottom: `1px solid ${C.border}`,
         cursor: "pointer", textAlign: "left", width: "100%",
-        padding: "5px 12px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+        padding: "5px 12px", display: "flex", alignItems: probOpen ? "flex-start" : "center", gap: 6, flexShrink: 0,
       }}>
         <span style={{ fontFamily: F.mono, fontSize: 11, color: C.dim }}>{probOpen ? "▼" : "▶"}</span>
         <div style={{ fontFamily: F.mono, fontSize: 11, color: C.white, overflow: "hidden", textOverflow: probOpen ? "unset" : "ellipsis", whiteSpace: probOpen ? "normal" : "nowrap", flex: 1, lineHeight: 1.6 }}>
