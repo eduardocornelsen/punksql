@@ -311,19 +311,24 @@ The **mobile-first + offline + no-signup** combination is a genuine moat — no 
 - [x] DML data cleaning module (DELETE, UPDATE, INSERT INTO SELECT, SAVEPOINT)
 - [x] DDL schema module (CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP, SAVEPOINT)
 - [x] Supabase auth wiring + cloud progress sync
+- [x] Solution explanations — annotated query + plain-English breakdown shown after solve
+- [x] 3-level hints — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost
+- [x] Company archetype tags — challenges labelled as e-commerce / fintech / analytics / social media interview-style
+- [x] Editor refactor — linter upgrades, keyboard remapping (*, `,`, `(`, `)` keys), smart indentation, hamburger fix ([#5](https://github.com/eduardocornelsen/punksql/issues/5))
 
 ### Prioritized backlog
 
 | Priority | Feature | Effort | Impact | Why it matters |
 |---|---|---|---|---|
-| 1 | **Solution explanations** — annotated query + plain-English breakdown shown after solve | Medium | Very High | Closes the biggest gap vs. DataLemur; turns a pass/fail into actual learning |
-| 2 | **3-level hints** — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost | Low | High | Reduces abandonment; matches LeetCode/DataLemur UX |
-| 3 | **Shareable profile card** — generate a linkable SQL rank card from the existing auth | Low | High | Lets users prove skills; shareable cards drive organic growth |
-| 4 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Low | High | Gives users a study direction; closes StrataScratch gap |
-| 5 | **Company archetype tags** — label challenges as e-commerce / fintech / analytics / social media interview-style | Very Low | Medium | Zero-effort credibility boost; no real sourcing needed |
-| 6 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | High | Medium | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
-| 7 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | High | High | Addresses the #1 reason people stay on LeetCode |
-| 8 | **Premium tier** — gate company tags, skills radar, and shareable certificate | High | High | Sustainability; mirrors DataLemur/StrataScratch monetization model |
+| 1 | **Shareable profile card** — generate a linkable SQL rank card from the existing auth | Low | High | Lets users prove skills; shareable cards drive organic growth |
+| 2 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Low | High | Gives users a study direction; closes StrataScratch gap |
+| 3 | **Firebase auth migration** — replace Supabase with Firebase; fixes localhost OAuth redirect loop and `file://` origin conflict for Android ([#4](https://github.com/eduardocornelsen/punksql/issues/4)) | Medium | High | Unblocks native Android build; removes SSR auth complexity |
+| 4 | **Game mode separation** — split into `SYSTEM_STORY` (linear campaign with narrative hooks) and `BOUNTY_BOARD` (daily rotating challenge with streak tracker) ([#2](https://github.com/eduardocornelsen/punksql/issues/2)) | Medium | High | Gives learners two distinct goals; bounty board drives daily retention |
+| 5 | **Native Android app via Capacitor** — wrap Next.js static export as a signed `.aab` for Google Play Store submission ([#3](https://github.com/eduardocornelsen/punksql/issues/3)) | High | High | Reaches users who won't open a browser app; depends on Firebase migration |
+| 6 | **SQL Odyssey rebrand + Story Mode** — full rebrand to minimalist terminal aesthetic; 3-campaign text-driven story mode (AI awakening, corporate forensics, deep-space recovery) ([#6](https://github.com/eduardocornelsen/punksql/issues/6)) | Very High | Very High | Major product evolution; replaces cyberpunk theme with a scalable narrative engine |
+| 7 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | High | Medium | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
+| 8 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | High | High | Addresses the #1 reason people stay on LeetCode |
+| 9 | **Premium tier** — gate skills radar and shareable certificate | High | High | Sustainability; mirrors DataLemur/StrataScratch monetization model |
 
 ### Also planned
 
@@ -331,7 +336,6 @@ The **mobile-first + offline + no-signup** combination is a genuine moat — no 
 - [ ] Challenge validation flexibility (column-order agnostic)
 - [ ] Interview prep mode (timed, no hints)
 - [ ] Python track (Pyodide WASM)
-- [ ] React Native mobile app (iOS + Android)
 
 ---
 
