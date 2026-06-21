@@ -87,7 +87,7 @@ const i18n = {
     quest_1_cmd: "solve --count 2", quest_2_cmd: "review --cards 10", quest_3_cmd: "earn --xp 100",
     stat_today: "TODAY", stat_week: "WEEK", stat_acc: "ACC", stat_solved: "solved", stat_correct: "correct",
     learn_cmd: "ls -la", learn_title: "SQL_FUNDAMENTALS",
-    learn_sub: "// zero to interview // 8 modules",
+    learn_sub: "// zero to interview // 10 modules",
     lessons: "lessons", challenges: "challenges", locked: "[LOCKED]",
     mod_4: "Aggregations",
     hint: "HINT",
@@ -103,7 +103,7 @@ const i18n = {
     query_ok: "OK — 4 rows (23ms)", query_meta: "duckdb_v0.10",
     cols_label: "cols:", sql_label: "sql:", run: "▶ RUN", submit: "⬆ SUBMIT",
     practice_cmd: "ls --sort=diff", practice_title: "CHALLENGES",
-    practice_showing: "// {n} of 80",
+    practice_showing: "// {n} of 100",
     ch_1: "top_spending", ch_2: "revenue_trend", ch_3: "category_rank",
     ch_4: "avg_order_region", ch_5: "retention_cohorts",
     review_title: "SPACED_REVIEW",
@@ -139,7 +139,7 @@ const i18n = {
     quest_1_cmd: "resolver --total 2", quest_2_cmd: "revisar --cards 10", quest_3_cmd: "ganhar --xp 100",
     stat_today: "HOJE", stat_week: "SEMANA", stat_acc: "PREC", stat_solved: "resolvidos", stat_correct: "corretos",
     learn_cmd: "ls -la", learn_title: "FUNDAMENTOS_SQL",
-    learn_sub: "// do zero à entrevista // 8 módulos",
+    learn_sub: "// do zero à entrevista // 10 módulos",
     lessons: "lições", challenges: "desafios", locked: "[BLOQUEADO]",
     mod_4: "Agregações",
     hint: "DICA",
@@ -155,7 +155,7 @@ const i18n = {
     query_ok: "OK — 4 linhas (23ms)", query_meta: "duckdb_v0.10",
     cols_label: "cols:", sql_label: "sql:", run: "▶ RODAR", submit: "⬆ ENVIAR",
     practice_cmd: "ls --ordenar=dific", practice_title: "DESAFIOS",
-    practice_showing: "// {n} de 80",
+    practice_showing: "// {n} de 100",
     ch_1: "top_gastos", ch_2: "receita_mensal", ch_3: "rank_categorias",
     ch_4: "ticket_regiao", ch_5: "coortes_retencao",
     review_title: "REVISÃO_ESPAÇADA",
@@ -371,7 +371,9 @@ const ACHIEVEMENTS = [
   { id: "mod3_done", i: "⊞", n_en: "Sorter", n_pt: "Ordenador", d_en: "Complete modules 1-3", d_pt: "Complete módulos 1-3", c: C.cyan, check: (s) => [1,2,3].every(m => CHALLENGES_DB.filter(c => c.mod === m).every(c => s.has(c.id))) },
   { id: "lvl10", i: "★", n_en: "Level 10", n_pt: "Nível 10", d_en: "Reach level 10", d_pt: "Alcance o nível 10", c: C.amber, check: (s, xp) => getLevel(xp).level >= 10 },
   { id: "forty_solved", i: "⬡", n_en: "40 Down", n_pt: "40 Resolvidos", d_en: "Solve 40 challenges", d_pt: "Resolva 40 desafios", c: C.red, check: (s) => s.size >= 40 },
-  { id: "all_done", i: "◈", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 80 challenges", d_pt: "Resolva todos os 80 desafios", c: C.cyanHot, check: (s) => s.size >= 80 },
+  { id: "all_done", i: "◈", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 100 challenges", d_pt: "Resolva todos os 100 desafios", c: C.cyanHot, check: (s) => s.size >= 100 },
+  { id: "dml_done", i: "✎", n_en: "Data Surgeon", n_pt: "Cirurgião de Dados", d_en: "Complete the DML module", d_pt: "Complete o módulo DML", c: C.amber, check: (s) => CHALLENGES_DB.filter(c => c.mod === 9).every(c => s.has(c.id)) },
+  { id: "ddl_done", i: "⬢", n_en: "Schema Architect", n_pt: "Arquiteto de Esquema", d_en: "Complete the DDL module", d_pt: "Complete o módulo DDL", c: C.purple, check: (s) => CHALLENGES_DB.filter(c => c.mod === 10).every(c => s.has(c.id)) },
 ];
 
 function LevelUpOverlay({ level, onDone }) {
@@ -708,6 +710,8 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
     { id: 6, n: "subqueries", tp: "IN, NOT IN, EXISTS, Scalar" },
     { id: 7, n: "window_fn", tp: "ROW_NUMBER, RANK, LAG, OVER" },
     { id: 8, n: "ctes", tp: "WITH, chained CTEs, recursive" },
+    { id: 9, n: "dml", tp: "INSERT, UPDATE, DELETE, NULL, duplicates" },
+    { id: 10, n: "ddl", tp: "CREATE TABLE, CREATE VIEW, BEGIN/COMMIT" },
   ];
   // Compute status from solved challenges
   const mods = modDefs.map((m, i) => {
@@ -794,6 +798,10 @@ INSERT INTO products VALUES (1,'Laptop Pro','Electronics',1299.99,45),(2,'Wirele
 INSERT INTO orders VALUES (1,1,'2024-01-05',1329.98,'completed'),(2,2,'2024-01-12',89.99,'completed'),(3,3,'2024-01-20',64.49,'completed'),(4,1,'2024-02-03',199.99,'completed'),(5,4,'2024-02-14',45.00,'completed'),(6,5,'2024-02-28',329.98,'completed'),(7,6,'2024-03-05',18.50,'completed'),(8,2,'2024-03-15',1299.99,'completed'),(9,7,'2024-03-22',124.99,'completed'),(10,3,'2024-04-01',29.99,'shipped'),(11,8,'2024-04-10',154.99,'shipped'),(12,9,'2024-04-18',89.99,'shipped'),(13,1,'2024-05-02',269.98,'shipped'),(14,10,'2024-05-15',45.00,'pending'),(15,5,'2024-05-28',235.98,'pending'),(16,4,'2024-06-05',65.00,'pending');
 INSERT INTO order_items VALUES (1,1,1,1,1299.99),(2,1,2,1,29.99),(3,2,4,1,89.99),(4,3,3,1,18.50),(5,3,5,1,45.00),(6,4,6,1,199.99),(7,5,5,1,45.00),(8,6,2,1,29.99),(9,6,6,1,199.99),(10,6,7,1,35.00),(11,7,3,1,18.50),(12,8,1,1,1299.99),(13,9,4,1,89.99),(14,9,7,1,35.00),(15,10,2,1,29.99),(16,11,4,1,89.99),(17,11,10,1,65.00),(18,12,4,1,89.99),(19,13,6,1,199.99),(20,13,10,1,65.00),(21,14,5,1,45.00),(22,15,6,1,199.99),(23,15,7,1,35.00),(24,16,10,1,65.00);
 INSERT INTO reviews VALUES (1,1,1,5,'2024-01-20'),(2,1,2,4,'2024-02-01'),(3,4,2,5,'2024-01-25'),(4,3,3,3,'2024-02-10'),(5,5,4,5,'2024-03-01'),(6,6,5,4,'2024-03-15'),(7,2,1,4,'2024-02-20'),(8,6,1,5,'2024-05-10'),(9,4,6,4,'2024-03-20'),(10,1,8,5,'2024-04-25'),(11,9,7,4,'2024-04-10'),(12,5,9,5,'2024-05-01');
+CREATE TABLE raw_sales (id INTEGER PRIMARY KEY, product_id INTEGER, quantity INTEGER, unit_price REAL, discount REAL, sale_date TEXT, customer_name TEXT);
+CREATE TABLE employee_salaries (id INTEGER PRIMARY KEY, name TEXT, department TEXT, salary REAL, hire_date TEXT);
+INSERT INTO raw_sales VALUES (1,1,2,49.99,0.10,'2024-01-10','Alice'),(2,2,-3,15.00,0.00,'2024-01-11','Bob'),(3,3,1,NULL,0.05,'2024-01-12','Carol'),(4,1,2,49.99,0.10,'2024-01-10','Alice'),(5,4,0,89.99,0.00,'2024-01-13',NULL),(6,5,1,250.00,1.50,'2024-01-14','Dave'),(7,2,3,15.00,0.00,'2024-01-15','Eve'),(8,6,1,-20.00,0.00,'2024-01-16','Frank'),(9,3,2,29.99,0.20,'2024-01-17','Grace'),(10,1,2,49.99,0.10,'2024-01-10','Alice');
+INSERT INTO employee_salaries VALUES (1,'Alice Santos','Engineering',5500.00,'2022-03-01'),(2,'Bob Martins','Marketing',-3200.00,'2022-06-15'),(3,'Carol Lima','Engineering',6200.00,'2021-11-20'),(4,NULL,'Sales',2800.00,'2023-01-10'),(5,'Dave Costa','Marketing',0.00,'2023-05-22'),(6,'Eve Pereira','Engineering',5800.00,'2022-09-01'),(7,'Frank Sousa',NULL,4100.00,'2023-03-15'),(8,'Grace Dias','Sales',-1800.00,'2022-12-10'),(9,'Henry Ramos','Engineering',7200.00,'2021-07-05'),(10,'Iris Neves','Marketing',3900.00,'2023-08-20');
 `;
 
 const CHALLENGES_DB = [
@@ -893,6 +901,28 @@ const CHALLENGES_DB = [
   { id:78, mod:8, title:"cte_revenue_ranked", diff:"EXPERT", desc_en:"Two CTEs: monthly revenue, then rank months by revenue.", desc_pt:"Dois CTEs: receita mensal, depois ranqueie meses por receita.", hint:"WITH monthly AS (...), ranked AS (SELECT *, RANK() OVER ...)", validate:"WITH monthly AS (SELECT SUBSTR(order_date,1,7) AS month, SUM(total_amount) AS revenue FROM orders GROUP BY month), ranked AS (SELECT *, RANK() OVER (ORDER BY revenue DESC) AS rnk FROM monthly) SELECT * FROM ranked", schema:"orders: order_date, total_amount" },
   { id:79, mod:8, title:"cte_customer_segments", diff:"EXPERT", desc_en:"CTE to segment customers: 'VIP' if total > $500, else 'Regular'.", desc_pt:"CTE para segmentar clientes: 'VIP' se total > $500, senão 'Regular'.", hint:"WITH spend AS (...) SELECT name, CASE WHEN total > 500 THEN 'VIP' ...", validate:"WITH spend AS (SELECT c.name, SUM(o.total_amount) AS total FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name) SELECT name, total, CASE WHEN total > 500 THEN 'VIP' ELSE 'Regular' END AS segment FROM spend ORDER BY total DESC", schema:"customers: id, name\norders: customer_id, total_amount" },
   { id:80, mod:8, title:"cte_product_performance", diff:"EXPERT", desc_en:"CTE: product sales stats (units, revenue, avg price), ranked by revenue.", desc_pt:"CTE: stats de vendas por produto (unid, receita, preço médio), ranqueado.", hint:"WITH sales AS (SELECT p.name, SUM(oi.quantity), SUM(oi.quantity*oi.unit_price) ...)", validate:"WITH sales AS (SELECT p.name, SUM(oi.quantity) AS units, SUM(oi.quantity * oi.unit_price) AS revenue, ROUND(AVG(oi.unit_price),2) AS avg_price FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.name) SELECT *, RANK() OVER (ORDER BY revenue DESC) AS rnk FROM sales", schema:"order_items: product_id, quantity, unit_price\nproducts: id, name" },
+  // ── MODULE 9: dml — Data Manipulation & Cleaning (10 challenges) ──
+  { id:81, mod:9, title:"insert_new_product", diff:"EASY", desc_en:"Insert a new product: id=11, name='Smartphone', category='Electronics', price=699.99, stock=75.", desc_pt:"Insira um novo produto: id=11, nome='Smartphone', categoria='Electronics', preço=699.99, estoque=75.", hint:"INSERT INTO products VALUES (11, 'Smartphone', 'Electronics', ...)", validate:"INSERT INTO products VALUES (11,'Smartphone','Electronics',699.99,75)", verify:"SELECT id, name, category, price, stock FROM products WHERE id = 11", schema:"products: id, name, category, price, stock" },
+  { id:82, mod:9, title:"delete_null_customers", diff:"EASY", desc_en:"Delete all records from raw_sales where customer_name is NULL. These entries are untrackable.", desc_pt:"Exclua todos os registros de raw_sales onde customer_name é NULL.", hint:"DELETE FROM raw_sales WHERE customer_name IS NULL", validate:"DELETE FROM raw_sales WHERE customer_name IS NULL", verify:"SELECT COUNT(*) AS null_customers FROM raw_sales WHERE customer_name IS NULL", schema:"raw_sales: id, product_id, quantity, unit_price, discount, sale_date, customer_name" },
+  { id:83, mod:9, title:"delete_invalid_quantity", diff:"EASY", desc_en:"Delete records from raw_sales where quantity is less than or equal to 0. Negative or zero quantities are invalid transactions.", desc_pt:"Exclua registros de raw_sales onde quantity ≤ 0. Quantidades negativas ou zero são inválidas.", hint:"DELETE FROM raw_sales WHERE quantity <= 0", validate:"DELETE FROM raw_sales WHERE quantity <= 0", verify:"SELECT COUNT(*) AS bad_qty FROM raw_sales WHERE quantity <= 0", schema:"raw_sales: id, product_id, quantity, unit_price, discount, sale_date, customer_name" },
+  { id:84, mod:9, title:"fix_negative_prices", diff:"MED", desc_en:"Fix data entry errors in raw_sales: update all negative unit_price values by inverting the sign (multiply by -1).", desc_pt:"Corrija erros de entrada: atualize preços negativos em raw_sales multiplicando por -1.", hint:"UPDATE raw_sales SET unit_price = unit_price * -1 WHERE unit_price < 0", validate:"UPDATE raw_sales SET unit_price = unit_price * -1 WHERE unit_price < 0", verify:"SELECT COUNT(*) AS negative_prices FROM raw_sales WHERE unit_price < 0", schema:"raw_sales: id, product_id, quantity, unit_price, discount, sale_date, customer_name" },
+  { id:85, mod:9, title:"fill_null_prices_with_avg", diff:"MED", desc_en:"Replace NULL unit_price values in raw_sales with the average of all non-NULL prices (rounded to 2 decimal places).", desc_pt:"Substitua preços NULL em raw_sales pela média dos preços não-NULL (arredondado para 2 decimais).", hint:"UPDATE raw_sales SET unit_price = (SELECT ROUND(AVG(unit_price),2) FROM raw_sales WHERE unit_price IS NOT NULL) WHERE unit_price IS NULL", validate:"UPDATE raw_sales SET unit_price = (SELECT ROUND(AVG(unit_price),2) FROM raw_sales WHERE unit_price IS NOT NULL) WHERE unit_price IS NULL", verify:"SELECT COUNT(*) AS null_prices FROM raw_sales WHERE unit_price IS NULL", schema:"raw_sales: id, product_id, quantity, unit_price, discount, sale_date, customer_name" },
+  { id:86, mod:9, title:"delete_impossible_discount", diff:"MED", desc_en:"Delete records from raw_sales where discount > 1.0. A discount above 100% (i.e., > 1.0) is impossible and indicates bad data.", desc_pt:"Exclua registros de raw_sales onde discount > 1.0. Desconto acima de 100% é impossível.", hint:"DELETE FROM raw_sales WHERE discount > 1.0", validate:"DELETE FROM raw_sales WHERE discount > 1.0", verify:"SELECT COUNT(*) AS bad_discount FROM raw_sales WHERE discount > 1.0", schema:"raw_sales: id, product_id, quantity, unit_price, discount, sale_date, customer_name" },
+  { id:87, mod:9, title:"fix_negative_salaries", diff:"MED", desc_en:"In employee_salaries, some salaries were entered as negative by mistake. Fix them by multiplying by -1 to get the correct positive value.", desc_pt:"Em employee_salaries, alguns salários foram inseridos negativos por engano. Corrija multiplicando por -1.", hint:"UPDATE employee_salaries SET salary = salary * -1 WHERE salary < 0", validate:"UPDATE employee_salaries SET salary = salary * -1 WHERE salary < 0", verify:"SELECT COUNT(*) AS negative_salaries FROM employee_salaries WHERE salary < 0", schema:"employee_salaries: id, name, department, salary, hire_date" },
+  { id:88, mod:9, title:"delete_duplicate_sales", diff:"HARD", desc_en:"Remove duplicate rows from raw_sales. Keep only the record with the lowest id for each combination of (product_id, quantity, unit_price, sale_date). Use a subquery with MIN(id) and GROUP BY.", desc_pt:"Remova duplicatas de raw_sales mantendo apenas o menor id por combinação (product_id, quantity, unit_price, sale_date).", hint:"DELETE FROM raw_sales WHERE id NOT IN (SELECT MIN(id) FROM raw_sales GROUP BY product_id, quantity, unit_price, sale_date)", validate:"DELETE FROM raw_sales WHERE id NOT IN (SELECT MIN(id) FROM raw_sales GROUP BY product_id, quantity, unit_price, sale_date)", verify:"SELECT COUNT(*) AS total_rows FROM raw_sales", schema:"raw_sales: id, product_id, quantity, unit_price, discount, sale_date, customer_name" },
+  { id:89, mod:9, title:"fill_zero_salary_dept_avg", diff:"HARD", desc_en:"Update employee_salaries: for employees with salary = 0, set their salary to the average salary (rounded to 2 decimals) of positive salaries in the same department.", desc_pt:"Atualize employee_salaries: salários zerados recebem a média dos salários positivos do mesmo departamento (2 decimais).", hint:"UPDATE employee_salaries SET salary = (SELECT ROUND(AVG(salary),2) FROM employee_salaries e2 WHERE e2.department = employee_salaries.department AND salary > 0) WHERE salary = 0", validate:"UPDATE employee_salaries SET salary = (SELECT ROUND(AVG(salary),2) FROM employee_salaries e2 WHERE e2.department = employee_salaries.department AND salary > 0) WHERE salary = 0", verify:"SELECT COUNT(*) AS zero_salaries FROM employee_salaries WHERE salary = 0", schema:"employee_salaries: id, name, department, salary, hire_date" },
+  { id:90, mod:9, title:"batch_insert_employees", diff:"HARD", desc_en:"Insert 3 new employees in a single INSERT statement: (11,'Jake Torres','Sales',3500.00,'2024-01-15'), (12,'Lena Park','Engineering',6000.00,'2024-02-01'), (13,'Mike Chen','Marketing',4200.00,'2024-03-10').", desc_pt:"Insira 3 funcionários em um único INSERT: (11,'Jake Torres','Sales',3500.00,'2024-01-15'), (12,'Lena Park','Engineering',6000.00,'2024-02-01'), (13,'Mike Chen','Marketing',4200.00,'2024-03-10').", hint:"INSERT INTO employee_salaries VALUES (11,...),(12,...),(13,...)", validate:"INSERT INTO employee_salaries VALUES (11,'Jake Torres','Sales',3500.00,'2024-01-15'),(12,'Lena Park','Engineering',6000.00,'2024-02-01'),(13,'Mike Chen','Marketing',4200.00,'2024-03-10')", verify:"SELECT id, name, department, salary FROM employee_salaries WHERE id >= 11 ORDER BY id", schema:"employee_salaries: id, name, department, salary, hire_date" },
+  // ── MODULE 10: ddl — Schema Definition & Views (10 challenges) ──
+  { id:91, mod:10, title:"create_products_archive", diff:"EASY", desc_en:"Create a table called products_archive with columns: id (INTEGER PRIMARY KEY), name (TEXT), category (TEXT), archived_at (TEXT).", desc_pt:"Crie uma tabela products_archive com: id (INTEGER PRIMARY KEY), name (TEXT), category (TEXT), archived_at (TEXT).", hint:"CREATE TABLE products_archive (id INTEGER PRIMARY KEY, name TEXT, category TEXT, archived_at TEXT)", validate:"CREATE TABLE products_archive (id INTEGER PRIMARY KEY, name TEXT, category TEXT, archived_at TEXT)", verify:"SELECT name FROM sqlite_master WHERE type='table' AND name='products_archive'", schema:"-- No existing table needed. Verify creation in sqlite_master." },
+  { id:92, mod:10, title:"create_view_active_orders", diff:"EASY", desc_en:"Create a view called active_orders that selects all columns from orders where the status is 'pending' or 'shipped'.", desc_pt:"Crie uma view active_orders que seleciona todos os pedidos com status 'pending' ou 'shipped'.", hint:"CREATE VIEW active_orders AS SELECT * FROM orders WHERE status IN ('pending', 'shipped')", validate:"CREATE VIEW active_orders AS SELECT * FROM orders WHERE status IN ('pending','shipped')", verify:"SELECT * FROM active_orders ORDER BY id", schema:"orders: id, customer_id, order_date, total_amount, status" },
+  { id:93, mod:10, title:"create_view_order_summary", diff:"MED", desc_en:"Create a view order_summary showing: order id, customer name (aliased as customer_name), order_date, and total_amount. Join orders with customers.", desc_pt:"Crie a view order_summary com: id do pedido, nome do cliente (como customer_name), order_date e total_amount.", hint:"CREATE VIEW order_summary AS SELECT o.id, c.name AS customer_name, o.order_date, o.total_amount FROM orders o JOIN customers c ON o.customer_id = c.id", validate:"CREATE VIEW order_summary AS SELECT o.id, c.name AS customer_name, o.order_date, o.total_amount FROM orders o JOIN customers c ON o.customer_id = c.id", verify:"SELECT * FROM order_summary ORDER BY id", schema:"orders: id, customer_id, order_date, total_amount\ncustomers: id, name" },
+  { id:94, mod:10, title:"create_audit_log_table", diff:"MED", desc_en:"Create a table audit_log with: id (INTEGER PRIMARY KEY), action (TEXT NOT NULL), target_table (TEXT NOT NULL), changed_at (TEXT), user_id (INTEGER). Use NOT NULL constraints on critical fields.", desc_pt:"Crie a tabela audit_log: id (INTEGER PRIMARY KEY), action (TEXT NOT NULL), target_table (TEXT NOT NULL), changed_at (TEXT), user_id (INTEGER).", hint:"CREATE TABLE audit_log (id INTEGER PRIMARY KEY, action TEXT NOT NULL, target_table TEXT NOT NULL, changed_at TEXT, user_id INTEGER)", validate:"CREATE TABLE audit_log (id INTEGER PRIMARY KEY, action TEXT NOT NULL, target_table TEXT NOT NULL, changed_at TEXT, user_id INTEGER)", verify:"SELECT name FROM sqlite_master WHERE type='table' AND name='audit_log'", schema:"-- No existing table needed." },
+  { id:95, mod:10, title:"create_view_category_revenue", diff:"MED", desc_en:"Create a view category_revenue showing each product category's total revenue (SUM of quantity * unit_price) from order_items joined with products. Order by revenue DESC.", desc_pt:"Crie a view category_revenue com a receita total por categoria (SUM de quantity*unit_price), ordenada por revenue DESC.", hint:"CREATE VIEW category_revenue AS SELECT p.category, SUM(oi.quantity*oi.unit_price) AS revenue FROM order_items oi JOIN products p ON oi.product_id=p.id GROUP BY p.category ORDER BY revenue DESC", validate:"CREATE VIEW category_revenue AS SELECT p.category, SUM(oi.quantity*oi.unit_price) AS revenue FROM order_items oi JOIN products p ON oi.product_id=p.id GROUP BY p.category ORDER BY revenue DESC", verify:"SELECT * FROM category_revenue", schema:"order_items: order_id, product_id, quantity, unit_price\nproducts: id, category" },
+  { id:96, mod:10, title:"create_table_and_populate", diff:"HARD", desc_en:"In two statements: (1) CREATE TABLE promotions (id INTEGER PRIMARY KEY, code TEXT, discount REAL, expires TEXT); (2) INSERT 3 rows: (1,'SAVE10',0.10,'2024-12-31'), (2,'HALF50',0.50,'2024-06-30'), (3,'FREE100',1.00,'2024-03-15'). In production, wrap these in BEGIN/COMMIT.", desc_pt:"Em dois comandos: (1) crie a tabela promotions; (2) insira 3 linhas. Em produção, use BEGIN/COMMIT.", hint:"CREATE TABLE promotions (id INTEGER PRIMARY KEY, code TEXT, discount REAL, expires TEXT);\nINSERT INTO promotions VALUES (1,'SAVE10',0.10,'2024-12-31'),(2,'HALF50',0.50,'2024-06-30'),(3,'FREE100',1.00,'2024-03-15')", validate:"CREATE TABLE promotions (id INTEGER PRIMARY KEY, code TEXT, discount REAL, expires TEXT); INSERT INTO promotions VALUES (1,'SAVE10',0.10,'2024-12-31'),(2,'HALF50',0.50,'2024-06-30'),(3,'FREE100',1.00,'2024-03-15')", verify:"SELECT * FROM promotions ORDER BY id", schema:"-- Create promotions: id (PK), code, discount, expires" },
+  { id:97, mod:10, title:"create_view_customer_segments", diff:"HARD", desc_en:"Create a view customer_segments showing customer name, total spending (as total), and a segment label: 'VIP' if total > 500, else 'Regular'. Use CASE. Join orders with customers. Order by total DESC.", desc_pt:"Crie a view customer_segments com nome, total gasto e segmento ('VIP' se total>500, senão 'Regular'). Use CASE. Ordene por total DESC.", hint:"CREATE VIEW customer_segments AS SELECT c.name, SUM(o.total_amount) AS total, CASE WHEN SUM(o.total_amount)>500 THEN 'VIP' ELSE 'Regular' END AS segment FROM orders o JOIN customers c ON o.customer_id=c.id GROUP BY c.name ORDER BY total DESC", validate:"CREATE VIEW customer_segments AS SELECT c.name, SUM(o.total_amount) AS total, CASE WHEN SUM(o.total_amount)>500 THEN 'VIP' ELSE 'Regular' END AS segment FROM orders o JOIN customers c ON o.customer_id=c.id GROUP BY c.name ORDER BY total DESC", verify:"SELECT * FROM customer_segments", schema:"orders: customer_id, total_amount\ncustomers: id, name" },
+  { id:98, mod:10, title:"create_view_top_products", diff:"HARD", desc_en:"Create a view top_products showing the 5 products with highest total revenue (SUM of quantity * unit_price from order_items), joined with products for the name. Order by revenue DESC, LIMIT 5.", desc_pt:"Crie a view top_products com os 5 produtos de maior receita (SUM de quantity*unit_price), com nome do produto. ORDER BY revenue DESC LIMIT 5.", hint:"CREATE VIEW top_products AS SELECT p.name, SUM(oi.quantity*oi.unit_price) AS revenue FROM order_items oi JOIN products p ON oi.product_id=p.id GROUP BY p.name ORDER BY revenue DESC LIMIT 5", validate:"CREATE VIEW top_products AS SELECT p.name, SUM(oi.quantity*oi.unit_price) AS revenue FROM order_items oi JOIN products p ON oi.product_id=p.id GROUP BY p.name ORDER BY revenue DESC LIMIT 5", verify:"SELECT * FROM top_products", schema:"order_items: order_id, product_id, quantity, unit_price\nproducts: id, name" },
+  { id:99, mod:10, title:"create_table_view_and_insert", diff:"EXPERT", desc_en:"Three statements: (1) CREATE TABLE order_tags (order_id INTEGER, tag TEXT); (2) CREATE VIEW tagged_orders AS SELECT o.id, o.total_amount, o.status, ot.tag FROM orders o LEFT JOIN order_tags ot ON o.id=ot.order_id; (3) INSERT INTO order_tags VALUES (1,'urgent'),(3,'gift').", desc_pt:"Três instruções: (1) crie order_tags; (2) crie a view tagged_orders (LEFT JOIN); (3) insira 2 tags. Em produção, use BEGIN/COMMIT.", hint:"CREATE TABLE order_tags (order_id INTEGER, tag TEXT);\nCREATE VIEW tagged_orders AS SELECT o.id, o.total_amount, o.status, ot.tag FROM orders o LEFT JOIN order_tags ot ON o.id=ot.order_id;\nINSERT INTO order_tags VALUES (1,'urgent'),(3,'gift')", validate:"CREATE TABLE order_tags (order_id INTEGER, tag TEXT); CREATE VIEW tagged_orders AS SELECT o.id, o.total_amount, o.status, ot.tag FROM orders o LEFT JOIN order_tags ot ON o.id=ot.order_id; INSERT INTO order_tags VALUES (1,'urgent'),(3,'gift')", verify:"SELECT id, total_amount, status, tag FROM tagged_orders WHERE tag IS NOT NULL ORDER BY id", schema:"orders: id, total_amount, status\norder_tags: order_id, tag (create this table)" },
+  { id:100, mod:10, title:"create_clean_table_as_select", diff:"EXPERT", desc_en:"Create a new table raw_sales_clean using CREATE TABLE ... AS SELECT. Include only valid rows from raw_sales where: quantity > 0, unit_price IS NOT NULL, unit_price > 0, discount <= 1.0, AND customer_name IS NOT NULL.", desc_pt:"Crie a tabela raw_sales_clean usando CREATE TABLE ... AS SELECT com apenas linhas válidas de raw_sales (quantity>0, unit_price não-null e >0, discount<=1.0, customer_name não-null).", hint:"CREATE TABLE raw_sales_clean AS SELECT * FROM raw_sales WHERE quantity>0 AND unit_price IS NOT NULL AND unit_price>0 AND discount<=1.0 AND customer_name IS NOT NULL", validate:"CREATE TABLE raw_sales_clean AS SELECT * FROM raw_sales WHERE quantity>0 AND unit_price IS NOT NULL AND unit_price>0 AND discount<=1.0 AND customer_name IS NOT NULL", verify:"SELECT COUNT(*) AS clean_rows FROM raw_sales_clean", schema:"raw_sales: id, product_id, quantity, unit_price, discount, sale_date, customer_name" },
 ];
 CHALLENGES_DB.forEach(ch => { ch.color = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red; });
 
@@ -957,6 +987,20 @@ const QUIZ_DB = [
   { id:46, mod:8, diff:"EXPERT", q_en:"WITH a AS (...), b AS (SELECT * FROM a) — what is b?", q_pt:"WITH a AS (...), b AS (SELECT * FROM a) — o que é b?", opts:["A CTE that references another CTE","An error","A permanent table","A view"], ans:0 },
   { id:47, mod:1, diff:"EASY", q_en:"How do you comment a single line in SQL?", q_pt:"Como comentar uma linha em SQL?", opts:["-- comment","// comment","# comment","/* comment"], ans:0 },
   { id:48, mod:4, diff:"MED", q_en:"What does ROUND(3.14159, 2) return?", q_pt:"O que ROUND(3.14159, 2) retorna?", opts:["3.14","3.15","3.1","3"], ans:0 },
+  // ── MODULE 9: DML quiz ──
+  { id:49, mod:9, diff:"EASY", q_en:"Which SQL command permanently removes rows from a table?", q_pt:"Qual comando SQL remove linhas permanentemente de uma tabela?", opts:["DELETE","REMOVE","DROP","ERASE"], ans:0 },
+  { id:50, mod:9, diff:"EASY", q_en:"Which command modifies existing column values in rows?", q_pt:"Qual comando modifica valores de colunas em linhas existentes?", opts:["UPDATE","CHANGE","MODIFY","ALTER"], ans:0 },
+  { id:51, mod:9, diff:"MED", q_en:"DELETE FROM sales WHERE qty <= 0 removes...?", q_pt:"DELETE FROM sales WHERE qty <= 0 remove...?", opts:["All rows where qty is 0 or negative","All rows in the table","Only rows where qty is exactly 0","Rows where qty is NULL"], ans:0 },
+  { id:52, mod:9, diff:"MED", q_en:"How do you insert multiple rows in a single INSERT statement?", q_pt:"Como inserir múltiplas linhas em um único INSERT?", opts:["INSERT INTO t VALUES (1,...),(2,...),(3,...)","INSERT MULTI INTO t","INSERT ALL INTO t","BULK INSERT t VALUES"], ans:0 },
+  { id:53, mod:9, diff:"MED", q_en:"UPDATE t SET price = price * -1 WHERE price < 0 does what?", q_pt:"UPDATE t SET price = price * -1 WHERE price < 0 faz o quê?", opts:["Converts negative prices to positive (inverts sign)","Deletes all negative price rows","Sets all prices to their negative","Sets negative prices to zero"], ans:0 },
+  { id:54, mod:9, diff:"HARD", q_en:"Best pattern for keeping only the lowest-id row per group of duplicates?", q_pt:"Melhor padrão para manter apenas o menor id por grupo de duplicatas?", opts:["DELETE WHERE id NOT IN (SELECT MIN(id) FROM t GROUP BY cols)","DELETE DISTINCT FROM t","UPDATE t SET is_dup = true WHERE ...","SELECT UNIQUE FROM t"], ans:0 },
+  // ── MODULE 10: DDL quiz ──
+  { id:55, mod:10, diff:"EASY", q_en:"Which command creates a new table in the database?", q_pt:"Qual comando cria uma nova tabela no banco de dados?", opts:["CREATE TABLE","MAKE TABLE","ADD TABLE","INIT TABLE"], ans:0 },
+  { id:56, mod:10, diff:"EASY", q_en:"What does a VIEW store?", q_pt:"O que uma VIEW armazena?", opts:["A named query (not physical data)","A copy of the table's data","An index on the table","A backup snapshot"], ans:0 },
+  { id:57, mod:10, diff:"MED", q_en:"CREATE VIEW v AS SELECT * FROM t WHERE active = 1 creates...?", q_pt:"CREATE VIEW v AS SELECT * FROM t WHERE active = 1 cria...?", opts:["A virtual table based on the query","A physical copy of filtered rows","A stored procedure","An index on the active column"], ans:0 },
+  { id:58, mod:10, diff:"MED", q_en:"PRIMARY KEY in CREATE TABLE ensures...?", q_pt:"PRIMARY KEY no CREATE TABLE garante...?", opts:["Each row has a unique, non-NULL identifier","Rows are sorted by that column","The column has a default value","Foreign key relationships"], ans:0 },
+  { id:59, mod:10, diff:"MED", q_en:"What does wrapping statements in BEGIN ... COMMIT do?", q_pt:"O que BEGIN ... COMMIT faz ao envolver instruções?", opts:["Creates a transaction: all succeed or all roll back","Comments the SQL block out","Starts and stops a loop","Creates a named savepoint"], ans:0 },
+  { id:60, mod:10, diff:"HARD", q_en:"Which statement about VIEWs is TRUE?", q_pt:"Qual afirmação sobre VIEWs é VERDADEIRA?", opts:["The query runs each time the view is accessed","Views store data permanently like tables","Dropping the base table keeps the view working","Views cannot include JOINs or aggregations"], ans:0 },
 ];
 
 
@@ -984,13 +1028,52 @@ function runSQL(db, sql) {
   try { const r = db.exec(sql); const ms = (performance.now()-t0).toFixed(1); if(!r.length) return {ok:true,columns:[],rows:[],ms,msg:`0 rows (${ms}ms)`}; return {ok:true,columns:r[0].columns,rows:r[0].values,ms,msg:`${r[0].values.length} rows (${ms}ms)`}; }
   catch(e) { return {ok:false,columns:[],rows:[],ms:(performance.now()-t0).toFixed(1),msg:e.message}; }
 }
-function validateSQL(db, userSQL, expectedSQL) {
+function validateSQL(db, userSQL, expectedSQL, verify) {
+  if (verify) {
+    try {
+      db.exec("SAVEPOINT sp_user");
+      const ur = runSQL(db, userSQL);
+      if (!ur.ok) {
+        db.exec("ROLLBACK TO SAVEPOINT sp_user"); db.exec("RELEASE SAVEPOINT sp_user");
+        return {pass:false, msg:ur.msg, result:ur};
+      }
+      const vr = runSQL(db, verify);
+      db.exec("ROLLBACK TO SAVEPOINT sp_user"); db.exec("RELEASE SAVEPOINT sp_user");
+      db.exec("SAVEPOINT sp_exp");
+      runSQL(db, expectedSQL);
+      const er = runSQL(db, verify);
+      db.exec("ROLLBACK TO SAVEPOINT sp_exp"); db.exec("RELEASE SAVEPOINT sp_exp");
+      const vs = vr.rows.map(r=>JSON.stringify(r)).sort(), es = er.rows.map(r=>JSON.stringify(r)).sort();
+      if(vs.length !== es.length) return {pass:false, msg:`Expected ${es.length} rows, got ${vs.length}`, result:vr};
+      if(!vs.every((r,i)=>r===es[i])) return {pass:false, msg:"Result doesn't match expected output", result:vr};
+      return {pass:true, msg:`Correct! ${vr.rows.length} rows (${vr.ms}ms)`, result:vr};
+    } catch(e) {
+      try { db.exec("ROLLBACK TO SAVEPOINT sp_user"); db.exec("RELEASE SAVEPOINT sp_user"); } catch(_) {}
+      try { db.exec("ROLLBACK TO SAVEPOINT sp_exp"); db.exec("RELEASE SAVEPOINT sp_exp"); } catch(_) {}
+      return {pass:false, msg:e.message, result:{ok:false, columns:[], rows:[], ms:'0', msg:e.message}};
+    }
+  }
   const ur = runSQL(db, userSQL); if(!ur.ok) return {pass:false, msg:ur.msg, result:ur};
   const er = runSQL(db, expectedSQL);
   const us = ur.rows.map(r=>JSON.stringify(r)).sort(), es = er.rows.map(r=>JSON.stringify(r)).sort();
   if(us.length !== es.length) return {pass:false, msg:`Expected ${es.length} rows, got ${us.length}`, result:ur};
   if(!us.every((r,i)=>r===es[i])) return {pass:false, msg:"Row values don't match expected output", result:ur};
   return {pass:true, msg:`Correct! ${ur.rows.length} rows (${ur.ms}ms)`, result:ur};
+}
+function getExpectedResult(db, ch) {
+  if (ch.verify) {
+    try {
+      db.exec("SAVEPOINT sp_show");
+      runSQL(db, ch.validate);
+      const er = runSQL(db, ch.verify);
+      db.exec("ROLLBACK TO SAVEPOINT sp_show"); db.exec("RELEASE SAVEPOINT sp_show");
+      return er;
+    } catch(e) {
+      try { db.exec("ROLLBACK TO SAVEPOINT sp_show"); db.exec("RELEASE SAVEPOINT sp_show"); } catch(_) {}
+      return {ok:false, columns:[], rows:[], ms:'0', msg:e.message};
+    }
+  }
+  return runSQL(db, ch.validate);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1758,40 +1841,65 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const trimmed = sql.trim();
     pushQueryHistory(trimmed);
     resetHistoryIndex();
-    const r = runSQL(db, trimmed);
-    setResult(r);
-    if (r.ok) {
-      const v = validateSQL(db, sql.trim(), ch.validate);
+    const pts = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
+    if (ch.verify) {
+      // DML/DDL mode: run inside a savepoint so changes don't persist; show verify result
+      let r;
+      try {
+        db.exec("SAVEPOINT sp_run");
+        const ur = runSQL(db, trimmed);
+        if (!ur.ok) {
+          db.exec("ROLLBACK TO SAVEPOINT sp_run"); db.exec("RELEASE SAVEPOINT sp_run");
+          setResult(ur); setVerdict(null); SFX.play("wrong");
+          if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
+          setResOpen(true); setOpenPanel(null); return;
+        }
+        r = runSQL(db, ch.verify);
+        db.exec("ROLLBACK TO SAVEPOINT sp_run"); db.exec("RELEASE SAVEPOINT sp_run");
+      } catch(e) {
+        try { db.exec("ROLLBACK TO SAVEPOINT sp_run"); db.exec("RELEASE SAVEPOINT sp_run"); } catch(_) {}
+        const er = {ok:false, columns:[], rows:[], ms:'0', msg:e.message};
+        setResult(er); setVerdict(null); SFX.play("wrong");
+        if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
+        setResOpen(true); setOpenPanel(null); return;
+      }
+      setResult(r);
+      const v = validateSQL(db, trimmed, ch.validate, ch.verify);
       setVerdict(v);
       if (v.pass) {
         SFX.play("correct");
-        if (onXP) {
-          const pts = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
-          onXP(pts + (isDaily ? 100 : 0), ch.id, {
-            submitted_sql: sql.trim(),
-            is_correct: true,
-            xp_earned: pts + (isDaily ? 100 : 0)
-          });
-        }
+        if (onXP) onXP(pts + (isDaily ? 100 : 0), ch.id, { submitted_sql: trimmed, is_correct: true, xp_earned: pts + (isDaily ? 100 : 0) });
       } else {
         SFX.play("wrong");
-        if (onXP) {
-           onXP(0, ch.id, {
-             submitted_sql: sql.trim(),
-             is_correct: false,
-             xp_earned: 0
-           });
-        }
+        if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
       }
     } else {
-      setVerdict(null);
-      SFX.play("wrong");
-      if (onXP) {
-         onXP(0, ch.id, {
-           submitted_sql: sql.trim(),
-           is_correct: false,
-           xp_earned: 0
-         });
+      const r = runSQL(db, trimmed);
+      setResult(r);
+      if (r.ok) {
+        const v = validateSQL(db, sql.trim(), ch.validate);
+        setVerdict(v);
+        if (v.pass) {
+          SFX.play("correct");
+          if (onXP) {
+            onXP(pts + (isDaily ? 100 : 0), ch.id, {
+              submitted_sql: sql.trim(),
+              is_correct: true,
+              xp_earned: pts + (isDaily ? 100 : 0)
+            });
+          }
+        } else {
+          SFX.play("wrong");
+          if (onXP) {
+            onXP(0, ch.id, { submitted_sql: sql.trim(), is_correct: false, xp_earned: 0 });
+          }
+        }
+      } else {
+        setVerdict(null);
+        SFX.play("wrong");
+        if (onXP) {
+          onXP(0, ch.id, { submitted_sql: sql.trim(), is_correct: false, xp_earned: 0 });
+        }
       }
     }
     setResOpen(true);
@@ -2004,11 +2112,12 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             <div style={{ marginTop: 8, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>{ch.hint}</div>
           )}
           {showExpected && db && (() => {
-            const er = runSQL(db, ch.validate);
+            const er = getExpectedResult(db, ch);
             if (!er.ok) return <div style={{ marginTop: 8, background: C.redGhost, border: `1px solid ${C.red}40`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.red }}>{er.msg}</div>;
+            const label = ch.verify ? "-- state after operation" : "-- expected result";
             return (
               <div style={{ marginTop: 8, background: C.surface, border: `1px solid ${C.green}40`, padding: "8px 10px", overflowX: "auto" }}>
-                <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginBottom: 6 }}>-- expected result ({er.rows.length} rows)</div>
+                <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginBottom: 6 }}>{label} ({er.rows.length} rows)</div>
                 {er.rows.length > 0 && (
                   <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 11 }}>
                     <thead><tr>{er.columns.map(c => <th key={c} style={{ padding: "3px 8px", borderBottom: `1px solid ${C.border}`, color: C.green, textAlign: "left", fontWeight: 400, whiteSpace: "nowrap" }}>{c}</th>)}</tr></thead>
@@ -2202,7 +2311,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           schema={ch.schema}
           hint={ch.hint}
           db={db}
-          validateQuery={ch.validate}
+          validateQuery={ch.verify || ch.validate}
           auxTabsRef={auxTabsRef}
           runBtnRef={runBtnRef}
         />
@@ -2564,7 +2673,7 @@ function QuizScreen({ onXP }) {
   const resetQuiz = () => { setIdx(0); setSelected(null); setShowResult(false); setScore(0); setTotal(0); setStreak(0); };
 
   const timerColor = timer > 10 ? C.green : timer > 5 ? C.amber : C.red;
-  const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE"];
+  const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL"];
 
   return (
     <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
@@ -2985,6 +3094,7 @@ export default function PunkSQLCLI() {
     { id: 1, n: "first_query" }, { id: 2, n: "filtering" }, { id: 3, n: "sorting" },
     { id: 4, n: "aggregations" }, { id: 5, n: "joins" }, { id: 6, n: "subqueries" },
     { id: 7, n: "window_fn" }, { id: 8, n: "ctes" },
+    { id: 9, n: "dml" }, { id: 10, n: "ddl" },
   ];
 
   const nav = (target, id) => {
