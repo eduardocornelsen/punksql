@@ -2082,7 +2082,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   };
 
   const handleHiddenKeyDown = (e) => {
-    if (e.key === "Tab") {
+    if (e.key === "Backspace") {
+      backspace();
+      // No e.preventDefault() — let the browser delete the sentinel so oninput fires,
+      // but we handle the SQL deletion here in keydown where it's most reliable.
+    } else if (e.key === "Tab") {
       e.preventDefault(); insert("  ");
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -2097,7 +2101,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
 
   const handleHiddenInput = (e) => {
     if (e.inputType === "deleteContentBackward") {
-      backspace();
+      // backspace() already called in onKeyDown; just fall through to sentinel reset below
     } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
       smartEnter();
     } else {
