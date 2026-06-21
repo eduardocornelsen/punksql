@@ -1931,7 +1931,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     e.preventDefault(); // block synthetic mouse/focus events from reaching textarea
     const touch = e.touches?.[0];
     if (!touch) return;
-    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: cPos };
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: cPosRef.current };
     isSwiping.current = false;
   };
 
@@ -1948,7 +1948,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const charOffset = Math.round(dx / (charW * 1.5));
     const lineOffset = Math.round(dy / (lineH * 0.8));
     const startPos = swipeStart.current.pos;
-    const lines = sql.split("\n");
+    const lines = sqlRef.current.split("\n");
     let count = 0, startRow = 0, startCol = 0;
     for (let i = 0; i < lines.length; i++) {
       if (count + lines[i].length >= startPos) { startRow = i; startCol = startPos - count; break; }
@@ -1958,7 +1958,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const newCol = Math.max(0, Math.min(lines[newRow].length, startCol + charOffset));
     let newPos = 0;
     for (let i = 0; i < newRow; i++) newPos += lines[i].length + 1;
-    setCPos(newPos + newCol);
+    const finalPos = newPos + newCol;
+    setCPos(finalPos);
+    if (editingRef.current && taRef.current) {
+      taRef.current.setSelectionRange(finalPos, finalPos);
+    }
   };
 
   const onEditorTouchEnd = (e) => {
@@ -1979,6 +1983,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         toggleKeyboard();
       }
       // Single tap while closed → just reposition cursor (already done above)
+    } else if (editingRef.current) {
+      // Swipe ended while keyboard is open — keep keyboard open, restore textarea focus
+      taRef.current?.focus();
     }
     isSwiping.current = false;
   };
