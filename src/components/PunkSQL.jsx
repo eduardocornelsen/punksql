@@ -940,6 +940,23 @@ const CHALLENGES_DB = [
 ];
 CHALLENGES_DB.forEach(ch => { ch.color = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red; });
 
+// ── 3-Level Progressive Hints ─────────────────────────────
+// XP penalty applied to the solve reward (cumulative by level).
+// Level 0 = no hints used, 1 = clause hint (free), 2 = skeleton (-5), 3 = fill-in (-15).
+const HINT_XP_PENALTIES = [0, 0, 5, 15];
+
+function getHint2(ch) {
+  // Skeleton: full validate query with string literals and numbers masked.
+  return ch.validate
+    .replace(/'[^']*'/g, "'___'")
+    .replace(/\b\d+(\.\d+)?\b/g, '___');
+}
+
+function getHint3(ch) {
+  // Fill-in-the-blank: full validate query with only string literals masked.
+  return ch.validate.replace(/'[^']*'/g, "'___'");
+}
+
 // ── Company Archetype Tags ────────────────────────────────
 const TAG_META = {
   ecomm:     { c: C.cyan,   label_en: "E-Commerce", label_pt: "E-Commerce", icon: "⬡" },
@@ -1336,10 +1353,10 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       ref: hintRef,
       icon: "?",
       color: C.amber,
-      title: ispt ? "DICA" : "HINT",
+      title: ispt ? "DICAS (3 NÍVEIS)" : "HINTS (3 LEVELS)",
       body: ispt
-        ? "Travado? Abra a dica para\num passo na direção certa\nsem entregar a resposta."
-        : "Stuck? Open the hint for\na nudge in the right direction\nwithout giving away the answer.",
+        ? "3 dicas progressivas:\n1 · cláusula (grátis)\n2 · esqueleto (-5 xp)\n3 · preencher lacunas (-15 xp)"
+        : "3 progressive hints:\n1 · clause (free)\n2 · skeleton (-5 xp)\n3 · fill-in-blank (-15 xp)",
     },
     {
       ref: expectedRef,
@@ -1630,6 +1647,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [resOpen, setResOpen] = useState(true);
   const [showSchema, setShowSchema] = useState(true);
   const [showHint, setShowHint] = useState(false);
+  const [hintLevel, setHintLevel] = useState(0);
   const [probOpen, setProbOpen] = useState(true);
   const [editing, setEditing] = useState(false);
   const [cPos, setCPos] = useState(0);
@@ -1701,6 +1719,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     setCPos(0);
     setVerdict(null);
     setResult(null);
+    setShowHint(false);
+    setHintLevel(0);
     return () => setActiveChallenge(null);
   }, [challengeId]);
 
@@ -1901,6 +1921,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     pushQueryHistory(trimmed);
     resetHistoryIndex();
     const pts = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
+    const hintPenalty = HINT_XP_PENALTIES[hintLevel] || 0;
+    const effectivePts = Math.max(0, pts - hintPenalty);
     if (ch.verify) {
       // DML/DDL mode: run inside a savepoint so changes don't persist; show verify result
       let r;
@@ -1927,7 +1949,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
       setVerdict(v);
       if (v.pass) {
         SFX.play("correct");
-        if (onXP) onXP(pts + (isDaily ? 100 : 0), ch.id, { submitted_sql: trimmed, is_correct: true, xp_earned: pts + (isDaily ? 100 : 0) });
+        if (onXP) onXP(effectivePts + (isDaily ? 100 : 0), ch.id, { submitted_sql: trimmed, is_correct: true, xp_earned: effectivePts + (isDaily ? 100 : 0) });
       } else {
         SFX.play("wrong");
         if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
@@ -1941,10 +1963,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         if (v.pass) {
           SFX.play("correct");
           if (onXP) {
-            onXP(pts + (isDaily ? 100 : 0), ch.id, {
+            onXP(effectivePts + (isDaily ? 100 : 0), ch.id, {
               submitted_sql: sql.trim(),
               is_correct: true,
-              xp_earned: pts + (isDaily ? 100 : 0)
+              xp_earned: effectivePts + (isDaily ? 100 : 0)
             });
           }
         } else {
@@ -2155,7 +2177,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
-            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
+            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); if (hintLevel === 0) { setHintLevel(1); setShowHint(true); } else { setShowHint(!showHint); } }} style={{ background: "none", border: `1px solid ${hintLevel > 1 ? C.amberDim : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint && hintLevel > 0 ? "hide_hint" : hintLevel > 1 ? `hints(-${HINT_XP_PENALTIES[hintLevel]}xp)` : "hint"}</button>
             <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
               {TAG_META[ch.tag] && (
@@ -2174,8 +2196,40 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               })}
             </div>
           )}
-          {showHint && (
-            <div style={{ marginTop: 8, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>{ch.hint}</div>
+          {showHint && hintLevel > 0 && (
+            <div style={{ marginTop: 8, animation: "fadeSlide 0.15s ease" }}>
+              {/* Hint 1 — clause hint, free */}
+              <div style={{ background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>
+                <div style={{ fontSize: 10, color: C.amberDim, marginBottom: 3 }}>// hint_1 · clause</div>
+                <span style={{ whiteSpace: "pre-wrap" }}>{ch.hint}</span>
+              </div>
+              {/* Unlock Hint 2 */}
+              {hintLevel === 1 && (
+                <button onClick={() => setHintLevel(2)} style={{ marginTop: 5, background: "none", border: `1px dashed ${C.amberDim}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amberDim, padding: "6px 10px", width: "100%", textAlign: "left", display: "block" }}>
+                  {lang === "pt" ? "▸ dica 2 — custo: -5 xp ao resolver" : "▸ hint 2 — cost: -5 xp on solve"}
+                </button>
+              )}
+              {/* Hint 2 — skeleton query */}
+              {hintLevel >= 2 && (
+                <div style={{ marginTop: 5, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>
+                  <div style={{ fontSize: 10, color: C.amberDim, marginBottom: 3 }}>// hint_2 · skeleton (-5 xp)</div>
+                  <span style={{ whiteSpace: "pre-wrap" }}>{getHint2(ch)}</span>
+                </div>
+              )}
+              {/* Unlock Hint 3 */}
+              {hintLevel === 2 && (
+                <button onClick={() => setHintLevel(3)} style={{ marginTop: 5, background: "none", border: `1px dashed ${C.amberDim}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amberDim, padding: "6px 10px", width: "100%", textAlign: "left", display: "block" }}>
+                  {lang === "pt" ? "▸ dica 3 — custo: -15 xp ao resolver" : "▸ hint 3 — cost: -15 xp on solve"}
+                </button>
+              )}
+              {/* Hint 3 — fill-in-the-blank */}
+              {hintLevel >= 3 && (
+                <div style={{ marginTop: 5, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>
+                  <div style={{ fontSize: 10, color: C.amberDim, marginBottom: 3 }}>// hint_3 · fill-in-the-blank (-15 xp)</div>
+                  <span style={{ whiteSpace: "pre-wrap" }}>{getHint3(ch)}</span>
+                </div>
+              )}
+            </div>
           )}
           {showExpected && db && (() => {
             const er = getExpectedResult(db, ch);
