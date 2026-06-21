@@ -2075,9 +2075,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   };
 
   const handleHiddenKeyDown = (e) => {
-    if (e.key === "Backspace") {
-      e.preventDefault(); backspace();
-    } else if (e.key === "Tab") {
+    if (e.key === "Tab") {
       e.preventDefault(); insert("  ");
     } else if (e.key === "Enter") {
       e.preventDefault();
