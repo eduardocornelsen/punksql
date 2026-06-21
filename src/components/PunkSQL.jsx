@@ -1798,7 +1798,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     try { return !localStorage.getItem(CODE_ONBOARDING_KEY); } catch(e) { return false; }
   });
 
-  const taRef = useRef(null), edRef = useRef(null);
+  const taRef = useRef(null), edRef = useRef(null), hiddenInputRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
@@ -1993,10 +1993,13 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const onDrag = (e) => { e.preventDefault(); const touch = e.touches?.[0]; if (touch) setCPos(tapToPos(touch.clientX, touch.clientY)); };
   // Use functional updates so cPos is always current
   const insert = (text) => {
-    setCPos(prev => {
-      setSql(s => s.substring(0, prev) + text + s.substring(prev));
-      return prev + text.length;
-    });
+    const pos = cPosRef.current;
+    const s = sqlRef.current;
+    const newSql = s.substring(0, pos) + text + s.substring(pos);
+    const newPos = pos + text.length;
+    if (taRef.current) taRef.current.value = newSql;
+    setSql(newSql); sqlRef.current = newSql;
+    setCPos(newPos); cPosRef.current = newPos;
   };
 
   // Smart Enter for the UI ↵ button — applies the same indentation logic as the physical key
@@ -2010,18 +2013,20 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     sqlRef.current = newSql;
     setCPos(newPos);
     cPosRef.current = newPos;
-    if (taRef.current) {
-      requestAnimationFrame(() => {
-        if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
-      });
-    }
+    requestAnimationFrame(() => {
+      if (isTouch.current && editingRef.current) { hiddenInputRef.current?.focus(); }
+      else if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
+    });
   }, []);
   const backspace = () => {
-    setCPos(prev => {
-      if (prev <= 0) return prev;
-      setSql(s => s.substring(0, prev - 1) + s.substring(prev));
-      return prev - 1;
-    });
+    const pos = cPosRef.current;
+    if (pos <= 0) return;
+    const s = sqlRef.current;
+    const newSql = s.substring(0, pos - 1) + s.substring(pos);
+    const newPos = pos - 1;
+    if (taRef.current) taRef.current.value = newSql;
+    setSql(newSql); sqlRef.current = newSql;
+    setCPos(newPos); cPosRef.current = newPos;
   };
   // Auto-scroll editor to keep cursor visible
   useEffect(() => {
@@ -2057,12 +2062,51 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const kbToggling = useRef(false);
   const toggleKeyboard = () => {
     kbToggling.current = true;
-    if (editing) { taRef.current?.blur(); setEditing(false); }
-    else { setEditing(true); setTimeout(() => { const ta = taRef.current; if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); } kbToggling.current = false; }, 100); }
+    if (editing) {
+      (isTouch.current ? hiddenInputRef : taRef).current?.blur();
+      setEditing(false);
+    } else {
+      setEditing(true);
+      setTimeout(() => {
+        if (isTouch.current) {
+          const hi = hiddenInputRef.current;
+          if (hi) { hi.value = "​"; hi.focus(); }
+        } else {
+          const ta = taRef.current;
+          if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); }
+        }
+        kbToggling.current = false;
+      }, 100);
+    }
     setTimeout(() => { kbToggling.current = false; }, 300);
   };
   const handleBlur = () => {
     setTimeout(() => { if (!kbToggling.current) setEditing(false); }, 200);
+  };
+  const handleHiddenKeyDown = (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault(); insert("  ");
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) handleRun(); else smartEnter();
+    } else if (e.key === "Escape") {
+      e.preventDefault(); toggleKeyboard();
+    } else if (e.key === "ArrowLeft")  { e.preventDefault(); handleAuxControl("left"); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); handleAuxControl("right"); }
+      else if (e.key === "ArrowUp")    { e.preventDefault(); handleAuxControl("up"); }
+      else if (e.key === "ArrowDown")  { e.preventDefault(); handleAuxControl("down"); }
+  };
+  const handleHiddenInput = (e) => {
+    if (e.inputType === "deleteContentBackward") {
+      backspace();
+    } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
+      smartEnter();
+    } else {
+      // type="text" so e.data works normally (unlike password); fall back to value diff
+      const typed = e.data || e.target.value.replace("​", "");
+      if (typed) insert(typed);
+    }
+    e.target.value = "​";
   };
   const handleRun = () => {
     if (!db) return;
@@ -2466,7 +2510,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                   }
                 }
               }}
-              readOnly={isTouch.current && !editing}
+              readOnly={isTouch.current}
               spellCheck={false}
               autoCorrect="off"
               autoCapitalize="off"
@@ -2485,6 +2529,27 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                 touchAction: isTouch.current ? "none" : "auto",
               }}
             />
+            {isTouch.current && (
+              <input
+                ref={hiddenInputRef}
+                type="text"
+                inputMode="email"
+                autoCorrect="off"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                onKeyDown={handleHiddenKeyDown}
+                onInput={handleHiddenInput}
+                onBlur={handleBlur}
+                aria-hidden="true"
+                tabIndex={-1}
+                style={{
+                  position: "fixed", left: 0, top: 0,
+                  width: 1, height: 1, opacity: 0,
+                  pointerEvents: "none", fontSize: 16,
+                }}
+              />
+            )}
           </div>
         </div>
         {/* Hint bar */}
