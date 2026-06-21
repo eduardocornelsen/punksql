@@ -3389,7 +3389,7 @@ export default function PunkSQLCLI() {
       if (newLv > oldLv) setTimeout(() => { setLevelUpShow(newLv); SFX.play("levelup"); }, 300);
       return n;
     });
-    if (challengeId) markSolved(challengeId);
+    if (challengeId && pts > 0) markSolved(challengeId);
   }, [markSolved]);
 
   const handleXP = useCallback((pts, challengeId, details) => {
