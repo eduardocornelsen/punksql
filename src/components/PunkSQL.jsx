@@ -3190,9 +3190,21 @@ export default function PunkSQLCLI() {
   const MAIN_TABS = ["home", "learn", "practice", "quiz", "review", "profile"];
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
+  const swipeInScrollable = useRef(false);
   const handleSwipeStart = useCallback((e) => {
     swipeStartX.current = e.touches[0].clientX;
     swipeStartY.current = e.touches[0].clientY;
+    let el = e.target;
+    let inScrollable = false;
+    while (el && el !== e.currentTarget) {
+      const ox = window.getComputedStyle(el).overflowX;
+      if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth) {
+        inScrollable = true;
+        break;
+      }
+      el = el.parentElement;
+    }
+    swipeInScrollable.current = inScrollable;
   }, []);
   const handleSwipeEnd = useCallback((e) => {
     if (swipeStartX.current === null) return;
@@ -3200,6 +3212,7 @@ export default function PunkSQLCLI() {
     const dy = e.changedTouches[0].clientY - swipeStartY.current;
     swipeStartX.current = null;
     swipeStartY.current = null;
+    if (swipeInScrollable.current) return;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
     const idx = MAIN_TABS.indexOf(tab);
     if (dx < 0 && idx < MAIN_TABS.length - 1) setTab(MAIN_TABS[idx + 1]);
