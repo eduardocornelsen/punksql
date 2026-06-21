@@ -1935,7 +1935,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     e.preventDefault(); // block synthetic mouse/focus events from reaching textarea
     const touch = e.touches?.[0];
     if (!touch) return;
-    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: cPos };
+    // When keyboard is open, read the actual textarea cursor rather than stale state
+    const startPos = editingRef.current && taRef.current
+      ? (taRef.current.selectionStart ?? cPos)
+      : cPos;
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: startPos };
     isSwiping.current = false;
   };
 
@@ -1952,7 +1956,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const charOffset = Math.round(dx / (charW * 1.5));
     const lineOffset = Math.round(dy / (lineH * 0.8));
     const startPos = swipeStart.current.pos;
-    const lines = sql.split("\n");
+    const lines = sqlRef.current.split("\n");
     let count = 0, startRow = 0, startCol = 0;
     for (let i = 0; i < lines.length; i++) {
       if (count + lines[i].length >= startPos) { startRow = i; startCol = startPos - count; break; }
@@ -1962,7 +1966,12 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const newCol = Math.max(0, Math.min(lines[newRow].length, startCol + charOffset));
     let newPos = 0;
     for (let i = 0; i < newRow; i++) newPos += lines[i].length + 1;
-    setCPos(newPos + newCol);
+    const finalPos = newPos + newCol;
+    setCPos(finalPos);
+    // When keyboard is open, sync the native textarea cursor so typing inserts at the right spot
+    if (editingRef.current && taRef.current) {
+      taRef.current.setSelectionRange(finalPos, finalPos);
+    }
   };
 
   const onEditorTouchEnd = (e) => {
@@ -2468,6 +2477,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               autoCorrect="off"
               autoCapitalize="none"
               autoComplete="off"
+              inputMode="url"
               data-gramm={false}
               data-gramm_editor={false}
               placeholder="-- write SQL here"
@@ -2488,7 +2498,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         </div>
         {/* Hint bar */}
         <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {!dbReady ? "loading sql engine..." : "swipe to move cursor · tap to focus"}
+          {!dbReady ? "loading sql engine..." : editing ? "swipe to move cursor · tap to close keyboard" : "swipe to move cursor · double-tap to type"}
         </div>
         {/* Results — shown in BOTH modes */}
         {result && (
