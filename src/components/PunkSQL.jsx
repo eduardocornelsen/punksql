@@ -2532,8 +2532,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               </div>
             )}
             {resOpen && !result.ok && <div style={{ padding: "4px 16px 10px", fontFamily: F.mono, fontSize: 14, color: C.red, lineHeight: 1.8 }}>{result.msg}</div>}
-            {/* Edit button to go back to coding */}
-            <button onClick={clearResult} style={{ width: "100%", padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, background: C.panel, border: "none", borderTop: `1px solid ${C.border}`, letterSpacing: 1 }}>✎ EDIT CODE</button>
+            {/* Edit button to go back to coding — only shown after a correct answer */}
+            {verdict?.pass && <button onClick={clearResult} style={{ width: "100%", padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, background: C.panel, border: "none", borderTop: `1px solid ${C.border}`, letterSpacing: 1 }}>✎ EDIT CODE</button>}
           </div>
         )}
         {/* Schema viewer — shown when .schema command is detected */}
@@ -2557,7 +2557,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             tabsRef={auxTabsRef}
           />
           {/* ── RUN + utility bar ── */}
-          {!result && (
+          {(!result || !verdict?.pass) && (
             <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
               <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
               <button
@@ -3389,7 +3389,7 @@ export default function PunkSQLCLI() {
       if (newLv > oldLv) setTimeout(() => { setLevelUpShow(newLv); SFX.play("levelup"); }, 300);
       return n;
     });
-    if (challengeId) markSolved(challengeId);
+    if (challengeId && pts > 0) markSolved(challengeId);
   }, [markSolved]);
 
   const handleXP = useCallback((pts, challengeId, details) => {
