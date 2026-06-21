@@ -1802,7 +1802,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     try { return !localStorage.getItem(CODE_ONBOARDING_KEY); } catch(e) { return false; }
   });
 
-  const taRef = useRef(null), edRef = useRef(null);
+  const taRef = useRef(null), edRef = useRef(null), hiddenInputRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
@@ -1935,11 +1935,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     e.preventDefault(); // block synthetic mouse/focus events from reaching textarea
     const touch = e.touches?.[0];
     if (!touch) return;
-    // When keyboard is open, read the actual textarea cursor rather than stale state
-    const startPos = editingRef.current && taRef.current
-      ? (taRef.current.selectionStart ?? cPos)
-      : cPos;
-    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: startPos };
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: cPosRef.current };
     isSwiping.current = false;
   };
 
@@ -1966,12 +1962,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const newCol = Math.max(0, Math.min(lines[newRow].length, startCol + charOffset));
     let newPos = 0;
     for (let i = 0; i < newRow; i++) newPos += lines[i].length + 1;
-    const finalPos = newPos + newCol;
-    setCPos(finalPos);
-    // When keyboard is open, sync the native textarea cursor so typing inserts at the right spot
-    if (editingRef.current && taRef.current) {
-      taRef.current.setSelectionRange(finalPos, finalPos);
-    }
+    setCPos(newPos + newCol);
   };
 
   const onEditorTouchEnd = (e) => {
@@ -2016,11 +2007,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     sqlRef.current = newSql;
     setCPos(newPos);
     cPosRef.current = newPos;
-    if (taRef.current) {
-      requestAnimationFrame(() => {
-        if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
-      });
-    }
+    requestAnimationFrame(() => {
+      if (isTouch.current) { hiddenInputRef.current?.focus(); }
+      else if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
+    });
   }, []);
   const backspace = () => {
     setCPos(prev => {
@@ -2063,12 +2053,74 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const kbToggling = useRef(false);
   const toggleKeyboard = () => {
     kbToggling.current = true;
-    if (editing) { taRef.current?.blur(); setEditing(false); }
-    else { setEditing(true); setTimeout(() => { const ta = taRef.current; if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); } kbToggling.current = false; }, 100); }
+    if (editing) {
+      (isTouch.current ? hiddenInputRef : taRef).current?.blur();
+      setEditing(false);
+    } else {
+      setEditing(true);
+      setTimeout(() => {
+        if (isTouch.current) {
+          // Mobile: focus hidden password input — OS sees TYPE_TEXT_VARIATION_PASSWORD,
+          // which suppresses the suggestion bar on all keyboards including SwiftKey.
+          const hi = hiddenInputRef.current;
+          if (hi) { hi.value = "​"; hi.focus(); }
+        } else {
+          const ta = taRef.current;
+          if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); }
+        }
+        kbToggling.current = false;
+      }, 100);
+    }
     setTimeout(() => { kbToggling.current = false; }, 300);
   };
   const handleBlur = () => {
     setTimeout(() => { if (!kbToggling.current) setEditing(false); }, 200);
+  };
+
+  // Hidden password input handlers — capture keyboard on mobile without showing suggestion bar
+  const handleHiddenKeyDown = (e) => {
+    const pos = cPosRef.current;
+    const text = sqlRef.current;
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      backspace();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      insert("  ");
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) { handleRun(); }
+      else { smartEnter(); }
+    } else if (e.key === ")") {
+      const r = sqlSmartCloseParen(text, pos);
+      if (r) {
+        e.preventDefault();
+        const newSql = text.substring(0, r.lineStart) + r.ins + text.substring(pos);
+        const newPos = r.lineStart + r.ins.length;
+        setSql(newSql); sqlRef.current = newSql;
+        setCPos(newPos); cPosRef.current = newPos;
+      }
+      // else: let the char fall through to onInput
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      toggleKeyboard();
+    } else if (e.key === "ArrowLeft")  { e.preventDefault(); handleAuxControl("left"); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); handleAuxControl("right"); }
+      else if (e.key === "ArrowUp")    { e.preventDefault(); handleAuxControl("up"); }
+      else if (e.key === "ArrowDown")  { e.preventDefault(); handleAuxControl("down"); }
+  };
+
+  const handleHiddenInput = (e) => {
+    if (e.inputType === "insertText" && e.data) {
+      insert(e.data);
+    } else if (e.inputType === "deleteContentBackward") {
+      // Fallback: keyboards that send deletion via inputType rather than keydown
+      backspace();
+    } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
+      smartEnter();
+    }
+    // Reset sentinel so the keyboard always has something to delete on next backspace
+    e.target.value = "​";
   };
   const handleRun = () => {
     if (!db) return;
@@ -2157,8 +2209,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         sqlRef.current = newSql;
         setCPos(newPos);
         cPosRef.current = newPos;
-        if (editing && taRef.current) {
-          requestAnimationFrame(() => { if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); } });
+        if (editing) {
+          requestAnimationFrame(() => {
+            if (isTouch.current) { hiddenInputRef.current?.focus(); }
+            else if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
+          });
         }
         return;
       }
@@ -2174,11 +2229,13 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     }
     insert(text);
     // Keep native keyboard open if already editing
-    if (editing && taRef.current) {
-      const ta = taRef.current;
+    if (editing) {
       requestAnimationFrame(() => {
-        ta.focus();
-        setCPos(prev => { ta.setSelectionRange(prev, prev); return prev; });
+        if (isTouch.current) { hiddenInputRef.current?.focus(); }
+        else if (taRef.current) {
+          taRef.current.focus();
+          setCPos(prev => { taRef.current.setSelectionRange(prev, prev); return prev; });
+        }
       });
     }
   }, [insert, editing, cPos]);
@@ -2190,12 +2247,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const moveTo = (newPos) => {
       cPosRef.current = newPos;
       setCPos(newPos);
-      requestAnimationFrame(() => {
-        if (taRef.current) {
-          taRef.current.focus();
-          taRef.current.setSelectionRange(newPos, newPos);
-        }
-      });
+      if (!isTouch.current && taRef.current) {
+        requestAnimationFrame(() => {
+          if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
+        });
+      }
     };
 
     const pos = cPosRef.current;
@@ -2415,11 +2471,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           </div>
           <div ref={edRef} style={{ height: "100%", padding: "8px 18px", overflowY: "scroll", overflowX: "scroll", background: `linear-gradient(180deg,${C.void},${C.black})`, position: "relative", touchAction: "none" }}
             onTouchStart={onEditorTouchStart} onTouchMove={onEditorTouchMove} onTouchEnd={onEditorTouchEnd} onClick={onTap}>
-            {/* Custom cursor handle — hidden when keyboard is open */}
-          {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
+            {/* Cursor — always visible; drag handle only shown when keyboard is closed */}
+            <div onTouchMove={!editing ? onDrag : undefined} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: editing ? "none" : "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
               <div style={{ width: 2, height: lineH * 0.7, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}80`, animation: "blink 1s step-end infinite" }} />
-              <div style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>
-            </div>}
+              {!editing && <div style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>}
+            </div>
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
             {/* Syntax highlight layer — mirrors textarea content with token colors */}
             <pre aria-hidden style={{
@@ -2472,12 +2528,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                   }
                 }
               }}
-              readOnly={isTouch.current && !editing}
+              readOnly={isTouch.current}
               spellCheck={false}
               autoCorrect="off"
               autoCapitalize="none"
               autoComplete="off"
-              inputMode="url"
               data-gramm={false}
               data-gramm_editor={false}
               placeholder="-- write SQL here"
@@ -2487,11 +2542,28 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                 minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`,
                 background: "transparent", border: "none", color: "transparent",
                 fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none", tabSize: 2,
-                outline: "none", caretColor: editing ? C.cyan : "transparent",
+                outline: "none", caretColor: isTouch.current ? "transparent" : (editing ? C.cyan : "transparent"),
                 paddingTop: 6, cursor: "text", whiteSpace: "pre",
                 overflowX: "hidden", overflowY: "hidden",
                 wordWrap: "normal", overflowWrap: "normal",
                 touchAction: isTouch.current ? "none" : "auto",
+              }}
+            />
+            {/* Hidden password input — focused on mobile instead of textarea.
+                The OS sees TYPE_TEXT_VARIATION_PASSWORD and suppresses the
+                suggestion bar on all keyboards including SwiftKey. */}
+            <input
+              ref={hiddenInputRef}
+              type="password"
+              onKeyDown={handleHiddenKeyDown}
+              onInput={handleHiddenInput}
+              onBlur={handleBlur}
+              aria-hidden="true"
+              tabIndex={-1}
+              style={{
+                position: "fixed", left: -9999, top: -9999,
+                width: 1, height: 1, opacity: 0,
+                pointerEvents: "none",
               }}
             />
           </div>
