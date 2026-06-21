@@ -2555,6 +2555,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             <input
               ref={hiddenInputRef}
               type="password"
+              enterKeyHint="enter"
               onKeyDown={handleHiddenKeyDown}
               onInput={handleHiddenInput}
               onBlur={handleBlur}
