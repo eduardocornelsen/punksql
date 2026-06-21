@@ -209,23 +209,72 @@ Effects: CRT scanlines, vignette overlay, pulse glow, cursor blink, flip card an
 
 ---
 
+## Competitive Landscape
+
+PunkSQL sits in a crowded space alongside DataLemur, HackerRank, LeetCode, and StrataScratch. Here's how it compares and where it's headed.
+
+### Where PunkSQL already wins
+
+| Feature | PunkSQL | DataLemur | HackerRank | LeetCode | StrataScratch |
+|---|---|---|---|---|---|
+| Mobile-first | ✅ | ❌ | ❌ | ❌ | ❌ |
+| No signup required | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Runs fully offline (WASM) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Gamification (XP / levels / achievements) | ✅ | partial | partial | partial | ❌ |
+| DML + DDL challenges | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Flashcards + spaced repetition | ✅ | ❌ | ❌ | ❌ | ❌ |
+| PWA installable | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+The **mobile-first + offline + no-signup** combination is a genuine moat — no other SQL learning platform does all three.
+
+### Where competitors win (improvement gaps)
+
+**Solution explanations & hints** — DataLemur shows a full editorial after each submission: *why* this query works, common mistakes, alternative approaches. PunkSQL validates correctness but leaves the learner without guidance. LeetCode and DataLemur both offer 3-tier progressive hints that reduce frustration without giving away the answer.
+
+**Real interview question tagging** — DataLemur and StrataScratch brand challenges as "asked at Meta / Airbnb / Stripe". This creates perceived value and urgency. PunkSQL challenges are well-crafted but unframed.
+
+**Account-based persistence + shareable profile** — Progress currently lives in `localStorage`. Users can't show their SQL rank to an employer, and progress is lost on a browser clear. HackerRank certificates are a primary reason people use the platform.
+
+**Per-skill analytics** — StrataScratch shows a radar chart of SQL competency (JOINs, window functions, aggregations) so users know exactly what to study. PunkSQL tracks XP but not skill accuracy per topic.
+
+**Community solutions** — LeetCode's comment sections are where users learn the most — alternative approaches, gotchas, debate. PunkSQL has no community layer.
+
+**SQL dialect coverage** — HackerRank and StrataScratch support PostgreSQL, MySQL, and MS SQL. PunkSQL is SQLite-only; window function and date syntax differs in production databases.
+
+---
+
 ## Roadmap
+
+### Shipped
 
 - [x] 112 SQL challenges with real execution (DML + DDL included)
 - [x] Gamification (levels, achievements, XP)
 - [x] Mobile-first editor with swipe cursor
 - [x] EN/PT-BR bilingual
 - [x] Sound effects
-- [x] Persistent storage
+- [x] Persistent storage (localStorage)
 - [x] PWA-ready
 - [x] DML data cleaning module (DELETE, UPDATE, INSERT INTO SELECT, SAVEPOINT)
 - [x] DDL schema module (CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP, SAVEPOINT)
-- [ ] User auth (Supabase — Google/Magic Link)
-- [ ] Server-side progress sync
-- [ ] Real leaderboard
+
+### Prioritized backlog
+
+| Priority | Feature | Why it matters |
+|---|---|---|
+| 1 | **Solution explanations** — annotated query + plain-English breakdown shown after solve | Closes the biggest gap vs. DataLemur; turns a pass/fail into actual learning |
+| 2 | **3-level hints** — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost | Reduces abandonment; matches LeetCode/DataLemur UX |
+| 3 | **Supabase auth + shareable profile card** — activate existing auth wiring, generate a linkable SQL rank card | Lets users prove skills; shareable cards drive organic growth |
+| 4 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Gives users a study direction; closes StrataScratch gap |
+| 5 | **Company archetype tags** — label challenges as e-commerce / fintech / analytics / social media interview-style | Zero-effort credibility boost; no real sourcing needed |
+| 6 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
+| 7 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | Addresses the #1 reason people stay on LeetCode |
+| 8 | **Premium tier** — gate company tags, skills radar, and shareable certificate | Sustainability; mirrors DataLemur/StrataScratch monetization model |
+
+### Also planned
+
 - [ ] Streak system with daily reset
-- [ ] Challenge validation flexibility (column order agnostic)
-- [ ] Interview prep track
+- [ ] Challenge validation flexibility (column-order agnostic)
+- [ ] Interview prep mode (timed, no hints)
 - [ ] Python track (Pyodide WASM)
 - [ ] React Native mobile app (iOS + Android)
 
