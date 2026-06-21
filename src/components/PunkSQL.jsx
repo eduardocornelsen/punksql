@@ -2521,9 +2521,9 @@ function ReviewScreen({ onXP }) {
 
   const resetGame = () => { setScore(0); setLives(3); setReviewed(0); setCorrect(0); setIdx(0); setFlipped(false); setGameOver(false); setSwipeX(0); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 } }); };
 
-  const onTS = (e) => { touchStart.current = e.touches[0].clientX; setSwiping(false); };
+  const onTS = (e) => { e.stopPropagation(); touchStart.current = e.touches[0].clientX; setSwiping(false); };
   const onTM = (e) => { const dx = e.touches[0].clientX - touchStart.current; if (Math.abs(dx) > 10) setSwiping(true); setSwipeX(dx); };
-  const onTE = () => { if (Math.abs(swipeX) > 80) { nextCard(swipeX > 0); } else { setSwipeX(0); setSwiping(false); } };
+  const onTE = (e) => { e.stopPropagation(); if (Math.abs(swipeX) > 80) { nextCard(swipeX > 0); } else { setSwipeX(0); setSwiping(false); } };
 
   const swDir = swipeX > 30 ? "right" : swipeX < -30 ? "left" : null;
   const swPct = Math.min(Math.abs(swipeX) / 120, 1);
