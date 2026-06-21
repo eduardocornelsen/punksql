@@ -1798,7 +1798,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     try { return !localStorage.getItem(CODE_ONBOARDING_KEY); } catch(e) { return false; }
   });
 
-  const taRef = useRef(null), edRef = useRef(null);
+  const taRef = useRef(null), edRef = useRef(null), hiddenInputRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
@@ -1931,7 +1931,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     e.preventDefault(); // block synthetic mouse/focus events from reaching textarea
     const touch = e.touches?.[0];
     if (!touch) return;
-    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: cPos };
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, pos: cPosRef.current };
     isSwiping.current = false;
   };
 
@@ -1948,7 +1948,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     const charOffset = Math.round(dx / (charW * 1.5));
     const lineOffset = Math.round(dy / (lineH * 0.8));
     const startPos = swipeStart.current.pos;
-    const lines = sql.split("\n");
+    const lines = sqlRef.current.split("\n");
     let count = 0, startRow = 0, startCol = 0;
     for (let i = 0; i < lines.length; i++) {
       if (count + lines[i].length >= startPos) { startRow = i; startCol = startPos - count; break; }
@@ -2003,11 +2003,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     sqlRef.current = newSql;
     setCPos(newPos);
     cPosRef.current = newPos;
-    if (taRef.current) {
-      requestAnimationFrame(() => {
-        if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
-      });
-    }
+    requestAnimationFrame(() => {
+      if (isTouch.current) { hiddenInputRef.current?.focus(); }
+      else if (taRef.current) { taRef.current.focus(); taRef.current.setSelectionRange(newPos, newPos); }
+    });
   }, []);
   const backspace = () => {
     setCPos(prev => {
@@ -2050,12 +2049,56 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const kbToggling = useRef(false);
   const toggleKeyboard = () => {
     kbToggling.current = true;
-    if (editing) { taRef.current?.blur(); setEditing(false); }
-    else { setEditing(true); setTimeout(() => { const ta = taRef.current; if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); } kbToggling.current = false; }, 100); }
+    if (editing) {
+      (isTouch.current ? hiddenInputRef : taRef).current?.blur();
+      setEditing(false);
+    } else {
+      setEditing(true);
+      setTimeout(() => {
+        if (isTouch.current) {
+          const hi = hiddenInputRef.current;
+          if (hi) { hi.value = "​"; hi.focus(); }
+        } else {
+          const ta = taRef.current;
+          if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); }
+        }
+        kbToggling.current = false;
+      }, 100);
+    }
     setTimeout(() => { kbToggling.current = false; }, 300);
   };
   const handleBlur = () => {
     setTimeout(() => { if (!kbToggling.current) setEditing(false); }, 200);
+  };
+
+  const handleHiddenKeyDown = (e) => {
+    if (e.key === "Backspace") {
+      e.preventDefault(); backspace();
+    } else if (e.key === "Tab") {
+      e.preventDefault(); insert("  ");
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) handleRun(); else smartEnter();
+    } else if (e.key === "Escape") {
+      e.preventDefault(); toggleKeyboard();
+    } else if (e.key === "ArrowLeft")  { e.preventDefault(); handleAuxControl("left"); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); handleAuxControl("right"); }
+      else if (e.key === "ArrowUp")    { e.preventDefault(); handleAuxControl("up"); }
+      else if (e.key === "ArrowDown")  { e.preventDefault(); handleAuxControl("down"); }
+  };
+
+  const handleHiddenInput = (e) => {
+    if (e.inputType === "deleteContentBackward") {
+      backspace();
+    } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
+      smartEnter();
+    } else {
+      // Do NOT use e.data — Android sets it to null for type="password" inputs.
+      // Read the actual value and subtract the sentinel to find what was typed.
+      const typed = e.target.value.replace("​", "");
+      if (typed) insert(typed);
+    }
+    e.target.value = "​";
   };
   const handleRun = () => {
     if (!db) return;
@@ -2459,7 +2502,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                   }
                 }
               }}
-              readOnly={isTouch.current && !editing}
+              readOnly={isTouch.current}
               spellCheck={false}
               autoCorrect="off"
               autoCapitalize="off"
@@ -2471,18 +2514,37 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                 minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`,
                 background: "transparent", border: "none", color: "transparent",
                 fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none", tabSize: 2,
-                outline: "none", caretColor: editing ? C.cyan : "transparent",
+                outline: "none", caretColor: isTouch.current ? "transparent" : (editing ? C.cyan : "transparent"),
                 paddingTop: 6, cursor: "text", whiteSpace: "pre",
                 overflowX: "hidden", overflowY: "hidden",
                 wordWrap: "normal", overflowWrap: "normal",
                 touchAction: isTouch.current ? "none" : "auto",
               }}
             />
+            {/* Hidden password input — receives keyboard events on mobile.
+                type="password" signals TYPE_TEXT_VARIATION_PASSWORD to the OS,
+                suppressing the suggestion/autocorrect bar on all keyboards. */}
+            <input
+              ref={hiddenInputRef}
+              type="password"
+              autoComplete="off"
+              enterKeyHint="enter"
+              onKeyDown={handleHiddenKeyDown}
+              onInput={handleHiddenInput}
+              onBlur={handleBlur}
+              aria-hidden="true"
+              tabIndex={-1}
+              style={{
+                position: "fixed", left: 0, top: 0,
+                width: 1, height: 1, opacity: 0,
+                pointerEvents: "none", fontSize: 16,
+              }}
+            />
           </div>
         </div>
         {/* Hint bar */}
         <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {!dbReady ? "loading sql engine..." : "swipe to move cursor · tap to focus"}
+          {!dbReady ? "loading sql engine..." : editing ? "swipe to move cursor · tap to close keyboard" : "swipe to move cursor · double-tap to type"}
         </div>
         {/* Results — shown in BOTH modes */}
         {result && (
