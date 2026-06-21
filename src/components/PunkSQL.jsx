@@ -2134,11 +2134,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.title}</span>
         </div>
-        {TAG_META[ch.tag] && (
-          <span style={{ fontFamily: F.mono, fontSize: 9, color: TAG_META[ch.tag].c, border: `1px solid ${TAG_META[ch.tag].c}50`, padding: "2px 6px", flexShrink: 0, opacity: 0.9, letterSpacing: 0.5 }}>
-            {TAG_META[ch.tag].icon} {lang === "pt" ? TAG_META[ch.tag].label_pt : TAG_META[ch.tag].label_en}
-          </span>
-        )}
         <span style={{ fontFamily: F.mono, fontSize: 10, color: ch.color, border: `1px solid ${ch.color}40`, padding: "2px 6px" }}>{ch.diff}</span>
         {exercises && (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 16, color: C.dim, padding: "2px 8px", minHeight: 28, lineHeight: 1 }}>☰</button>
@@ -2162,6 +2157,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
             <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
             <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
+            {TAG_META[ch.tag] && (
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: TAG_META[ch.tag].c, border: `1px solid ${TAG_META[ch.tag].c}50`, padding: "4px 8px", opacity: 0.9, letterSpacing: 0.5, userSelect: "none" }}>
+                {TAG_META[ch.tag].icon} {lang === "pt" ? TAG_META[ch.tag].label_pt : TAG_META[ch.tag].label_en}
+              </span>
+            )}
             <button ref={tourBtnRef} onClick={e => { e.stopPropagation(); setProbOpen(true); setShowCodeOnboarding(true); }} style={{ background: "none", border: `1px solid ${C.purple}60`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.purple, padding: "4px 8px", marginLeft: "auto" }}>?</button>
           </div>
           {showSchema && (
