@@ -3041,6 +3041,25 @@ export default function PunkSQLCLI() {
     setLastContext("code");
   }, []);
 
+  const MAIN_TABS = ["home", "learn", "practice", "quiz", "review", "profile"];
+  const swipeStartX = useRef(null);
+  const swipeStartY = useRef(null);
+  const handleSwipeStart = useCallback((e) => {
+    swipeStartX.current = e.touches[0].clientX;
+    swipeStartY.current = e.touches[0].clientY;
+  }, []);
+  const handleSwipeEnd = useCallback((e) => {
+    if (swipeStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX.current;
+    const dy = e.changedTouches[0].clientY - swipeStartY.current;
+    swipeStartX.current = null;
+    swipeStartY.current = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    const idx = MAIN_TABS.indexOf(tab);
+    if (dx < 0 && idx < MAIN_TABS.length - 1) setTab(MAIN_TABS[idx + 1]);
+    if (dx > 0 && idx > 0) setTab(MAIN_TABS[idx - 1]);
+  }, [tab]);
+
   const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" };
   const ctx = { lang, t };
 
@@ -3088,7 +3107,7 @@ export default function PunkSQLCLI() {
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <TopBar lang={lang} setLang={setLang} startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
         {tab === "learn" && <LearnScreen onNavigate={nav} solved={solved} />}
         {tab === "practice" && <PracticeScreen onNavigate={nav} solved={solved} />}
