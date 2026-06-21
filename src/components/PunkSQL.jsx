@@ -2521,9 +2521,9 @@ function ReviewScreen({ onXP }) {
 
   const resetGame = () => { setScore(0); setLives(3); setReviewed(0); setCorrect(0); setIdx(0); setFlipped(false); setGameOver(false); setSwipeX(0); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 } }); };
 
-  const onTS = (e) => { touchStart.current = e.touches[0].clientX; setSwiping(false); };
+  const onTS = (e) => { e.stopPropagation(); touchStart.current = e.touches[0].clientX; setSwiping(false); };
   const onTM = (e) => { const dx = e.touches[0].clientX - touchStart.current; if (Math.abs(dx) > 10) setSwiping(true); setSwipeX(dx); };
-  const onTE = () => { if (Math.abs(swipeX) > 80) { nextCard(swipeX > 0); } else { setSwipeX(0); setSwiping(false); } };
+  const onTE = (e) => { e.stopPropagation(); if (Math.abs(swipeX) > 80) { nextCard(swipeX > 0); } else { setSwipeX(0); setSwiping(false); } };
 
   const swDir = swipeX > 30 ? "right" : swipeX < -30 ? "left" : null;
   const swPct = Math.min(Math.abs(swipeX) / 120, 1);
@@ -3190,9 +3190,21 @@ export default function PunkSQLCLI() {
   const MAIN_TABS = ["home", "learn", "practice", "quiz", "review", "profile"];
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
+  const swipeInScrollable = useRef(false);
   const handleSwipeStart = useCallback((e) => {
     swipeStartX.current = e.touches[0].clientX;
     swipeStartY.current = e.touches[0].clientY;
+    let el = e.target;
+    let inScrollable = false;
+    while (el && el !== e.currentTarget) {
+      const ox = window.getComputedStyle(el).overflowX;
+      if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth) {
+        inScrollable = true;
+        break;
+      }
+      el = el.parentElement;
+    }
+    swipeInScrollable.current = inScrollable;
   }, []);
   const handleSwipeEnd = useCallback((e) => {
     if (swipeStartX.current === null) return;
@@ -3200,6 +3212,7 @@ export default function PunkSQLCLI() {
     const dy = e.changedTouches[0].clientY - swipeStartY.current;
     swipeStartX.current = null;
     swipeStartY.current = null;
+    if (swipeInScrollable.current) return;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
     const idx = MAIN_TABS.indexOf(tab);
     if (dx < 0 && idx < MAIN_TABS.length - 1) setTab(MAIN_TABS[idx + 1]);
