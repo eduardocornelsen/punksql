@@ -940,6 +940,51 @@ const CHALLENGES_DB = [
 ];
 CHALLENGES_DB.forEach(ch => { ch.color = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red; });
 
+// ── Company Archetype Tags ────────────────────────────────
+const TAG_META = {
+  ecomm:     { c: C.cyan,   label_en: "E-Commerce", label_pt: "E-Commerce", icon: "⬡" },
+  fintech:   { c: C.amber,  label_en: "Fintech",    label_pt: "Fintech",    icon: "◈" },
+  analytics: { c: C.purple, label_en: "Analytics",  label_pt: "Analytics",  icon: "▲" },
+  social:    { c: C.green,  label_en: "Social",     label_pt: "Social",     icon: "◕" },
+  hr:        { c: C.orange, label_en: "HR",          label_pt: "RH",         icon: "⊞" },
+  "data-eng":{ c: C.red,    label_en: "Data Eng",   label_pt: "Dados",      icon: "⬢" },
+};
+const CHALLENGE_TAGS = {
+  // Module 1 — first_query
+  1:"ecomm", 2:"ecomm", 3:"ecomm", 4:"ecomm", 5:"analytics",
+  42:"ecomm", 43:"ecomm", 44:"ecomm", 45:"ecomm", 46:"ecomm",
+  // Module 2 — filtering
+  6:"ecomm", 7:"ecomm", 8:"ecomm", 9:"ecomm", 10:"ecomm",
+  47:"ecomm", 48:"ecomm", 49:"fintech", 50:"ecomm", 51:"ecomm",
+  // Module 3 — sorting
+  11:"ecomm", 12:"ecomm", 13:"ecomm", 14:"ecomm", 15:"fintech",
+  52:"ecomm", 53:"ecomm", 54:"ecomm", 55:"ecomm", 56:"ecomm",
+  // Module 4 — aggregations
+  16:"analytics", 17:"fintech", 18:"analytics", 19:"analytics", 20:"analytics",
+  57:"analytics", 58:"analytics", 59:"fintech", 60:"analytics", 61:"analytics",
+  // Module 5 — joins
+  21:"ecomm", 22:"ecomm", 23:"fintech", 24:"fintech", 25:"social",
+  62:"analytics", 63:"social", 64:"analytics", 65:"social",
+  // Module 6 — subqueries
+  27:"analytics", 28:"analytics", 29:"analytics", 30:"analytics", 31:"fintech",
+  66:"fintech", 67:"analytics", 68:"analytics", 69:"analytics", 70:"analytics",
+  // Module 7 — window functions
+  32:"fintech", 33:"analytics", 34:"analytics", 35:"analytics", 36:"fintech",
+  71:"analytics", 72:"analytics", 73:"analytics", 74:"analytics", 75:"analytics",
+  // Module 8 — CTEs
+  37:"fintech", 38:"analytics", 39:"fintech", 40:"analytics", 41:"analytics",
+  76:"social", 77:"analytics", 78:"fintech", 79:"fintech", 80:"analytics",
+  // Module 9 — DML / data cleaning
+  81:"data-eng", 82:"data-eng", 83:"data-eng", 84:"data-eng", 85:"data-eng",
+  86:"data-eng", 87:"hr", 88:"data-eng", 89:"hr", 90:"hr",
+  101:"data-eng", 102:"data-eng", 103:"hr", 104:"data-eng", 105:"data-eng", 106:"data-eng",
+  // Module 10 — DDL / schema
+  91:"data-eng", 92:"data-eng", 93:"data-eng", 94:"data-eng", 95:"data-eng",
+  96:"data-eng", 97:"fintech", 98:"data-eng", 99:"data-eng", 100:"data-eng",
+  107:"data-eng", 108:"data-eng", 109:"fintech", 110:"data-eng", 111:"data-eng", 112:"data-eng",
+};
+CHALLENGES_DB.forEach(ch => { ch.tag = CHALLENGE_TAGS[ch.id] || "analytics"; });
+
 // ═══════════════════════════════════════════════════════════
 //  QUIZ DATABASE — 30 multiple-choice questions
 // ═══════════════════════════════════════════════════════════
@@ -2112,7 +2157,14 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
             <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); setShowHint(!showHint); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint ? "hide_hint" : "hint"}</button>
             <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
-            <button ref={tourBtnRef} onClick={e => { e.stopPropagation(); setProbOpen(true); setShowCodeOnboarding(true); }} style={{ background: "none", border: `1px solid ${C.purple}60`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.purple, padding: "4px 8px", marginLeft: "auto" }}>?</button>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+              {TAG_META[ch.tag] && (
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: TAG_META[ch.tag].c, border: `1px solid ${TAG_META[ch.tag].c}50`, padding: "4px 8px", opacity: 0.9, letterSpacing: 0.5, userSelect: "none" }}>
+                  {TAG_META[ch.tag].icon} {lang === "pt" ? TAG_META[ch.tag].label_pt : TAG_META[ch.tag].label_en}
+                </span>
+              )}
+              <button ref={tourBtnRef} onClick={e => { e.stopPropagation(); setProbOpen(true); setShowCodeOnboarding(true); }} style={{ background: "none", border: `1px solid ${C.purple}60`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.purple, padding: "4px 8px" }}>?</button>
+            </div>
           </div>
           {showSchema && (
             <div style={{ marginTop: 8, background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, animation: "fadeSlide 0.15s ease" }}>
@@ -2341,7 +2393,10 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
   const { lang } = useLang();
   const { t } = useLang();
   const [filter, setFilter] = useState("ALL");
-  const filtered = filter === "ALL" ? CHALLENGES_DB : CHALLENGES_DB.filter(c => c.diff === filter);
+  const [tagFilter, setTagFilter] = useState("ALL");
+  const filtered = CHALLENGES_DB
+    .filter(c => filter === "ALL" || c.diff === filter)
+    .filter(c => tagFilter === "ALL" || c.tag === tagFilter);
   const goRandom = () => {
     const unsolved = filtered.filter(c => !solved.has(c.id));
     const pool = unsolved.length > 0 ? unsolved : filtered;
@@ -2353,8 +2408,8 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 10 }}>
         <Prompt path="/code" /><span style={{ color: C.text }}> ls --sort=diff challenges/</span>
       </div>
-      {/* Filter bar */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" }}>
+      {/* Difficulty filter bar */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 4, overflowX: "auto", scrollbarWidth: "none" }}>
         {["ALL","EASY","MED","HARD","EXPERT"].map(f => {
           const total = f === "ALL" ? CHALLENGES_DB.length : CHALLENGES_DB.filter(c => c.diff === f).length;
           const solvedCnt = f === "ALL" ? solved.size : CHALLENGES_DB.filter(c => c.diff === f && solved.has(c.id)).length;
@@ -2375,11 +2430,27 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
           padding: "5px 10px", fontFamily: F.mono, fontSize: 11, color: C.cyan, marginLeft: "auto", flexShrink: 0,
         }}>{lang === "pt" ? "ALEATÓRIO" : "RANDOM"}</button>
       </div>
+      {/* Archetype filter bar */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" }}>
+        <button onClick={() => setTagFilter("ALL")} style={{
+          background: tagFilter === "ALL" ? `${C.dim}18` : "none", border: `1px solid ${tagFilter === "ALL" ? C.dim : C.border}`,
+          cursor: "pointer", padding: "4px 8px", whiteSpace: "nowrap",
+          fontFamily: F.mono, fontSize: 10, color: tagFilter === "ALL" ? C.text : C.muted,
+        }}>ALL</button>
+        {Object.entries(TAG_META).map(([key, tm]) => (
+          <button key={key} onClick={() => setTagFilter(key)} style={{
+            background: tagFilter === key ? `${tm.c}18` : "none", border: `1px solid ${tagFilter === key ? tm.c : C.border}`,
+            cursor: "pointer", padding: "4px 8px", whiteSpace: "nowrap",
+            fontFamily: F.mono, fontSize: 10, color: tagFilter === key ? tm.c : C.muted,
+          }}>{tm.icon} {lang === "pt" ? tm.label_pt : tm.label_en}</button>
+        ))}
+      </div>
       {/* Challenge list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {filtered.map((ch, i) => {
           const isSolved = solved.has(ch.id);
           const dc = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red;
+          const tm = TAG_META[ch.tag];
           return (
             <button key={ch.id} onClick={() => onNavigate("challenge", ch.id)} style={{
               background: "none", border: `1px solid ${isSolved ? `${C.green}25` : "transparent"}`,
@@ -2394,6 +2465,11 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
               <span style={{ fontSize: 13, color: isSolved ? C.dim : C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {ch.title}
               </span>
+              {tm && (
+                <span style={{ fontSize: 9, color: tm.c, border: `1px solid ${tm.c}50`, padding: "1px 5px", flexShrink: 0, opacity: 0.85, letterSpacing: 0.5 }}>
+                  {lang === "pt" ? tm.label_pt : tm.label_en}
+                </span>
+              )}
               <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>#{ch.id}</span>
             </button>
           );
