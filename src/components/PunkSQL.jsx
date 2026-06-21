@@ -2561,9 +2561,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               aria-hidden="true"
               tabIndex={-1}
               style={{
-                position: "fixed", left: -9999, top: -9999,
+                position: "fixed", left: 0, top: 0,
                 width: 1, height: 1, opacity: 0,
                 pointerEvents: "none",
+                fontSize: 16,
               }}
             />
           </div>
