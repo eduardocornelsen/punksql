@@ -4,7 +4,7 @@
 
 ### Learn SQL by solving real challenges.
 
-**80 exercises · 8 modules · Real in-browser SQL execution · Cyberpunk CLI aesthetic**
+**112 exercises · 10 modules · Real in-browser SQL execution · Cyberpunk CLI aesthetic**
 
 [▶ Play Now](https://punksql.vercel.app) · [Report Bug](https://github.com/eduardocornelsen/punksql/issues) · [Request Feature](https://github.com/eduardocornelsen/punksql/issues)
 
@@ -27,7 +27,7 @@ Built for career switchers learning SQL from scratch, and for data professionals
 
 | Home | Editor | Learn | Profile |
 |:---:|:---:|:---:|:---:|
-| Boot sequence, daily challenge, quests, stats | Mobile SQL editor with swipe cursor & focus mode | 8-module skill tree with progressive unlocking | Level, XP, achievements with expand-to-see details |
+| Boot sequence, daily challenge, quests, stats | Mobile SQL editor with swipe cursor & focus mode | 10-module skill tree with progressive unlocking | Level, XP, achievements with expand-to-see details |
 
 </div>
 
@@ -37,7 +37,9 @@ Built for career switchers learning SQL from scratch, and for data professionals
 
 ### 🔥 SQL Engine (In-Browser)
 
-Every query runs on a **real SQLite database** loaded via [sql.js](https://github.com/sql-js/sql.js) (WASM). Five tables with e-commerce data inspired by the [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce): `customers`, `products`, `orders`, `order_items`, `reviews`. Your SQL is validated against expected output — column order, row count, values.
+Every query runs on a **real SQLite database** loaded via [sql.js](https://github.com/sql-js/sql.js) (WASM). Seven tables with e-commerce and HR data: `customers`, `products`, `orders`, `order_items`, `reviews`, `raw_sales`, `employee_salaries`. Your SQL is validated against expected output — column order, row count, values.
+
+DML and DDL challenges use **SQLite SAVEPOINTs** for isolation: each run executes inside a savepoint, captures the post-operation state via a verify query, then rolls back — so the database is never permanently modified during validation.
 
 ### 📱 Mobile-First Editor
 
@@ -53,7 +55,7 @@ The code editor was designed specifically for writing SQL on a phone:
 ### 🎮 Gamification
 
 - **20 levels** with progressive XP thresholds (25 → 11,200 XP)
-- **10 achievements** with real unlock conditions (first query, module completion, solve counts, level milestones)
+- **12 achievements** with real unlock conditions (first query, module completion, DML/DDL mastery, solve counts, level milestones)
 - **Level-up animation** — full-screen number with bounce + glow
 - **Badge unlock animation** — spinning icon with achievement name
 - **Sound effects** — ascending arpeggio on correct, buzz on wrong, fanfare on level-up (Tone.js)
@@ -74,25 +76,39 @@ XP, solved challenges, and language preference are saved to browser storage and 
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **SQL Challenges** | 80 | 10 per module, EASY → EXPERT, real SQL execution |
-| **Quiz Questions** | 48 | 6 per module, multiple-choice, 15s timer |
-| **Flashcards** | 34 | Swipeable cards with 3-life system, per-difficulty stats |
-| **Achievements** | 10 | First Query → SQL Master (solve all 80) |
+| **SQL Challenges** | 112 | EASY → EXPERT, real SQL execution, DML/DDL with savepoint isolation |
+| **Quiz Questions** | 60 | 6 per module, multiple-choice, 15s timer |
+| **Flashcards** | 50 | Swipeable cards with 3-life system, per-difficulty stats |
+| **Achievements** | 12 | First Query → SQL Master (solve all 112), Data Surgeon, Schema Architect |
 | **Levels** | 20 | Progressive XP curve |
-| **Modules** | 8 | SELECT → CTEs, sequential unlocking |
+| **Modules** | 10 | SELECT → DDL, sequential unlocking |
 
 ### Learning Path
 
 ```
-Module 1: first_query     SELECT, FROM, DISTINCT, LIMIT, COUNT
-Module 2: filtering       WHERE, AND/OR, IN, LIKE, BETWEEN
-Module 3: sorting         ORDER BY, ASC/DESC, multi-column, LIMIT
-Module 4: aggregations    COUNT, SUM, AVG, MIN/MAX, GROUP BY, HAVING
-Module 5: joins           INNER JOIN, LEFT JOIN, multi-table, ON
-Module 6: subqueries      Scalar, NOT IN, EXISTS, correlated
-Module 7: window_fn       ROW_NUMBER, RANK, DENSE_RANK, LAG/LEAD, PARTITION BY
-Module 8: ctes            WITH, chained CTEs, CASE WHEN, recursive patterns
+Module 1:  first_query     SELECT, FROM, DISTINCT, LIMIT, COUNT
+Module 2:  filtering       WHERE, AND/OR, IN, LIKE, BETWEEN
+Module 3:  sorting         ORDER BY, ASC/DESC, multi-column, LIMIT
+Module 4:  aggregations    COUNT, SUM, AVG, MIN/MAX, GROUP BY, HAVING
+Module 5:  joins           INNER JOIN, LEFT JOIN, multi-table, ON
+Module 6:  subqueries      Scalar, NOT IN, EXISTS, correlated
+Module 7:  window_fn       ROW_NUMBER, RANK, DENSE_RANK, LAG/LEAD, PARTITION BY
+Module 8:  ctes            WITH, chained CTEs, CASE WHEN, recursive patterns
+Module 9:  dml             INSERT, UPDATE, DELETE, NULL handling, duplicates,
+                           data cleaning (raw_sales + employee_salaries tables)
+Module 10: ddl             CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP,
+                           SAVEPOINTs for atomic schema changes
 ```
+
+### Data Cleaning Tables (Modules 9–10)
+
+Two dedicated tables with intentionally dirty data for hands-on cleaning practice:
+
+**`raw_sales`** — 10 rows with negative quantities, NULL prices, impossible discounts (>1.0), zero quantities, duplicate records, and NULL customer names.
+
+**`employee_salaries`** — 10 rows with negative salaries, NULL employee names, NULL departments, and zero-salary entries.
+
+Challenges cover: exploring dirty data with SELECT, finding duplicates with GROUP BY + HAVING, fixing negatives with UPDATE, filling NULLs with AVG, archiving with INSERT INTO...SELECT, atomic multi-step cleanup with SAVEPOINT, and creating clean snapshots with CREATE TABLE AS SELECT.
 
 ---
 
@@ -116,13 +132,8 @@ Module 8: ctes            WITH, chained CTEs, CASE WHEN, recursive patterns
 
 ```bash
 # Clone
-<<<<<<< HEAD
 git clone https://github.com/eduardocornelsen/punksql.git
 cd punksql
-=======
-git clone https://github.com/eduardocornelsen/PunkSQL.git
-cd PunkSQL
->>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
 
 # Install
 npm install
@@ -142,11 +153,7 @@ Requires [Node.js 18+](https://nodejs.org/).
 
 ### Vercel (recommended)
 
-<<<<<<< HEAD
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/eduardocornelsen/punksql)
-=======
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/eduardocornelsen/PunkSQL)
->>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
 
 Or manually:
 
@@ -166,21 +173,13 @@ npm run build
 ## Project Structure
 
 ```
-<<<<<<< HEAD
 punksql/
-=======
-PunkSQL/
->>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
 ├── src/
 │   ├── app/
 │   │   ├── page.js              # Main page (dynamic import, no SSR)
 │   │   └── layout.js            # Root layout, SEO metadata, PWA head
 │   └── components/
-<<<<<<< HEAD
-│       └── PunkSQL.jsx          # Complete app (~2000 lines, single file)
-=======
-│       └── PunkSQL.jsx       # Complete app (~2000 lines, single file)
->>>>>>> 4268f8e31b0b79eac270a0c3b06e1512a24be576
+│       └── PunkSQL.jsx          # Complete app (~3300 lines, single file)
 ├── public/
 │   ├── manifest.json            # PWA manifest (installable as mobile app)
 │   └── favicon.svg              # Cyberpunk icon
@@ -212,19 +211,20 @@ Effects: CRT scanlines, vignette overlay, pulse glow, cursor blink, flip card an
 
 ## Roadmap
 
-- [x] 80 SQL challenges with real execution
+- [x] 112 SQL challenges with real execution (DML + DDL included)
 - [x] Gamification (levels, achievements, XP)
 - [x] Mobile-first editor with swipe cursor
 - [x] EN/PT-BR bilingual
 - [x] Sound effects
 - [x] Persistent storage
 - [x] PWA-ready
+- [x] DML data cleaning module (DELETE, UPDATE, INSERT INTO SELECT, SAVEPOINT)
+- [x] DDL schema module (CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP, SAVEPOINT)
 - [ ] User auth (Supabase — Google/Magic Link)
 - [ ] Server-side progress sync
 - [ ] Real leaderboard
 - [ ] Streak system with daily reset
 - [ ] Challenge validation flexibility (column order agnostic)
-- [ ] 40 more challenges (total: 120)
 - [ ] Interview prep track
 - [ ] Python track (Pyodide WASM)
 - [ ] React Native mobile app (iOS + Android)
