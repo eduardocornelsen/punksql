@@ -1823,8 +1823,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const { t, lang } = useLang();
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
+  const defaultSql = ch.mod >= 9 ? "" : "SELECT \n  \nFROM ";
 
-  const [sql, setSql] = useState(() => loadSQLDraft(challengeId) || "SELECT \n  \nFROM ");
+  const [sql, setSql] = useState(() => loadSQLDraft(challengeId) || defaultSql);
   const [result, setResult] = useState(null);
   const [verdict, setVerdict] = useState(null);
   const [resOpen, setResOpen] = useState(true);
@@ -1899,7 +1900,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   useEffect(() => {
     setActiveChallenge(ch);
     const draft = loadSQLDraft(challengeId);
-    setSql(draft || "SELECT \n  \nFROM ");
+    setSql(draft || defaultSql);
     setCPos(0);
     setVerdict(null);
     setResult(null);
@@ -2182,7 +2183,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     setOpenPanel(null);
   };
   const clearResult = () => { setResult(null); setVerdict(null); setShowExplain(false); };
-  const resetSQL = () => { setSql("SELECT \n  \nFROM "); setCPos(7); setResult(null); setVerdict(null); };
+  const resetSQL = () => { setSql(defaultSql); setCPos(defaultSql.length); setResult(null); setVerdict(null); };
   const desc = lang === "pt" ? ch.desc_pt : ch.desc_en;
 
   // AuxKeyboard handlers
