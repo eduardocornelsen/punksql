@@ -688,7 +688,11 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
           }}
           placeholder={lang === "pt" ? "digite número ou comando..." : "type number or command..."}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
           spellCheck={false}
+          data-gramm={false}
+          data-gramm_editor={false}
         />
       </div>
 
@@ -2462,8 +2466,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
               readOnly={isTouch.current && !editing}
               spellCheck={false}
               autoCorrect="off"
-              autoCapitalize="off"
+              autoCapitalize="none"
               autoComplete="off"
+              data-gramm={false}
+              data-gramm_editor={false}
               placeholder="-- write SQL here"
               style={{
                 position: "relative", zIndex: 2,
