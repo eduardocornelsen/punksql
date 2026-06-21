@@ -1936,16 +1936,17 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             <span style={{ fontFamily: F.mono, fontSize: 12, color: C.cyan, letterSpacing: 1 }}>// exercises</span>
             <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 10px" }}>✕</button>
           </div>
-          <div style={{ overflowY: "auto", flex: 1 }}>
+          <div style={{ overflowY: "auto", flex: 1, WebkitOverflowScrolling: "touch" }}>
             {exercises.map((ex, i) => {
               const isCurrent = ex.id === challengeId;
               const isCompleted = solved?.has(ex.id);
               return (
-                <button key={ex.id} onPointerDown={e => { e.preventDefault(); onExNav?.(ex.id); setMenuOpen(false); }} style={{
+                <button key={ex.id} onClick={() => { onExNav?.(ex.id); setMenuOpen(false); }} style={{
                   display: "flex", alignItems: "center", gap: 10, width: "100%",
                   background: isCurrent ? C.cyanGhost : "none",
                   border: "none", borderBottom: `1px solid ${C.border}`,
                   cursor: "pointer", padding: "12px 16px", textAlign: "left",
+                  touchAction: "pan-y",
                 }}>
                   <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? C.cyan : C.muted, minWidth: 24 }}>{i + 1}.</span>
                   <span style={{ fontFamily: F.mono, fontSize: 13, color: isCurrent ? C.cyan : C.text, flex: 1 }}>{ex.title}</span>
