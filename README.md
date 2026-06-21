@@ -8,8 +8,8 @@
 
 [▶ Play Now](https://punksql.vercel.app) · [Report Bug](https://github.com/eduardocornelsen/punksql/issues) · [Request Feature](https://github.com/eduardocornelsen/punksql/issues)
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![SQLite](https://img.shields.io/badge/SQLite-WASM-003B57?logo=sqlite)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -19,9 +19,11 @@
 
 ## What is PunkSQL?
 
-PunkSQL is a **mobile-first SQL learning platform** with a cyberpunk terminal aesthetic. It's like Duolingo meets LeetCode — you write real SQL queries that execute in your browser using SQLite compiled to WebAssembly. No backend, no signup, no cost.
+PunkSQL is a **mobile-first SQL learning platform** with a cyberpunk terminal aesthetic. It's like Duolingo meets LeetCode — you write real SQL queries that execute in your browser using SQLite compiled to WebAssembly. No signup required, no cost.
 
 Built for career switchers learning SQL from scratch, and for data professionals who want to stay sharp.
+
+> **Screenshots coming soon**
 
 <div align="center">
 
@@ -37,7 +39,7 @@ Built for career switchers learning SQL from scratch, and for data professionals
 
 ### 🔥 SQL Engine (In-Browser)
 
-Every query runs on a **real SQLite database** loaded via [sql.js](https://github.com/sql-js/sql.js) (WASM). Seven tables with e-commerce and HR data: `customers`, `products`, `orders`, `order_items`, `reviews`, `raw_sales`, `employee_salaries`. Your SQL is validated against expected output — column order, row count, values.
+Every query runs on a **real SQLite database** loaded via [sql.js](https://github.com/sql-js/sql.js) (WASM). Seven tables with e-commerce and HR data. Your SQL is validated against expected output — column order, row count, values.
 
 DML and DDL challenges use **SQLite SAVEPOINTs** for isolation: each run executes inside a savepoint, captures the post-operation state via a verify query, then rolls back — so the database is never permanently modified during validation.
 
@@ -68,7 +70,7 @@ Full EN/PT-BR support. Every challenge description, quiz question, flashcard, UI
 
 ### 💾 Persistent Progress
 
-XP, solved challenges, and language preference are saved to browser storage and survive page refreshes. No account needed.
+XP, solved challenges, and language preference are saved to browser storage and survive page refreshes. When signed in, progress is synced to the cloud via Supabase and accessible across devices.
 
 ---
 
@@ -100,13 +102,30 @@ Module 10: ddl             CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP,
                            SAVEPOINTs for atomic schema changes
 ```
 
-### Data Cleaning Tables (Modules 9–10)
+---
 
-Two dedicated tables with intentionally dirty data for hands-on cleaning practice:
+## Database Schema
 
-**`raw_sales`** — 10 rows with negative quantities, NULL prices, impossible discounts (>1.0), zero quantities, duplicate records, and NULL customer names.
+All queries run against these seven tables, seeded once when the page loads.
 
-**`employee_salaries`** — 10 rows with negative salaries, NULL employee names, NULL departments, and zero-salary entries.
+### Core tables (e-commerce dataset)
+
+| Table | Columns | Rows |
+|-------|---------|------|
+| `customers` | `id`, `name`, `email`, `city`, `country`, `signup_date` | 10 |
+| `products` | `id`, `name`, `category`, `price`, `stock` | 10 |
+| `orders` | `id`, `customer_id`, `order_date`, `total_amount`, `status` | 16 |
+| `order_items` | `id`, `order_id`, `product_id`, `quantity`, `unit_price` | 24 |
+| `reviews` | `id`, `product_id`, `customer_id`, `rating`, `review_date` | 12 |
+
+### Data-cleaning tables (Modules 9–10)
+
+Two tables with intentionally dirty data for hands-on cleaning practice.
+
+| Table | Columns | Intentional flaws |
+|-------|---------|-------------------|
+| `raw_sales` | `id`, `product_id`, `quantity`, `unit_price`, `discount`, `sale_date`, `customer_name` | Negative quantities, NULL prices, impossible discounts (>1.0), zero quantities, duplicate records, NULL customer names |
+| `employee_salaries` | `id`, `name`, `department`, `salary`, `hire_date` | Negative salaries, NULL names, NULL departments, zero-salary entries |
 
 Challenges cover: exploring dirty data with SELECT, finding duplicates with GROUP BY + HAVING, fixing negatives with UPDATE, filling NULLs with AVG, archiving with INSERT INTO...SELECT, atomic multi-step cleanup with SAVEPOINT, and creating clean snapshots with CREATE TABLE AS SELECT.
 
@@ -116,15 +135,17 @@ Challenges cover: exploring dirty data with SELECT, finding duplicates with GROU
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------| 
-| Framework | [Next.js 14](https://nextjs.org/) | SSR, routing, deployment |
-| UI | [React 18](https://react.dev/) | Component framework |
+| Framework | [Next.js 16](https://nextjs.org/) | SSR, routing, deployment |
+| UI | [React 19](https://react.dev/) | Component framework |
+| State | [Zustand](https://zustand-demo.pmnd.rs/) | Client-side game state & query history |
 | SQL Engine | [sql.js](https://github.com/sql-js/sql.js) | SQLite compiled to WASM, runs in-browser |
+| Auth & Sync | [Supabase](https://supabase.com/) | Optional sign-in + cloud progress sync |
 | Sound | [Tone.js](https://tonejs.github.io/) | Synthesized sound effects |
 | Font | [Share Tech Mono](https://fonts.google.com/specimen/Share+Tech+Mono) | Monospace terminal aesthetic |
-| Storage | Browser Storage API | Persistent progress across sessions |
+| Storage | Browser `localStorage` | Progress persistence without an account |
 | Deploy | [Vercel](https://vercel.com/) | Edge CDN, auto-deploy from GitHub |
 
-**No backend required.** Everything runs client-side. Total infrastructure cost: **$0/month**.
+**The SQL engine runs entirely in-browser.** No backend is required to play. Auth and cloud sync are optional features powered by Supabase.
 
 ---
 
@@ -141,11 +162,29 @@ npm install
 # Run
 npm run dev
 
-# Open
-# http://localhost:3000
+# Open http://localhost:3000
 ```
 
 Requires [Node.js 18+](https://nodejs.org/).
+
+Other available commands:
+
+```bash
+npm run build   # Production build
+npm start       # Start production server (after build)
+npm run lint    # Run ESLint
+```
+
+### Environment variables
+
+The app works without any env vars — all SQL execution runs in-browser. To enable sign-in and cloud progress sync, create a `.env.local` file:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+These values come from your [Supabase project settings](https://supabase.com/dashboard). Without them, the app falls back to `localStorage`-only persistence.
 
 ---
 
@@ -161,11 +200,15 @@ Or manually:
 npx vercel
 ```
 
-### Any Static Host
+Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in your Vercel project's environment variables if you want auth and cloud sync.
+
+### Self-hosted (Node.js)
+
+PunkSQL uses Next.js API routes for auth and progress sync, so it requires a Node.js runtime — it is not a purely static site.
 
 ```bash
 npm run build
-# Serve the .next directory
+npm start          # Starts the Node.js server on port 3000
 ```
 
 ---
@@ -177,9 +220,20 @@ punksql/
 ├── src/
 │   ├── app/
 │   │   ├── page.js              # Main page (dynamic import, no SSR)
-│   │   └── layout.js            # Root layout, SEO metadata, PWA head
-│   └── components/
-│       └── PunkSQL.jsx          # Complete app (~3300 lines, single file)
+│   │   ├── layout.js            # Root layout, SEO metadata, PWA head
+│   │   └── api/
+│   │       ├── auth/callback/   # Supabase OAuth callback
+│   │       ├── progress/        # Cloud progress sync (GET / PUT)
+│   │       └── analytics/       # Attempt logging
+│   ├── components/
+│   │   ├── PunkSQL.jsx          # Complete app (~3300 lines, single file)
+│   │   └── AuthProvider.jsx     # Supabase auth context
+│   ├── hooks/
+│   │   └── useProgress.js       # localStorage ↔ Supabase sync logic
+│   ├── stores/
+│   │   └── useGameStore.js      # Zustand store (game state, query history)
+│   └── lib/
+│       └── supabase/            # Supabase client (browser + server)
 ├── public/
 │   ├── manifest.json            # PWA manifest (installable as mobile app)
 │   └── favicon.svg              # Cyberpunk icon
@@ -188,7 +242,7 @@ punksql/
 └── README.md
 ```
 
-The entire app lives in a single `PunkSQL.jsx` file. This is intentional — it's a self-contained artifact that can run inside Claude.ai, as a Next.js page, or be ported to React Native with minimal changes.
+The core app lives in `PunkSQL.jsx`. This is intentional — it's a self-contained artifact that can be ported to React Native or run as a standalone page with minimal changes.
 
 ---
 
@@ -256,19 +310,25 @@ The **mobile-first + offline + no-signup** combination is a genuine moat — no 
 - [x] PWA-ready
 - [x] DML data cleaning module (DELETE, UPDATE, INSERT INTO SELECT, SAVEPOINT)
 - [x] DDL schema module (CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP, SAVEPOINT)
+- [x] Supabase auth wiring + cloud progress sync
+- [x] Solution explanations — annotated query + plain-English breakdown shown after solve
+- [x] 3-level hints — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost
+- [x] Company archetype tags — challenges labelled as e-commerce / fintech / analytics / social media interview-style
+- [x] Editor refactor — linter upgrades, keyboard remapping (*, `,`, `(`, `)` keys), smart indentation, hamburger fix ([#5](https://github.com/eduardocornelsen/punksql/issues/5))
 
 ### Prioritized backlog
 
 | Priority | Feature | Effort | Impact | Why it matters |
 |---|---|---|---|---|
-| 1 | **Solution explanations** — annotated query + plain-English breakdown shown after solve | Medium | Very High | Closes the biggest gap vs. DataLemur; turns a pass/fail into actual learning |
-| 2 | **3-level hints** — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost | Low | High | Reduces abandonment; matches LeetCode/DataLemur UX |
-| 3 | **Supabase auth + shareable profile card** — activate existing auth wiring, generate a linkable SQL rank card | Medium | High | Lets users prove skills; shareable cards drive organic growth |
-| 4 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Low | High | Gives users a study direction; closes StrataScratch gap |
-| 5 | **Company archetype tags** — label challenges as e-commerce / fintech / analytics / social media interview-style | Very Low | Medium | Zero-effort credibility boost; no real sourcing needed |
-| 6 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | High | Medium | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
-| 7 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | High | High | Addresses the #1 reason people stay on LeetCode |
-| 8 | **Premium tier** — gate company tags, skills radar, and shareable certificate | High | High | Sustainability; mirrors DataLemur/StrataScratch monetization model |
+| 1 | **Shareable profile card** — generate a linkable SQL rank card from the existing auth | Low | High | Lets users prove skills; shareable cards drive organic growth |
+| 2 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Low | High | Gives users a study direction; closes StrataScratch gap |
+| 3 | **Firebase auth migration** — replace Supabase with Firebase; fixes localhost OAuth redirect loop and `file://` origin conflict for Android ([#4](https://github.com/eduardocornelsen/punksql/issues/4)) | Medium | High | Unblocks native Android build; removes SSR auth complexity |
+| 4 | **Game mode separation** — split into `SYSTEM_STORY` (linear campaign with narrative hooks) and `BOUNTY_BOARD` (daily rotating challenge with streak tracker) ([#2](https://github.com/eduardocornelsen/punksql/issues/2)) | Medium | High | Gives learners two distinct goals; bounty board drives daily retention |
+| 5 | **Native Android app via Capacitor** — wrap Next.js static export as a signed `.aab` for Google Play Store submission ([#3](https://github.com/eduardocornelsen/punksql/issues/3)) | High | High | Reaches users who won't open a browser app; depends on Firebase migration |
+| 6 | **SQL Odyssey rebrand + Story Mode** — full rebrand to minimalist terminal aesthetic; 3-campaign text-driven story mode (AI awakening, corporate forensics, deep-space recovery) ([#6](https://github.com/eduardocornelsen/punksql/issues/6)) | Very High | Very High | Major product evolution; replaces cyberpunk theme with a scalable narrative engine |
+| 7 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | High | Medium | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
+| 8 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | High | High | Addresses the #1 reason people stay on LeetCode |
+| 9 | **Premium tier** — gate skills radar and shareable certificate | High | High | Sustainability; mirrors DataLemur/StrataScratch monetization model |
 
 ### Also planned
 
@@ -276,13 +336,18 @@ The **mobile-first + offline + no-signup** combination is a genuine moat — no 
 - [ ] Challenge validation flexibility (column-order agnostic)
 - [ ] Interview prep mode (timed, no hints)
 - [ ] Python track (Pyodide WASM)
-- [ ] React Native mobile app (iOS + Android)
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Some areas that need help:
+Contributions are welcome. To get started:
+
+1. Fork the repo and create a branch: `git checkout -b feat/your-feature`
+2. Make your changes and run `npm run lint` to check for issues
+3. Open a pull request with a clear description of what you changed and why
+
+Areas that need help:
 
 - **More SQL challenges** — especially EXPERT-level real-world scenarios
 - **Quiz questions** — cover edge cases and SQL gotchas
