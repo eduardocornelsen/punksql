@@ -1987,12 +1987,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   };
 
   const onDrag = (e) => { e.preventDefault(); const touch = e.touches?.[0]; if (touch) setCPos(tapToPos(touch.clientX, touch.clientY)); };
-  // Use functional updates so cPos is always current
   const insert = (text) => {
-    setCPos(prev => {
-      setSql(s => s.substring(0, prev) + text + s.substring(prev));
-      return prev + text.length;
-    });
+    const pos = cPosRef.current;
+    const s = sqlRef.current;
+    const newSql = s.substring(0, pos) + text + s.substring(pos);
+    const newPos = pos + text.length;
+    setSql(newSql);
+    sqlRef.current = newSql;
+    setCPos(newPos);
+    cPosRef.current = newPos;
   };
 
   // Smart Enter for the UI ↵ button — applies the same indentation logic as the physical key
@@ -2012,11 +2015,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     });
   }, []);
   const backspace = () => {
-    setCPos(prev => {
-      if (prev <= 0) return prev;
-      setSql(s => s.substring(0, prev - 1) + s.substring(prev));
-      return prev - 1;
-    });
+    const pos = cPosRef.current;
+    if (pos <= 0) return;
+    const s = sqlRef.current;
+    const newSql = s.substring(0, pos - 1) + s.substring(pos);
+    const newPos = pos - 1;
+    setSql(newSql);
+    sqlRef.current = newSql;
+    setCPos(newPos);
+    cPosRef.current = newPos;
   };
   // Auto-scroll editor to keep cursor visible
   useEffect(() => {
