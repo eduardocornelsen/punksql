@@ -2016,7 +2016,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
     setTimerExpired(false);
     setHadWrongRun(false);
     setWrongRunCount(0);
-    setXpBreakdown(null);
     return () => setActiveChallenge(null);
   }, [challengeId]);
 
