@@ -209,10 +209,12 @@ const globalCSS = `
 @keyframes dotDouble{0%{transform:scale(2);opacity:0.9}14%{transform:scale(1);opacity:0.35}17%{transform:scale(1);opacity:0.35}18%{transform:scale(2);opacity:0.9}32%{transform:scale(1);opacity:0.35}100%{transform:scale(1);opacity:0.35}}
 @keyframes swipeFingerLR{0%,5%{transform:translateX(-44px);opacity:0}12%{opacity:1}82%{opacity:1}92%,100%{transform:translateX(44px);opacity:0}}
 @keyframes swipeCursorLR{0%,5%{transform:translateX(-36px);opacity:0}12%{opacity:1}82%{opacity:1}92%,100%{transform:translateX(36px);opacity:0}}
-*{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
-textarea:focus{outline:none}textarea::placeholder{color:transparent}button{-webkit-tap-highlight-color:transparent}
-html{height:100%;height:-webkit-fill-available;background:#000}
-body{height:100%;min-height:-webkit-fill-available;background:#000}
+*,*::before,*::after{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
+html{height:100%;height:-webkit-fill-available;background:#000;font-family:'JetBrains Mono','Fira Code','SF Mono','Courier New',monospace}
+body{height:100%;min-height:-webkit-fill-available;background:#000;font-family:'JetBrains Mono','Fira Code','SF Mono','Courier New',monospace}
+*{font-family:inherit}
+textarea:focus{outline:none}textarea::placeholder{color:transparent}
+button,input,select,textarea{font-family:'JetBrains Mono','Fira Code','SF Mono','Courier New',monospace;-webkit-tap-highlight-color:transparent}
 :root{--app-h:100dvh}@supports not (height:100dvh){:root{--app-h:100vh}}
 .landscape-warn{display:none;position:fixed;inset:0;background:#000;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;font-family:monospace;color:#00FF88;font-size:18px;text-align:center}
 @media screen and (orientation:landscape) and (max-height:500px){.landscape-warn{display:flex}}
@@ -2909,17 +2911,12 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
                 {ch.title}
               </span>
               {!isSolved && (
-                <span style={{ fontSize: 9, color: C.amber, border: `1px solid ${C.amber}30`, padding: "1px 5px", flexShrink: 0, opacity: 0.8 }}>
-                  ⭐{maxXp}
+                <span style={{ fontSize: 9, color: C.muted, border: `1px solid ${C.border}`, padding: "1px 5px", flexShrink: 0 }}>
+                  {maxXp}xp
                 </span>
               )}
               {isSolved && (
-                <span style={{ fontSize: 9, color: C.green, flexShrink: 0 }}>+{baseXp}</span>
-              )}
-              {tm && (
-                <span style={{ fontSize: 9, color: tm.c, border: `1px solid ${tm.c}50`, padding: "1px 5px", flexShrink: 0, opacity: 0.85, letterSpacing: 0.5 }}>
-                  {lang === "pt" ? tm.label_pt : tm.label_en}
-                </span>
+                <span style={{ fontSize: 9, color: C.dim, flexShrink: 0 }}>+{baseXp}xp</span>
               )}
             </button>
           );
@@ -3485,8 +3482,6 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
             onClick={signInWithGoogle}
             style={{
               marginTop: 20,
-              width: "100%",
-              maxWidth: 280,
               padding: "12px 16px",
               cursor: "pointer",
               fontFamily: F.mono,
@@ -3496,9 +3491,10 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
               border: `1px solid ${C.border}`,
               letterSpacing: 0.5,
               textAlign: "left",
+              whiteSpace: "nowrap",
             }}
           >
-            {lang === "pt" ? "> ./authenticate --provider=google" : "> ./authenticate --provider=google"}
+            &gt; ./authenticate --provider=google
           </button>
         )}
       </div>

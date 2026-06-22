@@ -1,6 +1,15 @@
 "use client";
 import dynamic from "next/dynamic";
 
+const ASCII_LOGO = `
+ ██████╗ ██╗   ██╗███╗  ██╗██╗  ██╗
+ ██╔══██╗██║   ██║████╗ ██║██║ ██╔╝
+ ██████╔╝██║   ██║██╔██╗██║█████╔╝
+ ██╔═══╝ ██║   ██║██║╚████║██╔═██╗
+ ██║     ╚██████╔╝██║ ╚███║██║  ██╗
+ ╚═╝      ╚═════╝ ╚═╝  ╚══╝╚═╝  ╚═╝
+`.trim();
+
 const PunkSQL = dynamic(() => import("@/components/PunkSQL"), {
   ssr: false,
   loading: () => (
@@ -11,17 +20,30 @@ const PunkSQL = dynamic(() => import("@/components/PunkSQL"), {
       flexDirection: "column",
       justifyContent: "center",
       alignItems: "center",
-      fontFamily: "'Share Tech Mono', monospace",
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace",
     }}>
-      <div style={{ fontSize: 24, color: "#CCCCCC", marginBottom: 16, letterSpacing: 4 }}>
-        PUNKSQL
-      </div>
-      <div style={{ fontSize: 14, color: "#555555", animation: "pulse 1.5s ease infinite" }}>
+      <pre style={{
+        margin: "0 0 8px 0",
+        fontSize: "clamp(6px, 1.8vw, 11px)",
+        color: "#CCCCCC",
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        textAlign: "left",
+        fontFamily: "inherit",
+        userSelect: "none",
+      }}>{ASCII_LOGO}</pre>
+      <div style={{
+        fontSize: 10,
+        color: "#444444",
+        letterSpacing: 3,
+        marginBottom: 28,
+        fontFamily: "inherit",
+      }}>SQL ─── learn by doing</div>
+      <div style={{ fontSize: 12, color: "#555555", animation: "pulse 1.5s ease infinite", fontFamily: "inherit" }}>
         loading sql engine...
       </div>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-        @keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}
+        @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
       `}</style>
     </div>
   ),
