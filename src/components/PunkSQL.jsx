@@ -774,9 +774,13 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
         <span style={{ color: C.green }}>$ </span>ls modules/
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: 16 }}>
-        {menuItems.map((item) => (
-          <button key={item.num} onClick={item.action} style={{
+      <StdoutList
+        items={menuItems}
+        resetKey={lang}
+        delay={40}
+        style={{ gap: 1, marginBottom: 16 }}
+        renderItem={(item) => (
+          <button onClick={item.action} style={{
             display: "flex", alignItems: "center", gap: 0,
             background: "none", border: "none", cursor: "pointer",
             fontFamily: F.mono, fontSize: 13, textAlign: "left",
@@ -786,8 +790,8 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
             <span style={{ color: C.white, minWidth: 140 }}>{item.id}</span>
             <span style={{ color: C.dim, fontSize: 12 }}>{item.desc}</span>
           </button>
-        ))}
-      </div>
+        )}
+      />
 
       {/* Stats summary */}
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
@@ -861,6 +865,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
       </div>
       <StdoutList
         items={mods}
+        delay={50}
         renderItem={(m) => {
           const done = m.s === "done", act = m.s === "active", lock = m.s === "lock";
           const clickable = !lock;
