@@ -50,7 +50,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#020410",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({ children }) {
@@ -61,7 +61,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body suppressHydrationWarning style={{ margin: 0, padding: 0, background: "#111111", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
+      <body suppressHydrationWarning style={{ margin: 0, padding: 0, background: "#000000", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
         {/* Landscape warning — hidden by default, shown via CSS media query */}
         <style>{`
           .landscape-warn { display: none; }

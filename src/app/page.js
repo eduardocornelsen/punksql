@@ -6,17 +6,17 @@ const PunkSQL = dynamic(() => import("@/components/PunkSQL"), {
   loading: () => (
     <div style={{
       height: "100vh",
-      background: "#020410",
+      background: "#000000",
       display: "flex",
       flexDirection: "column",
       justifyContent: "center",
       alignItems: "center",
       fontFamily: "'Share Tech Mono', monospace",
     }}>
-      <div style={{ fontSize: 24, color: "#00F0FF", marginBottom: 16, letterSpacing: 4 }}>
+      <div style={{ fontSize: 24, color: "#CCCCCC", marginBottom: 16, letterSpacing: 4 }}>
         PUNKSQL
       </div>
-      <div style={{ fontSize: 14, color: "#5A7E98", animation: "pulse 1.5s ease infinite" }}>
+      <div style={{ fontSize: 14, color: "#555555", animation: "pulse 1.5s ease infinite" }}>
         loading sql engine...
       </div>
       <style>{`

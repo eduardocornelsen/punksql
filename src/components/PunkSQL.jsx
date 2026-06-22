@@ -191,9 +191,6 @@ const globalCSS = `
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes fadeSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes crtFlicker{0%,100%{opacity:1}50%{opacity:0.99}}
-@keyframes pulseGlow{0%,100%{opacity:1}50%{opacity:0.75}}
-@keyframes nodeActive{0%,100%{box-shadow:0 0 8px rgba(0,255,255,0.4)}50%{box-shadow:0 0 18px rgba(0,255,255,0.7)}}
 @keyframes flipCard{0%{transform:perspective(600px) rotateY(0)}50%{transform:perspective(600px) rotateY(90deg)}100%{transform:perspective(600px) rotateY(0)}}
 @keyframes bootLine{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
 @keyframes langSwitch{from{opacity:0.85}to{opacity:1}}
@@ -214,8 +211,8 @@ const globalCSS = `
 @keyframes swipeCursorLR{0%,5%{transform:translateX(-36px);opacity:0}12%{opacity:1}82%{opacity:1}92%,100%{transform:translateX(36px);opacity:0}}
 *{scrollbar-width:thin;scrollbar-color:#333 #000;-webkit-tap-highlight-color:transparent}
 textarea:focus{outline:none}textarea::placeholder{color:transparent}button{-webkit-tap-highlight-color:transparent}
-html{height:100%;height:-webkit-fill-available;background:#111}
-body{height:100%;min-height:-webkit-fill-available;background:#111}
+html{height:100%;height:-webkit-fill-available;background:#000}
+body{height:100%;min-height:-webkit-fill-available;background:#000}
 :root{--app-h:100dvh}@supports not (height:100dvh){:root{--app-h:100vh}}
 .landscape-warn{display:none;position:fixed;inset:0;background:#000;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;font-family:monospace;color:#00FF88;font-size:18px;text-align:center}
 @media screen and (orientation:landscape) and (max-height:500px){.landscape-warn{display:flex}}
@@ -272,14 +269,14 @@ function sqlSmartCloseParen(text, pos) {
 }
 
 const TOKEN_COLORS = {
-  keyword: "#00FFFF",   // cyan
-  table:   "#FF8800",   // orange
-  column:  "#00FF88",   // green
-  string:  "#FFBB00",   // amber
+  keyword: "#00FFFF",   // cyan — accent, kept
+  table:   "#CCCCCC",   // off-white
+  column:  "#AAAAAA",   // light gray
+  string:  "#888888",   // muted
   comment: "#444444",
-  number:  "#CC88FF",   // purple
+  number:  "#888888",   // muted
   text:    "#CCCCCC",
-  punct:   "#666666",
+  punct:   "#555555",
 };
 
 function tokenizeSQL(sql, tables = [], columns = []) {
@@ -408,9 +405,9 @@ function LevelUpOverlay({ level, onDone }) {
   return (
     <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9999, background: `${C.void}E8`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer" }}>
       <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, letterSpacing: 3, marginBottom: 12, animation: "fadeSlide 0.3s ease" }}>LEVEL UP</div>
-      <div style={{ fontFamily: F.mono, fontSize: 80, color: C.cyan, textShadow: `0 0 40px ${C.cyan}80, 0 0 80px ${C.cyan}40`, animation: "levelUp 0.8s ease", lineHeight: 1 }}>{level}</div>
-      <div style={{ fontFamily: F.mono, fontSize: 18, color: C.amber, letterSpacing: 3, marginTop: 14, animation: "rankReveal 0.6s ease 0.5s both", opacity: 0 }}>{rank}</div>
-      <div style={{ width: 160, height: 1, background: `linear-gradient(90deg,transparent,${C.cyan},transparent)`, margin: "16px 0", animation: "fadeSlide 0.5s ease 0.4s both" }} />
+      <div style={{ fontFamily: F.mono, fontSize: 80, color: C.cyan, animation: "levelUp 0.8s ease", lineHeight: 1 }}>{level}</div>
+      <div style={{ fontFamily: F.mono, fontSize: 18, color: C.dim, letterSpacing: 3, marginTop: 14, animation: "rankReveal 0.6s ease 0.5s both", opacity: 0 }}>{rank}</div>
+      <div style={{ width: 160, height: 1, background: C.border, margin: "16px 0", animation: "fadeSlide 0.5s ease 0.4s both" }} />
       <div style={{ fontFamily: F.mono, fontSize: 12, color: C.cyanDim, letterSpacing: 2, animation: "fadeSlide 0.5s ease 0.7s both" }}>+{LEVELS[level - 1] && LEVELS[level] ? LEVELS[level] - LEVELS[level - 1] : "???"} XP to next level</div>
       <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, marginTop: 10, animation: "fadeSlide 0.4s ease 1s both" }}>tap to dismiss</div>
     </div>
@@ -422,8 +419,8 @@ function BadgeUnlockOverlay({ badge, lang, onDone }) {
   return (
     <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9998, background: `${C.void}E0`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer" }}>
       <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, letterSpacing: 3, marginBottom: 16, animation: "fadeSlide 0.3s ease" }}>ACHIEVEMENT UNLOCKED</div>
-      <div style={{ fontSize: 64, animation: "badgeUnlock 0.8s ease", color: badge.c, textShadow: `0 0 30px ${badge.c}80`, marginBottom: 12 }}>{badge.i}</div>
-      <div style={{ fontFamily: F.mono, fontSize: 20, color: badge.c, letterSpacing: 2, animation: "fadeSlide 0.4s ease 0.3s both", textShadow: `0 0 12px ${badge.c}40` }}>{lang === "pt" ? badge.n_pt : badge.n_en}</div>
+      <div style={{ fontSize: 64, animation: "badgeUnlock 0.8s ease", color: badge.c, marginBottom: 12 }}>{badge.i}</div>
+      <div style={{ fontFamily: F.mono, fontSize: 20, color: badge.c, letterSpacing: 2, animation: "fadeSlide 0.4s ease 0.3s both" }}>{lang === "pt" ? badge.n_pt : badge.n_en}</div>
       <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 8, animation: "fadeSlide 0.4s ease 0.5s both" }}>{lang === "pt" ? badge.d_pt : badge.d_en}</div>
     </div>
   );
@@ -465,7 +462,7 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
         {showTotal && (
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: F.mono }}>
             <span style={{ fontSize: 14, color: C.dim, letterSpacing: 2 }}>{ispt ? "TOTAL" : "TOTAL"}</span>
-            <span style={{ fontSize: 28, color: C.amber, fontWeight: 700, textShadow: `0 0 24px ${C.amber}90, 0 0 48px ${C.amber}40`, animation: "xpTotalReveal 0.5s ease" }}>+{breakdown.total} XP</span>
+            <span style={{ fontSize: 28, color: C.amber, fontWeight: 700, animation: "xpTotalReveal 0.5s ease" }}>+{breakdown.total} XP</span>
           </div>
         )}
       </div>
@@ -507,7 +504,6 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
                 color: isCur ? C.black : C.dim,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 transform: "rotate(45deg)",
-                boxShadow: isCur ? `0 0 6px ${C.cyan}50` : "none",
                 padding: 0, flexShrink: 0,
               }}>
                 <span style={{ transform: "rotate(-45deg)" }}>{i + 1}</span>
@@ -529,7 +525,7 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
         ) : exercises ? (
           <ExDots compact />
         ) : showContinue ? (
-          <button onClick={onContinue} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
+          <button onClick={onContinue} style={{ background: "none", border: `1px solid ${C.cyan}50`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
             <span style={{ flexShrink: 0 }}>▶</span>
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
           </button>
@@ -548,16 +544,16 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
         <ExDots />
       ) : showContinue ? (
         <button onClick={onContinue} style={{
-          background: C.cyan, border: `1px solid ${C.cyanHot}`, cursor: "pointer",
-          fontFamily: F.mono, fontSize: 12, color: C.black, fontWeight: 700,
+          background: "none", border: `1px solid ${C.cyan}60`, cursor: "pointer",
+          fontFamily: F.mono, fontSize: 12, color: C.cyan, fontWeight: 700,
           padding: "7px 10px", display: "flex", alignItems: "center", gap: 6,
-          boxShadow: `0 0 10px ${C.cyan}30`, letterSpacing: 0.5,
+          letterSpacing: 0.5,
           overflow: "hidden", flexShrink: 1, minWidth: 0,
         }}>
           <span style={{ flexShrink: 0 }}>▶</span>
           <div style={{ textAlign: "left", overflow: "hidden", minWidth: 0 }}>
             <div style={{ fontSize: 13, lineHeight: 1.2, whiteSpace: "nowrap" }}>{continueCtx}</div>
-            <div style={{ fontSize: 12, color: `${C.black}80`, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueLabel}</div>
+            <div style={{ fontSize: 12, color: C.dim, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueLabel}</div>
           </div>
         </button>
       ) : <div style={{ flex: 1 }} />}
@@ -565,7 +561,7 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
       {!exercises && <div style={{ flex: 1 }} />}
       {/* Right: Lang switcher + collapse */}
       <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, background: C.void, overflow: "hidden", width: 110, flexShrink: 0 }}>
-        <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", boxShadow: `0 0 14px ${C.cyan}50`, zIndex: 0 }} />
+        <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
         {["en", "pt"].map(l => (
           <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "6px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 11, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
             {l.toUpperCase()}
@@ -583,7 +579,7 @@ function ProgressBar({ progress, color = C.cyan }) {
   return (
     <div style={{ fontFamily: F.mono, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
       <span style={{ color: C.dim }}>│</span>
-      <span style={{ color, textShadow: `0 0 10px ${color}50` }}>{"█".repeat(f)}</span>
+      <span style={{ color }}>{"█".repeat(f)}</span>
       <span style={{ color: C.muted }}>{"░".repeat(14 - f)}</span>
       <span style={{ color: C.dim }}>│</span>
       <span style={{ color: C.dim, fontSize: 17 }}>{Math.round(progress * 100)}%</span>
@@ -646,14 +642,14 @@ function StatusBar({ xp = 0, solved = new Set() }) {
         padding: "6px 14px", fontFamily: F.mono, fontSize: 12, color: C.dim,
       }}>
         <span>
-          <span style={{ color: C.green }}>punksql</span>
+          <span style={{ color: C.text }}>punksql</span>
           <span style={{ color: C.dim }}>@</span>
-          <span style={{ color: C.amber, fontSize: 11 }}>{lv.rank}</span>
+          <span style={{ color: C.dim, fontSize: 11 }}>{lv.rank}</span>
           <span style={{ color: C.muted }}> · </span>
-          <span style={{ color: C.cyan }}>{xp.toLocaleString()} XP</span>
+          <span style={{ color: C.dim }}>{xp.toLocaleString()} XP</span>
         </span>
         <span>
-          <span style={{ color: C.green }}>{solved.size}/{CHALLENGES_DB.length}</span>
+          <span style={{ color: C.dim }}>{solved.size}/{CHALLENGES_DB.length}</span>
           <span style={{ color: C.muted }}> {time}</span>
         </span>
       </div>
@@ -1217,12 +1213,12 @@ const SOLUTION_EXPLANATIONS = {
 
 // ── Company Archetype Tags ────────────────────────────────
 const TAG_META = {
-  ecomm:     { c: C.cyan,   label_en: "E-Commerce", label_pt: "E-Commerce", icon: "⬡" },
-  fintech:   { c: C.amber,  label_en: "Fintech",    label_pt: "Fintech",    icon: "◈" },
-  analytics: { c: C.purple, label_en: "Analytics",  label_pt: "Analytics",  icon: "▲" },
-  social:    { c: C.green,  label_en: "Social",     label_pt: "Social",     icon: "◕" },
-  hr:        { c: C.orange, label_en: "HR",          label_pt: "RH",         icon: "⊞" },
-  "data-eng":{ c: C.red,    label_en: "Data Eng",   label_pt: "Dados",      icon: "⬢" },
+  ecomm:     { c: C.dim,   label_en: "e-commerce", label_pt: "e-commerce", icon: ">" },
+  fintech:   { c: C.dim,   label_en: "fintech",    label_pt: "fintech",    icon: ">" },
+  analytics: { c: C.dim,   label_en: "analytics",  label_pt: "analytics",  icon: ">" },
+  social:    { c: C.dim,   label_en: "social",     label_pt: "social",     icon: ">" },
+  hr:        { c: C.dim,   label_en: "hr",         label_pt: "rh",         icon: ">" },
+  "data-eng":{ c: C.dim,   label_en: "data-eng",   label_pt: "dados",      icon: ">" },
 };
 const CHALLENGE_TAGS = {
   // Module 1 — first_query
@@ -1472,10 +1468,10 @@ function TokenChip({ text, color, onTap }) {
       // Desktop: plain click
       onClick={onTap}
       style={{
-        background: `${color}18`, border: `1px solid ${color}50`,
-        cursor: "pointer", fontFamily: F.mono, fontSize: 11, color,
+        background: "none", border: `1px solid ${C.border}`,
+        cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: color === C.cyan ? C.cyan : C.dim,
         padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0,
-        borderRadius: 2, letterSpacing: 0.3, lineHeight: 1.4,
+        letterSpacing: 0.3, lineHeight: 1.4,
       }}
     >
       {text}
@@ -1495,11 +1491,11 @@ function AuxKeyboard({ onInsert, onControl, tabsRef }) {
   ];
 
   const tabDefs = [
-    { id: "tables",  label: "TABLES",  color: C.orange,  tokens: keyboardTokens.tables,            onTap: t => onInsert(t) },
-    { id: "columns", label: "COLUMNS", color: C.green,   tokens: ["*", ...keyboardTokens.columns], onTap: c => onInsert(c) },
-    { id: "sql",     label: "SQL",     color: C.cyan,    tokens: keyboardTokens.keywords,           onTap: k => onInsert(k + " ") },
-    { id: "agg",     label: "AGG",     color: C.amber,   tokens: keyboardTokens.agg || [],          onTap: k => onInsert(k) },
-    { id: "symbols", label: "{}",      color: "#CC88FF", tokens: SQL_SYMBOLS,                       onTap: s => onInsert(s) },
+    { id: "tables",  label: "TABLES",  color: C.dim,  tokens: keyboardTokens.tables,            onTap: t => onInsert(t) },
+    { id: "columns", label: "COLUMNS", color: C.dim,  tokens: ["*", ...keyboardTokens.columns], onTap: c => onInsert(c) },
+    { id: "sql",     label: "SQL",     color: C.cyan, tokens: keyboardTokens.keywords,           onTap: k => onInsert(k + " ") },
+    { id: "agg",     label: "AGG",     color: C.dim,  tokens: keyboardTokens.agg || [],          onTap: k => onInsert(k) },
+    { id: "symbols", label: "{}",      color: C.dim,  tokens: SQL_SYMBOLS,                       onTap: s => onInsert(s) },
   ];
 
   const activeTokens = tabDefs.find(t => t.id === activeTab);
@@ -1774,13 +1770,13 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           ) : (
             <div style={{ position: "fixed", top: sp.top + sp.height, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", pointerEvents: "none" }} />
           )}
-          {/* Glowing border — primary spotlight */}
-          <div style={{ position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
-          {/* Glowing border — secondary spot */}
-          {secRect && <div style={{ position: "fixed", top: secRect.top, left: secRect.left, width: secRect.width, height: secRect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />}
-          {/* Glowing borders — extra highlights (no cutout, rendered above overlay) */}
+          {/* Border — primary spotlight */}
+          <div style={{ position: "fixed", top: sp.top, left: sp.left, width: sp.width, height: sp.height, border: `1px solid ${current.color}`, pointerEvents: "none" }} />
+          {/* Border — secondary spot */}
+          {secRect && <div style={{ position: "fixed", top: secRect.top, left: secRect.left, width: secRect.width, height: secRect.height, border: `1px solid ${current.color}`, pointerEvents: "none" }} />}
+          {/* Borders — extra highlights (no cutout, rendered above overlay) */}
           {extraHighlightRects.map((rect, i) => (
-            <div key={i} style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width, height: rect.height, border: `2px solid ${current.color}`, boxShadow: `0 0 0 3px ${current.color}25, 0 0 24px ${current.color}50, inset 0 0 16px ${current.color}08`, pointerEvents: "none", animation: "pulseGlow 2s ease infinite" }} />
+            <div key={i} style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width, height: rect.height, border: `1px solid ${current.color}`, pointerEvents: "none" }} />
           ))}
           {/* Gesture animation overlaid on editor area */}
           {/* Preview panel — shows example content for SCHEMA/HINT/EXPECTED steps */}
@@ -1790,7 +1786,7 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
                 <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11 }}>
                   {schema.split("\n").map((l, i) => {
                     const [t, ...c] = l.split(":");
-                    return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.orange }}>{t.trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.green }}>{c.join(":").trim()}</span></div>;
+                    return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.text }}>{t.trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.dim }}>{c.join(":").trim()}</span></div>;
                   })}
                 </div>
               )}
@@ -1826,13 +1822,13 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
                   {/* Swipe track */}
                   <div style={{ position: "absolute", top: 0, left: -50, width: 100, height: 1, background: `${current.color}35` }} />
                   {/* Sliding finger */}
-                  <div style={{ position: "absolute", width: 14, height: 14, marginTop: -7, marginLeft: -7, background: current.color, borderRadius: "50%", boxShadow: `0 0 14px ${current.color}90`, animation: "swipeFingerLR 2.5s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", width: 14, height: 14, marginTop: -7, marginLeft: -7, background: current.color, borderRadius: "50%", animation: "swipeFingerLR 2.5s ease-in-out infinite" }} />
                   {/* Text cursor following below */}
-                  <div style={{ position: "absolute", width: 2, height: 20, marginTop: 5, marginLeft: -1, background: current.color, boxShadow: `0 0 6px ${current.color}`, animation: "swipeCursorLR 2.5s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", width: 2, height: 20, marginTop: 5, marginLeft: -1, background: current.color, animation: "swipeCursorLR 2.5s ease-in-out infinite" }} />
                   {/* Direction arrows */}
                   <div style={{ position: "absolute", top: -24, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 11, color: `${current.color}80`, letterSpacing: 8, whiteSpace: "nowrap" }}>← →</div>
                   {/* Label */}
-                  <div style={{ position: "absolute", top: 34, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
+                  <div style={{ position: "absolute", top: 34, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap" }}>
                     {ispt ? "DESLIZE" : "SWIPE"}
                   </div>
                 </>
@@ -1840,8 +1836,8 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
                 <>
                   <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: `${step === 4 ? "tapRippleSingle" : "tapDouble1"} 2.2s ease-out infinite` }} />
                   {step === 3 && <div style={{ position: "absolute", width: 40, height: 40, marginTop: -20, marginLeft: -20, border: `2px solid ${current.color}`, borderRadius: "50%", animation: "tapDouble2 2.2s ease-out infinite" }} />}
-                  <div style={{ position: "absolute", width: 8, height: 8, marginTop: -4, marginLeft: -4, background: current.color, borderRadius: "50%", boxShadow: `0 0 10px ${current.color}`, animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
-                  <div style={{ position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap", textShadow: `0 0 8px ${current.color}60` }}>
+                  <div style={{ position: "absolute", width: 8, height: 8, marginTop: -4, marginLeft: -4, background: current.color, borderRadius: "50%", animation: `${step === 4 ? "dotSingle" : "dotDouble"} 2.2s ease infinite` }} />
+                  <div style={{ position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)", fontFamily: F.mono, fontSize: 10, color: current.color, letterSpacing: 2, whiteSpace: "nowrap" }}>
                     {step === 3 ? (ispt ? "TOQUE×2" : "DOUBLE TAP") : (ispt ? "TOQUE" : "TAP")}
                   </div>
                 </>
@@ -1858,30 +1854,28 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
         position: "fixed", ...tooltipPos,
         width: "min(310px, 88vw)",
         maxHeight: tooltipMaxH, overflowY: "auto",
-        background: C.black, border: `1px solid ${current.color}50`,
+        background: C.black, border: `1px solid ${C.border}`,
         padding: "18px 20px",
-        boxShadow: `0 0 40px ${current.color}25`,
         zIndex: 9501,
       }}>
         {/* Step indicator dots */}
         <div style={{ display: "flex", gap: 6, marginBottom: 14, justifyContent: "center" }}>
           {steps.map((s, i) => (
             <div key={i} style={{
-              width: i === step ? 22 : 7, height: 7,
-              background: i === step ? current.color : C.border,
+              width: i === step ? 22 : 7, height: 2,
+              background: i === step ? C.cyan : C.border,
               transition: "all 0.3s ease",
-              boxShadow: i === step ? `0 0 6px ${current.color}70` : "none",
             }} />
           ))}
         </div>
         {/* Icon */}
         <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 30, color: current.color, textShadow: `0 0 20px ${current.color}70` }}>
+          <span style={{ fontFamily: F.mono, fontSize: 30, color: C.cyan }}>
             {current.icon}
           </span>
         </div>
         {/* Title */}
-        <div style={{ fontFamily: F.mono, fontSize: 13, color: current.color, letterSpacing: 2.5, textAlign: "center", marginBottom: 10 }}>
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.text, letterSpacing: 2.5, textAlign: "center", marginBottom: 10 }}>
           {current.title}
         </div>
         {/* Body */}
@@ -1897,9 +1891,8 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           }}>{ispt ? "PULAR" : "SKIP"}</button>
           <button onPointerDown={e => { e.preventDefault(); isLast ? done() : setStep(s => s + 1); }} style={{
             flex: 2, padding: "10px 0", cursor: "pointer", minHeight: 42,
-            fontFamily: F.mono, fontSize: 13, color: C.black, fontWeight: 700, letterSpacing: 2,
-            background: current.color, border: `1px solid ${current.color}`,
-            boxShadow: `0 0 18px ${current.color}35`,
+            fontFamily: F.mono, fontSize: 13, color: C.cyan, fontWeight: 700, letterSpacing: 2,
+            background: "none", border: `1px solid ${C.cyan}`,
           }}>{isLast ? (ispt ? "ENTENDIDO ▶" : "GOT IT ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
         </div>
       </div>
@@ -2473,14 +2466,14 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
               return (
                 <button key={ex.id} onClick={() => { onExNav?.(ex.id); setMenuOpen(false); }} style={{
                   display: "flex", alignItems: "center", gap: 10, width: "100%",
-                  background: isCurrent ? C.cyanGhost : "none",
+                  background: isCurrent ? C.panel : "none",
                   border: "none", borderBottom: `1px solid ${C.border}`,
                   cursor: "pointer", padding: "12px 16px", textAlign: "left",
                   touchAction: "pan-y",
                 }}>
                   <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? C.cyan : C.muted, minWidth: 24 }}>{i + 1}.</span>
                   <span style={{ fontFamily: F.mono, fontSize: 13, color: isCurrent ? C.cyan : C.text, flex: 1 }}>{ex.title}</span>
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: ex.color, border: `1px solid ${ex.color}40`, padding: "1px 5px" }}>{ex.diff}</span>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, border: `1px solid ${C.border}`, padding: "1px 5px" }}>{ex.diff}</span>
                   {isCompleted && <span style={{ color: C.green, fontSize: 13, fontFamily: F.mono }}>✓</span>}
                   {isCurrent && <span style={{ color: C.cyan, fontSize: 12 }}>◀</span>}
                 </button>
@@ -2497,7 +2490,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.title}</span>
         </div>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: ch.color, border: `1px solid ${ch.color}40`, padding: "2px 6px" }}>{ch.diff}</span>
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, border: `1px solid ${C.border}`, padding: "2px 6px" }}>{ch.diff}</span>
         {exercises && (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 16, color: C.dim, padding: "2px 8px", minHeight: 28, lineHeight: 1 }}>☰</button>
         )}
@@ -2517,16 +2510,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
       {probOpen && (
         <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.cyan, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
-            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); if (hintLevel === 0) { setHintLevel(1); setShowHint(true); } else { setShowHint(!showHint); } }} style={{ background: "none", border: `1px solid ${hintLevel > 1 ? C.amberDim : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amber, padding: "4px 8px" }}>{showHint && hintLevel > 0 ? "hide_hint" : hintLevel > 1 ? `hints(-${HINT_XP_PENALTIES[hintLevel]}xp)` : "hint"}</button>
-            <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.green, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
+            <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${showSchema ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showSchema ? C.cyan : C.dim, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
+            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); if (hintLevel === 0) { setHintLevel(1); setShowHint(true); } else { setShowHint(!showHint); } }} style={{ background: "none", border: `1px solid ${showHint && hintLevel > 0 ? C.dim : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showHint && hintLevel > 0 ? C.dim : C.muted, padding: "4px 8px" }}>{showHint && hintLevel > 0 ? "hide_hint" : hintLevel > 1 ? `hints(-${HINT_XP_PENALTIES[hintLevel]}xp)` : "hint"}</button>
+            <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${showExpected ? C.dim : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showExpected ? C.dim : C.muted, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
               {TAG_META[ch.tag] && (
-                <span style={{ fontFamily: F.mono, fontSize: 10, color: TAG_META[ch.tag].c, border: `1px solid ${TAG_META[ch.tag].c}50`, padding: "4px 8px", opacity: 0.9, letterSpacing: 0.5, userSelect: "none" }}>
-                  {TAG_META[ch.tag].icon} {lang === "pt" ? TAG_META[ch.tag].label_pt : TAG_META[ch.tag].label_en}
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, border: `1px solid ${C.border}`, padding: "4px 8px", letterSpacing: 0.5, userSelect: "none" }}>
+                  [ {lang === "pt" ? TAG_META[ch.tag].label_pt : TAG_META[ch.tag].label_en} ]
                 </span>
               )}
-              <button ref={tourBtnRef} onClick={e => { e.stopPropagation(); setProbOpen(true); setShowCodeOnboarding(true); }} style={{ background: "none", border: `1px solid ${C.purple}60`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.purple, padding: "4px 8px" }}>?</button>
+              <button ref={tourBtnRef} onClick={e => { e.stopPropagation(); setProbOpen(true); setShowCodeOnboarding(true); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px" }}>?</button>
             </div>
           </div>
           {showSchema && (
@@ -2534,7 +2527,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
               {ch.schema.split("\n").map((l, i) => {
                 const ci = l.indexOf(':');
                 if (ci === -1) return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.dim }}>{l.trim()}</span></div>;
-                return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.orange }}>{l.slice(0, ci).trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.green }}>{l.slice(ci + 1).trim()}</span></div>;
+                return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.text }}>{l.slice(0, ci).trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.dim }}>{l.slice(ci + 1).trim()}</span></div>;
               })}
             </div>
           )}
@@ -2603,9 +2596,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           <div ref={edRef} style={{ height: "100%", padding: "8px 18px", overflowY: "scroll", overflowX: "scroll", background: `linear-gradient(180deg,${C.void},${C.black})`, position: "relative", touchAction: "none" }}
             onTouchStart={onEditorTouchStart} onTouchMove={onEditorTouchMove} onTouchEnd={onEditorTouchEnd} onClick={onTap}>
             {/* Custom cursor handle — hidden when keyboard is open */}
-          {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", display: "flex", flexDirection: "column", alignItems: "center", transition: "left 0.05s,top 0.05s" }}>
-              <div style={{ width: 2, height: lineH * 0.7, background: C.cyan, boxShadow: `0 0 8px ${C.cyan}80`, animation: "blink 1s step-end infinite" }} />
-              <div style={{ width: 22, height: 22, background: C.cyan, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", marginTop: -1, boxShadow: `0 0 10px ${C.cyan}60`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 7, height: 7, background: C.black, borderRadius: "50%", transform: "rotate(45deg)" }} /></div>
+          {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", transition: "left 0.05s,top 0.05s" }}>
+              <div style={{ fontFamily: F.mono, fontSize: 18, color: C.cyan, lineHeight: 2, animation: "blink 1s step-end infinite", userSelect: "none" }}>█</div>
             </div>}
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
             {/* Syntax highlight layer — mirrors textarea content with token colors */}
@@ -2687,28 +2679,28 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         {/* Results — shown in BOTH modes */}
         {result && (
           <div style={{ background: C.black, borderTop: `2px solid ${result.ok ? (verdict?.pass ? C.green : C.cyan) : C.red}`, flexShrink: 0 }}>
-            {verdict && <div style={{ padding: "8px 16px", fontFamily: F.mono, fontSize: 15, color: verdict.pass ? C.green : C.red, background: verdict.pass ? C.greenGhost : C.redGhost, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {verdict && <div style={{ padding: "8px 16px", fontFamily: F.mono, fontSize: 15, color: verdict.pass ? C.green : C.red, background: C.panel, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: 20 }}>{verdict.pass ? "✓" : "✗"}</span>
               <span style={{ flex: 1 }}>{verdict.msg}</span>
               {verdict.pass && SOLUTION_EXPLANATIONS[ch.id] && (
-                <button onClick={() => setShowExplain(v => !v)} style={{ fontFamily: F.mono, fontSize: 11, color: showExplain ? C.black : C.green, background: showExplain ? C.green : "none", border: `1px solid ${C.green}`, padding: "6px 10px", cursor: "pointer", letterSpacing: 1 }}>
+                <button onClick={() => setShowExplain(v => !v)} style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, background: "none", border: `1px solid ${C.border}`, padding: "6px 10px", cursor: "pointer", letterSpacing: 1 }}>
                   {showExplain ? (lang === "pt" ? "ocultar" : "hide") : (lang === "pt" ? "explicar" : "explain")}
                 </button>
               )}
               {verdict.pass && nextCh && (
-                <button onClick={() => onNext && onNext(nextCh.id)} style={{ fontFamily: F.mono, fontSize: 14, color: C.black, background: C.cyan, border: `1px solid ${C.cyan}`, padding: "8px 16px", cursor: "pointer", letterSpacing: 1.5, boxShadow: `0 0 12px ${C.cyan}30`, animation: "pulseGlow 2s ease infinite" }}>
+                <button onClick={() => onNext && onNext(nextCh.id)} style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, background: "none", border: `1px solid ${C.cyan}`, padding: "8px 16px", cursor: "pointer", letterSpacing: 1.5 }}>
                   NEXT ▶
                 </button>
               )}
               {verdict.pass && !nextCh && (
-                <button onClick={onBack} style={{ fontFamily: F.mono, fontSize: 14, color: C.black, background: C.amber, border: `1px solid ${C.amber}`, padding: "8px 16px", cursor: "pointer", letterSpacing: 1.5 }}>
+                <button onClick={onBack} style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, background: "none", border: `1px solid ${C.border}`, padding: "8px 16px", cursor: "pointer", letterSpacing: 1.5 }}>
                   ALL DONE ✓
                 </button>
               )}
             </div>}
             {/* Solution explanation — shown after a correct solve */}
             {verdict?.pass && showExplain && SOLUTION_EXPLANATIONS[ch.id] && (
-              <div style={{ borderTop: `1px solid ${C.green}30`, background: C.greenGhost, padding: "10px 16px", animation: "fadeSlide 0.15s ease" }}>
+              <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 16px", animation: "fadeSlide 0.15s ease" }}>
                 <div style={{ fontFamily: F.mono, fontSize: 10, color: C.greenDim, marginBottom: 8, letterSpacing: 1 }}>// solution_explanation</div>
                 <div style={{ background: C.surface, border: `1px solid ${C.green}30`, padding: "8px 10px", marginBottom: 8, overflowX: "auto" }}>
                   <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginBottom: 4 }}>-- solution</div>
@@ -2742,9 +2734,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             <div style={{ color: C.dim, marginBottom: 6 }}>-- schema output --</div>
             {schemaOutput.map(({ table, cols }) => (
               <div key={table} style={{ marginBottom: 4 }}>
-                <span style={{ color: C.orange }}>{table}</span>
+                <span style={{ color: C.text }}>{table}</span>
                 <span style={{ color: C.dim }}>: </span>
-                <span style={{ color: C.green }}>{cols}</span>
+                <span style={{ color: C.dim }}>{cols}</span>
               </div>
             ))}
           </div>
@@ -2767,7 +2759,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
               <div ref={timerAreaRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} style={{ background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
                 {/* Countdown progress bar */}
                 <div style={{ height: 2, background: C.border, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${frac * 100}%`, background: timerColor, transition: "width 1s linear, background 0.5s ease", boxShadow: !timerExpired && frac < 0.25 ? `0 0 8px ${C.red}60` : "none" }} />
+                  <div style={{ height: "100%", width: `${frac * 100}%`, background: timerColor, transition: "width 1s linear, background 0.5s ease" }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", padding: "3px 8px", gap: 6 }}>
                   <button
@@ -2794,16 +2786,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           {/* ── RUN + utility bar ── */}
           {(!result || !verdict?.pass) && (
             <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
-              <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.amber : C.dim, background: editing ? C.amberGhost : "none", border: `1px solid ${editing ? C.amber : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
+              <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.cyan : C.dim, background: "none", border: `1px solid ${editing ? C.cyan : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
               <button
                 onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
                 onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
                 onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
-                style={{ background: C.redGhost, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.red, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
+                style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.dim, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
               <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
-              <button onClick={smartEnter} style={{ background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.cyan, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
+              <button onClick={smartEnter} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
               <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
-              <button ref={runBtnRef} onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.black, background: C.green, border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
+              <button ref={runBtnRef} onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.green, background: "none", border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
             </div>
           )}
         </div>
@@ -2864,20 +2856,19 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
           const total = f === "ALL" ? CHALLENGES_DB.length : CHALLENGES_DB.filter(c => c.diff === f).length;
           const solvedCnt = f === "ALL" ? solved.size : CHALLENGES_DB.filter(c => c.diff === f && solved.has(c.id)).length;
           const pct = total > 0 ? Math.round(solvedCnt / total * 100) : 0;
-          const fc = f === "EASY" ? C.green : f === "MED" ? C.cyan : f === "HARD" ? C.amber : f === "EXPERT" ? C.red : C.dim;
           return (
             <button key={f} onClick={() => setFilter(f)} style={{
-              background: filter === f ? `${fc}18` : "none", border: `1px solid ${filter === f ? fc : C.border}`,
+              background: "none", border: `1px solid ${filter === f ? C.dim : C.border}`,
               cursor: "pointer", padding: "5px 10px", whiteSpace: "nowrap",
-              fontFamily: F.mono, fontSize: 11, color: filter === f ? fc : C.muted,
+              fontFamily: F.mono, fontSize: 11, color: filter === f ? C.text : C.muted,
             }}>
               {f} <span style={{ opacity: 0.6 }}>{pct}%</span>
             </button>
           );
         })}
         <button onClick={goRandom} style={{
-          background: C.cyanGhost, border: `1px solid ${C.cyan}40`, cursor: "pointer",
-          padding: "5px 10px", fontFamily: F.mono, fontSize: 11, color: C.cyan, marginLeft: "auto", flexShrink: 0,
+          background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
+          padding: "5px 10px", fontFamily: F.mono, fontSize: 11, color: C.dim, marginLeft: "auto", flexShrink: 0,
         }}>{lang === "pt" ? "ALEATÓRIO" : "RANDOM"}</button>
       </div>
       {/* Archetype filter bar */}
@@ -2889,17 +2880,17 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
         }}>ALL</button>
         {Object.entries(TAG_META).map(([key, tm]) => (
           <button key={key} onClick={() => setTagFilter(key)} style={{
-            background: tagFilter === key ? `${tm.c}18` : "none", border: `1px solid ${tagFilter === key ? tm.c : C.border}`,
+            background: "none", border: `1px solid ${tagFilter === key ? C.dim : C.border}`,
             cursor: "pointer", padding: "4px 8px", whiteSpace: "nowrap",
-            fontFamily: F.mono, fontSize: 10, color: tagFilter === key ? tm.c : C.muted,
-          }}>{tm.icon} {lang === "pt" ? tm.label_pt : tm.label_en}</button>
+            fontFamily: F.mono, fontSize: 10, color: tagFilter === key ? C.text : C.muted,
+          }}>{lang === "pt" ? tm.label_pt : tm.label_en}</button>
         ))}
       </div>
       {/* Challenge list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {filtered.map((ch, i) => {
           const isSolved = solved.has(ch.id);
-          const dc = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red;
+          const dc = C.muted;
           const tm = TAG_META[ch.tag];
           const baseXp = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
           const maxXp = Math.round((baseXp + 5) * 2.0 * 1.1); // no-hint + ×2 time + first-try
@@ -3065,12 +3056,8 @@ function ReviewScreen({ onXP }) {
 
   // Hearts display
   const Hearts = () => (
-    <div style={{ display: "flex", gap: 4 }}>
-      {[0,1,2].map(i => (
-        <span key={i} style={{ fontFamily: F.mono, fontSize: 22, color: i < lives ? C.red : C.muted, textShadow: i < lives ? `0 0 6px ${C.red}60` : "none", transition: "color 0.3s" }}>
-          {i < lives ? "♥" : "♡"}
-        </span>
-      ))}
+    <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, letterSpacing: 1 }}>
+      HP: {lives}/3
     </div>
   );
 
@@ -3080,27 +3067,26 @@ function ReviewScreen({ onXP }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
           <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim }}><Prompt path="/review" /></div>
-          <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6, animation: "pulseGlow 3s ease infinite" }}>{t("review_title")}</div>
+          <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6 }}>{t("review_title")}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Hearts />
-          <div style={{ fontFamily: F.mono, fontSize: 20, color: C.amber, textShadow: `0 0 8px ${C.amber}40` }}>{score}<span style={{ fontSize: 13, color: C.dim }}>pt</span></div>
+          <div style={{ fontFamily: F.mono, fontSize: 20, color: C.dim }}>{score}<span style={{ fontSize: 13, color: C.muted }}>pt</span></div>
         </div>
       </div>
 
       {/* Difficulty selector */}
       <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
         {["ALL","EASY","MED","HARD"].map(d => {
-          const dColor = d === "EASY" ? C.green : d === "MED" ? C.cyan : d === "HARD" ? C.amber : C.dim;
           const st = statsByDiff[d] || { r: 0, c: 0 };
           const pct = st.r > 0 ? Math.round(st.c / st.r * 100) : 0;
           return (
             <button key={d} onClick={() => { setDiff(d); setIdx(0); setFlipped(false); }} style={{
-              background: diff === d ? `${dColor}15` : "none", border: `1px solid ${diff === d ? dColor : C.border}`,
+              background: "none", border: `1px solid ${diff === d ? C.dim : C.border}`,
               cursor: "pointer", padding: "8px 14px", minHeight: 40,
-              fontFamily: F.mono, fontSize: 14, color: diff === d ? dColor : C.dim,
+              fontFamily: F.mono, fontSize: 14, color: diff === d ? C.text : C.dim,
               display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap",
-            }}><span>{d}</span><span style={{ fontSize: 11, color: diff === d ? dColor : C.muted }}>{pct}%</span></button>
+            }}><span>{d}</span><span style={{ fontSize: 11, color: diff === d ? C.dim : C.muted }}>{pct}%</span></button>
           );
         })}
       </div>
@@ -3112,9 +3098,9 @@ function ReviewScreen({ onXP }) {
         <div style={{ marginTop: 20, background: C.panel, border: `1px solid ${C.red}`, padding: "32px 22px", textAlign: "center" }}>
           <div style={{ fontFamily: F.mono, fontSize: 28, color: C.red, marginBottom: 8 }}>GAME OVER</div>
           <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, marginBottom: 6 }}>{lang === "pt" ? "Você perdeu todas as vidas!" : "You lost all lives!"}</div>
-          <div style={{ fontFamily: F.mono, fontSize: 36, color: C.amber, textShadow: `0 0 12px ${C.amber}40`, margin: "16px 0" }}>{score} <span style={{ fontSize: 18, color: C.dim }}>pts</span></div>
+          <div style={{ fontFamily: F.mono, fontSize: 36, color: C.dim, margin: "16px 0" }}>{score} <span style={{ fontSize: 18, color: C.muted }}>pts</span></div>
           <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginBottom: 20 }}>{reviewed} {lang === "pt" ? "cards revisados" : "cards reviewed"}</div>
-          <button onClick={resetGame} style={{ fontFamily: F.mono, fontSize: 16, color: C.black, background: C.cyan, border: `1px solid ${C.cyan}`, padding: "14px 28px", cursor: "pointer", boxShadow: `0 0 16px ${C.cyan}30`, letterSpacing: 2 }}>
+          <button onClick={resetGame} style={{ fontFamily: F.mono, fontSize: 16, color: C.cyan, background: "none", border: `1px solid ${C.cyan}`, padding: "14px 28px", cursor: "pointer", letterSpacing: 2 }}>
             {lang === "pt" ? "JOGAR DENOVO" : "PLAY AGAIN"}
           </button>
         </div>
@@ -3124,7 +3110,7 @@ function ReviewScreen({ onXP }) {
         <>
           {/* Swipe hints */}
           <div style={{ display: "flex", justifyContent: "space-between", margin: "10px 0 4px", fontFamily: F.mono, fontSize: 13 }}>
-            <div style={{ color: C.red, opacity: swDir === "left" ? 0.6 + swPct * 0.4 : 0.3 }}>← -1 ♥</div>
+            <div style={{ color: C.dim, opacity: swDir === "left" ? 0.6 + swPct * 0.4 : 0.3 }}>← miss</div>
             <div style={{ fontSize: 12, color: C.dim }}>{card.diff} +{pts}pt</div>
             <div style={{ color: C.green, opacity: swDir === "right" ? 0.6 + swPct * 0.4 : 0.3 }}>+{pts}pt →</div>
           </div>
@@ -3137,18 +3123,18 @@ function ReviewScreen({ onXP }) {
             display: "flex", flexDirection: "column", justifyContent: "center",
             animation: flipAnim ? "flipCard 0.4s ease" : "none",
             position: "relative",
-            boxShadow: swDir === "right" ? `0 0 24px ${C.green}20` : swDir === "left" ? `0 0 24px ${C.red}20` : "none",
+            boxShadow: "none",
             transform: `translateX(${swipeX}px) rotate(${swipeX * 0.04}deg)`,
             transition: swiping ? "none" : "transform 0.3s ease, border-color 0.2s",
             touchAction: "pan-y", userSelect: "none",
           }}>
-            {swDir === "right" && <div style={{ position: "absolute", top: 14, left: 14, fontFamily: F.mono, fontSize: 20, color: C.green, opacity: swPct, fontWeight: 700, transform: "rotate(-10deg)", border: `2px solid ${C.green}`, padding: "4px 12px" }}>+{pts}</div>}
-            {swDir === "left" && <div style={{ position: "absolute", top: 14, right: 14, fontFamily: F.mono, fontSize: 20, color: C.red, opacity: swPct, fontWeight: 700, transform: "rotate(10deg)", border: `2px solid ${C.red}`, padding: "4px 12px" }}>-1♥</div>}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: flipped ? `linear-gradient(90deg,transparent,${C.cyan},transparent)` : `linear-gradient(90deg,transparent,${C.border},transparent)` }} />
+            {swDir === "right" && <div style={{ position: "absolute", top: 14, left: 14, fontFamily: F.mono, fontSize: 20, color: C.green, opacity: swPct, fontWeight: 700, transform: "rotate(-10deg)", border: `1px solid ${C.green}`, padding: "4px 12px" }}>+{pts}</div>}
+            {swDir === "left" && <div style={{ position: "absolute", top: 14, right: 14, fontFamily: F.mono, fontSize: 20, color: C.dim, opacity: swPct, fontWeight: 700, transform: "rotate(10deg)", border: `1px solid ${C.border}`, padding: "4px 12px" }}>miss</div>}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: flipped ? C.dim : C.border }} />
             <div style={{ fontFamily: F.mono, fontSize: 12, letterSpacing: 2.5, color: flipped ? C.cyanDim : C.dim, marginBottom: 16, textAlign: "center" }}>{flipped ? t("answer") : `[ ${card.type} · ${card.diff} ]`}</div>
             {!flipped
               ? <div style={{ fontFamily: F.mono, fontSize: 20, color: C.white, lineHeight: 1.7, textAlign: "center" }}>{card.front}</div>
-              : <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyanHot, lineHeight: 2, whiteSpace: "pre-wrap" }}>{card.back}</div>
+              : <div style={{ fontFamily: F.mono, fontSize: 15, color: C.text, lineHeight: 2, whiteSpace: "pre-wrap" }}>{card.back}</div>
             }
             {!flipped && <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 24, textAlign: "center" }}>{t("tap_reveal")}<Cursor /></div>}
           </div>
@@ -3156,10 +3142,10 @@ function ReviewScreen({ onXP }) {
           {/* Action buttons when flipped */}
           {flipped && (
             <div style={{ display: "flex", gap: 10, marginTop: 14, animation: "fadeSlide 0.2s ease" }}>
-              <button onClick={() => nextCard(false)} style={{ flex: 1, background: C.redGhost, border: `1px solid ${C.red}50`, padding: "14px 6px", cursor: "pointer", textAlign: "center", minHeight: 52, fontFamily: F.mono, fontSize: 16, color: C.red }}>
-                ← -1 ♥
+              <button onClick={() => nextCard(false)} style={{ flex: 1, background: "none", border: `1px solid ${C.border}`, padding: "14px 6px", cursor: "pointer", textAlign: "center", minHeight: 52, fontFamily: F.mono, fontSize: 16, color: C.dim }}>
+                ← miss
               </button>
-              <button onClick={() => nextCard(true)} style={{ flex: 1, background: C.greenGhost, border: `1px solid ${C.green}50`, padding: "14px 6px", cursor: "pointer", textAlign: "center", minHeight: 52, fontFamily: F.mono, fontSize: 16, color: C.green }}>
+              <button onClick={() => nextCard(true)} style={{ flex: 1, background: "none", border: `1px solid ${C.green}`, padding: "14px 6px", cursor: "pointer", textAlign: "center", minHeight: 52, fontFamily: F.mono, fontSize: 16, color: C.green }}>
                 +{pts}pt →
               </button>
             </div>
@@ -3171,13 +3157,13 @@ function ReviewScreen({ onXP }) {
       <CLIBox title={t("session_stats")} style={{ marginTop: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
           {[
-            { l: "♥", v: `${lives}/3`, c: C.red },
-            { l: "SCORE", v: `${score}`, c: C.amber },
-            { l: t("done"), v: String(reviewed), c: C.green },
-            { l: "CARDS", v: String(cards.length), c: C.cyan },
+            { l: "HP", v: `${lives}/3`, c: C.dim },
+            { l: "SCORE", v: `${score}`, c: C.dim },
+            { l: t("done"), v: String(reviewed), c: C.dim },
+            { l: "CARDS", v: String(cards.length), c: C.dim },
           ].map(s => (
             <div key={s.l} style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: F.mono, fontSize: 20, color: s.c, textShadow: `0 0 8px ${s.c}30` }}>{s.v}</div>
+              <div style={{ fontFamily: F.mono, fontSize: 20, color: s.c }}>{s.v}</div>
               <div style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, letterSpacing: 1, marginTop: 4 }}>{s.l}</div>
             </div>
           ))}
@@ -3260,11 +3246,11 @@ function QuizScreen({ onXP }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
           <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim }}><Prompt path="/quiz" /></div>
-          <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6, animation: "pulseGlow 3s ease infinite" }}>SQL_QUIZ</div>
+          <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6 }}>SQL_QUIZ</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ fontFamily: F.mono, fontSize: 14, color: streak >= 5 ? C.red : C.amber, textShadow: streak >= 5 ? `0 0 8px ${C.red}60` : "none", animation: streak >= 10 ? "timerPulse 1s ease infinite" : "none" }}>🔥{streak}{streak >= 3 ? ` ×${getStreakMult(streak).toFixed(2)}` : ""}</div>
-          <div style={{ fontFamily: F.mono, fontSize: 20, color: C.green, textShadow: `0 0 8px ${C.green}40` }}>{score}<span style={{ fontSize: 12, color: C.dim }}>pt</span></div>
+          <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, letterSpacing: 0.5 }}>[ STREAK: {streak}{streak >= 3 ? ` ×${getStreakMult(streak).toFixed(2)}` : "" } ]</div>
+          <div style={{ fontFamily: F.mono, fontSize: 20, color: C.dim }}>{score}<span style={{ fontSize: 12, color: C.muted }}>pt</span></div>
         </div>
       </div>
 
@@ -3272,9 +3258,9 @@ function QuizScreen({ onXP }) {
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
         {modNames.map((name, i) => (
           <button key={i} onClick={() => { setModFilter(i); resetQuiz(); }} style={{
-            background: modFilter === i ? C.cyanGhost : "none", border: `1px solid ${modFilter === i ? C.cyan : C.border}`,
+            background: "none", border: `1px solid ${modFilter === i ? C.dim : C.border}`,
             cursor: "pointer", padding: "6px 10px", minHeight: 34,
-            fontFamily: F.mono, fontSize: 11, color: modFilter === i ? C.cyan : C.dim, whiteSpace: "nowrap",
+            fontFamily: F.mono, fontSize: 11, color: modFilter === i ? C.text : C.dim, whiteSpace: "nowrap",
           }}>{name}</button>
         ))}
       </div>
@@ -3282,12 +3268,12 @@ function QuizScreen({ onXP }) {
       {/* Progress + Timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <ProgressBar progress={questions.length > 0 ? ((idx % questions.length) + 1) / questions.length : 0} />
-        <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right", textShadow: timer <= 5 ? `0 0 8px ${C.red}60` : "none" }}>{timer}s</div>
+        <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
       </div>
 
       {/* Question card */}
       <div style={{ background: C.panel, border: `1px solid ${showResult ? (selected === q.ans ? C.green : C.red) : C.border}`, padding: "20px 18px", marginBottom: 14, position: "relative" }}>
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${C.cyan},transparent)` }} />
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: C.border }} />
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
           <span style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>[{(idx % questions.length) + 1}/{questions.length}]</span>
           <Tag color={q.color || (q.diff === "EASY" ? C.green : q.diff === "MED" ? C.cyan : q.diff === "HARD" ? C.amber : C.red)}>{q.diff}</Tag>
@@ -3327,9 +3313,8 @@ function QuizScreen({ onXP }) {
         <button onClick={nextQuestion} style={{
           width: "100%", padding: "14px 0", cursor: "pointer",
           fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700,
-          color: C.black, background: C.cyan, border: `1px solid ${C.cyan}`,
-          boxShadow: `0 0 16px ${C.cyan}30`, minHeight: 50,
-          animation: "pulseGlow 2s ease infinite",
+          color: C.cyan, background: "none", border: `1px solid ${C.cyan}`,
+          minHeight: 50,
         }}>NEXT ▶</button>
       )}
 
@@ -3337,13 +3322,13 @@ function QuizScreen({ onXP }) {
       <CLIBox title="QUIZ_STATS" style={{ marginTop: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
           {[
-            { l: "SCORE", v: `${score}`, c: C.amber },
-            { l: "ACC", v: total > 0 ? `${Math.round((score / (total * pts)) * 100)}%` : "—", c: C.green },
-            { l: "STREAK", v: `🔥${streak}`, c: C.red },
-            { l: "Q's", v: `${total}/${questions.length}`, c: C.cyan },
+            { l: "SCORE", v: `${score}`, c: C.dim },
+            { l: "ACC", v: total > 0 ? `${Math.round((score / (total * pts)) * 100)}%` : "—", c: C.dim },
+            { l: "STREAK", v: `${streak}`, c: C.dim },
+            { l: "Q's", v: `${total}/${questions.length}`, c: C.dim },
           ].map(s => (
             <div key={s.l} style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: F.mono, fontSize: 18, color: s.c, textShadow: `0 0 8px ${s.c}30` }}>{s.v}</div>
+              <div style={{ fontFamily: F.mono, fontSize: 18, color: s.c }}>{s.v}</div>
               <div style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, letterSpacing: 1, marginTop: 4 }}>{s.l}</div>
             </div>
           ))}
@@ -3470,10 +3455,10 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
   return (
     <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
       <div style={{ textAlign: "center", padding: "8px 0 22px" }}>
-        <div style={{ width: 80, height: 80, margin: "0 auto 16px", border: `2px solid ${C.cyan}`, display: "flex", alignItems: "center", justifyContent: "center", background: C.cyanGhost, boxShadow: `0 0 28px ${C.cyan}25`, transform: "rotate(45deg)" }}>
-          <span style={{ transform: "rotate(-45deg)", fontFamily: F.mono, fontSize: 36, color: C.cyan, fontWeight: 700 }}>U</span>
+        <div style={{ width: 80, height: 80, margin: "0 auto 16px", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", background: C.panel }}>
+          <span style={{ fontFamily: F.mono, fontSize: 36, color: C.dim, fontWeight: 400 }}>U</span>
         </div>
-        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, letterSpacing: 2, animation: "rankReveal 0.8s ease" }}>{lv.rank}</div>
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, letterSpacing: 2, animation: "rankReveal 0.8s ease" }}>{lv.rank}</div>
         <div onClick={handleDevTap} style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, marginTop: 4, userSelect: "none" }}>LVL {lv.level} · {xp.toLocaleString()} XP</div>
         {devResetVisible && (
           <button onClick={() => { if (confirm("Reset all XP and progress?")) { localStorage.clear(); location.reload(); } }} style={{ marginTop: 8, fontFamily: F.mono, fontSize: 11, color: C.red, background: "none", border: `1px solid ${C.red}40`, padding: "4px 12px", cursor: "pointer", letterSpacing: 1, opacity: 0.7 }}>⚠ DEV RESET</button>
@@ -3489,48 +3474,45 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         {/* Level progress bar */}
         <div style={{ maxWidth: 200, margin: "10px auto 0" }}>
           <div style={{ height: 4, background: C.border, position: "relative", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${Math.min(100, lv.progress * 100)}%`, background: C.amber, boxShadow: `0 0 8px ${C.amber}60`, transition: "width 0.5s ease" }} />
+            <div style={{ height: "100%", width: `${Math.min(100, lv.progress * 100)}%`, background: C.dim, transition: "width 0.5s ease" }} />
           </div>
           <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginTop: 4 }}>{xp - lv.cur} / {lv.nxt - lv.cur} to LVL {lv.level + 1}</div>
         </div>
 
         {/* Google Sign In Button */}
         {!user && !loading && (
-          <button 
+          <button
             onClick={signInWithGoogle}
             style={{
               marginTop: 20,
               width: "100%",
-              maxWidth: 240,
-              padding: "12px 0",
+              maxWidth: 280,
+              padding: "12px 16px",
               cursor: "pointer",
               fontFamily: F.mono,
-              fontSize: 14,
-              color: C.black,
-              fontWeight: 700,
-              background: C.cyan,
-              border: `1px solid ${C.cyan}`,
-              boxShadow: `0 0 20px ${C.cyan}40`,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              animation: "pulseGlow 2s ease infinite"
+              fontSize: 13,
+              color: C.dim,
+              background: "none",
+              border: `1px solid ${C.border}`,
+              letterSpacing: 0.5,
+              textAlign: "left",
             }}
           >
-            {lang === "pt" ? "ENTRAR COM GOOGLE" : "SIGN IN WITH GOOGLE"}
+            {lang === "pt" ? "> ./authenticate --provider=google" : "> ./authenticate --provider=google"}
           </button>
         )}
       </div>
       <Divider />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}>
         {[
-          { l: t("total_xp"), v: xp.toLocaleString(), c: C.cyanHot },
-          { l: t("solved_label"), v: String(solved.size), c: C.green },
-          { l: "LEVEL", v: String(lv.level), c: C.amber },
-          { l: t("accuracy_label"), v: `${acc}%`, c: C.cyan },
+          { l: t("total_xp"), v: xp.toLocaleString(), c: C.text },
+          { l: t("solved_label"), v: String(solved.size), c: C.text },
+          { l: "LEVEL", v: String(lv.level), c: C.text },
+          { l: t("accuracy_label"), v: `${acc}%`, c: C.text },
         ].map((s, i) => (
           <div key={i} style={{ background: C.panel, border: `1px solid ${C.border}`, padding: "16px 18px" }}>
-            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, letterSpacing: 1.5, marginBottom: 6 }}>{s.l}</div>
-            <div style={{ fontFamily: F.mono, fontSize: 32, color: s.c, textShadow: `0 0 12px ${s.c}25` }}>{s.v}</div>
+            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.muted, letterSpacing: 1.5, marginBottom: 6 }}>{s.l}</div>
+            <div style={{ fontFamily: F.mono, fontSize: 32, color: s.c }}>{s.v}</div>
           </div>
         ))}
       </div>
@@ -3542,7 +3524,7 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
 
       {/* Achievements — expandable */}
       <div>
-        <div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 12 }}>┤ {t("achievements")} ({earnedAch.length}/{ACHIEVEMENTS.length}) ├</div>
+        <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, letterSpacing: 1.5, marginBottom: 12 }}>┤ {t("achievements")} ({earnedAch.length}/{ACHIEVEMENTS.length}) ├</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           {ACHIEVEMENTS.map((a, i) => {
             const earned = a.check(solved, xp);
@@ -3558,8 +3540,7 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
               }}>
                 <div style={{
                   fontFamily: F.mono, fontSize: expanded ? 42 : 36, marginBottom: 8,
-                  color: earned ? a.c : C.dim,
-                  textShadow: earned ? `0 0 16px ${a.c}60` : "none",
+                  color: earned ? a.c : C.muted,
                 }}>{a.i}</div>
                 <div style={{ fontFamily: F.mono, fontSize: 14, color: earned ? C.white : C.dim }}>{lang === "pt" ? a.n_pt : a.n_en}</div>
                 {expanded && (
@@ -3611,33 +3592,26 @@ function OnboardingScreen({ onComplete, lang }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: C.void, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "24px 28px" }}>
-      {/* CRT scanlines overlay */}
-      <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,240,255,0.015) 2px, rgba(0,240,255,0.015) 4px)", pointerEvents: "none", zIndex: 1 }} />
-
       {/* Step indicator dots */}
       <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
         {slides.map((_, i) => (
           <div key={i} style={{
-            width: i === step ? 24 : 8, height: 8,
-            background: i === step ? s.color : C.border,
+            width: i === step ? 24 : 8, height: 2,
+            background: i === step ? C.cyan : C.border,
             transition: "all 0.3s ease",
-            boxShadow: i === step ? `0 0 8px ${s.color}60` : "none",
           }} />
         ))}
       </div>
 
       {/* Icon */}
       <div style={{
-        fontFamily: F.mono, fontSize: 48, color: s.color, marginBottom: 20,
-        textShadow: `0 0 24px ${s.color}60, 0 0 48px ${s.color}30`,
-        animation: "pulseGlow 3s ease infinite",
+        fontFamily: F.mono, fontSize: 48, color: C.cyan, marginBottom: 20,
       }}>{s.icon}</div>
 
       {/* Title */}
       <div style={{
-        fontFamily: F.mono, fontSize: 20, color: s.color, letterSpacing: 3,
+        fontFamily: F.mono, fontSize: 20, color: C.text, letterSpacing: 3,
         marginBottom: 20, textAlign: "center",
-        textShadow: `0 0 12px ${s.color}40`,
       }}>{s.title}</div>
 
       {/* Body */}
@@ -3658,9 +3632,8 @@ function OnboardingScreen({ onComplete, lang }) {
         )}
         <button onClick={() => isLast ? onComplete() : setStep(step + 1)} style={{
           flex: 2, padding: "14px 0", cursor: "pointer",
-          fontFamily: F.mono, fontSize: 15, color: C.black, fontWeight: 700,
-          background: s.color, border: `1px solid ${s.color}`, minHeight: 50,
-          boxShadow: `0 0 20px ${s.color}40`,
+          fontFamily: F.mono, fontSize: 15, color: C.cyan, fontWeight: 700,
+          background: "none", border: `1px solid ${C.cyan}`, minHeight: 50,
           letterSpacing: 2,
         }}>{isLast ? (ispt ? "COMEÇAR ▶" : "START ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
       </div>
