@@ -2931,6 +2931,11 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
               <span style={{ fontSize: 13, color: isSolved ? C.dim : C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {ch.title}
               </span>
+              {tm && (
+                <span style={{ fontSize: 9, color: C.muted, flexShrink: 0, letterSpacing: 0.5 }}>
+                  {lang === "pt" ? tm.label_pt : tm.label_en}
+                </span>
+              )}
               {!isSolved && (
                 <span style={{ fontSize: 9, color: C.muted, border: `1px solid ${C.border}`, padding: "1px 5px", flexShrink: 0 }}>
                   {maxXp}xp
@@ -2938,11 +2943,6 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
               )}
               {isSolved && (
                 <span style={{ fontSize: 9, color: C.dim, flexShrink: 0 }}>+{baseXp}xp</span>
-              )}
-              {tm && (
-                <span style={{ fontSize: 9, color: C.muted, flexShrink: 0, letterSpacing: 0.5 }}>
-                  {lang === "pt" ? tm.label_pt : tm.label_en}
-                </span>
               )}
             </button>
           );
