@@ -68,7 +68,7 @@ const C = {
   amber: "#FFBB00", amberDim: "#CC9900", amberGhost: "rgba(255,187,0,0.10)",
   orange: "#FF8800", orangeGhost: "rgba(255,136,0,0.10)",
   red: "#FF3333", redDim: "#CC2222", redGhost: "rgba(255,51,51,0.10)",
-  white: "#FFFFFF", dim: "#888888", muted: "#555555", purple: "#CC88FF",
+  white: "#FFFFFF", dim: "#9a9a9a", muted: "#666666", purple: "#CC88FF",
   text: "#CCCCCC",
 };
 
@@ -523,8 +523,10 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
 }
 
 // ── Language Switcher ─────────────────────────────────────
-function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
+function TopBar({ startCollapsed = false, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
   const [collapsed, setCollapsed] = useState(startCollapsed);
+  const { theme, cycleTheme } = useContext(ThemeContext);
+  const themeLabel = theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK";
 
   // Auto-collapse when entering focus mode
   useEffect(() => {
@@ -578,9 +580,8 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
           </button>
         ) : <div style={{ flex: 1 }} />}
-        <button onClick={() => setCollapsed(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyanDim, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {lang.toUpperCase()} ▼
-        </button>
+        <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px", letterSpacing: 1, flexShrink: 0 }}>{themeLabel}</button>
+        <button onClick={() => setCollapsed(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", flexShrink: 0 }}>▼</button>
       </div>
     );
   }
@@ -607,15 +608,8 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
       ) : <div style={{ flex: 1 }} />}
       {/* Spacer */}
       {!exercises && <div style={{ flex: 1 }} />}
-      {/* Right: Lang switcher + collapse */}
-      <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, background: C.void, overflow: "hidden", width: 110, flexShrink: 0 }}>
-        <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
-        {["en", "pt"].map(l => (
-          <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "6px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 11, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
-            {l.toUpperCase()}
-          </button>
-        ))}
-      </div>
+      {/* Right: Theme cycle + collapse */}
+      <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "5px 12px", letterSpacing: 1.5, flexShrink: 0 }}>{themeLabel}</button>
       <button onClick={() => setCollapsed(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px", flexShrink: 0 }}>▲</button>
     </div>
   );
@@ -699,8 +693,8 @@ function StatusBar({ xp = 0, solved = new Set() }) {
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ color: C.dim }}>{solved.size}/{CHALLENGES_DB.length}</span>
-          <button onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "1px 5px", letterSpacing: 1, lineHeight: 1.4 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
-          <span style={{ color: C.muted }}>{time}</span>
+          <button onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.dim, padding: "1px 5px", letterSpacing: 1, lineHeight: 1.4 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
+          <span style={{ color: C.dim }}>{time}</span>
         </span>
       </div>
       <div style={{ padding: "0 14px 6px" }}>
@@ -860,7 +854,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}>
         <Prompt path="/learn" /><span style={{ color: C.text }}> ls -la modules/</span>
       </div>
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
+      <div style={{ fontSize: 11, color: C.dim, marginBottom: 14 }}>
         {t("learn_title")} {t("learn_sub")}
       </div>
       <StdoutList
@@ -893,7 +887,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
                   {done && <span style={{ fontSize: 11, color: C.green, marginLeft: "auto" }}>+{m.xp}xp</span>}
                   {lock && <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>[LOCKED]</span>}
                 </div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{m.tp}</div>
+                <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>{m.tp}</div>
                 {(act || done) && (
                   <div style={{ marginTop: 6, height: 2, background: C.border, overflow: "hidden", maxWidth: 120 }}>
                     <div style={{ height: "100%", width: `${Math.min(100, m.p * 100)}%`, background: done ? C.green : C.cyan }} />
@@ -3578,7 +3572,7 @@ function ArchetypeViz({ solved }) {
 //  PROFILE
 // ═══════════════════════════════════════════════════════════
 function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
-  const { t, lang } = useLang();
+  const { t, lang, setLang } = useLang();
   const { user, signInWithGoogle, signOut, loading } = useAuth();
   const lv = getLevel(xp);
   const [expandedBadge, setExpandedBadge] = useState(null);
@@ -3698,7 +3692,20 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         </div>
       </div>
 
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 20, lineHeight: 2.2, textAlign: "center" }}>
+      <Divider />
+      <div style={{ marginTop: 16, marginBottom: 20 }}>
+        <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, marginBottom: 10, letterSpacing: 1.5 }}>┤ {lang === "pt" ? "IDIOMA" : "LANGUAGE"} ├</div>
+        <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, overflow: "hidden", width: 110 }}>
+          <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
+          {["en", "pt"].map(l => (
+            <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "8px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 4, lineHeight: 2.2, textAlign: "center" }}>
         {t("footer_1")}<br />{t("footer_2")}<br />
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           {loading ? (
@@ -4038,7 +4045,7 @@ export default function PunkSQLCLI() {
 
   const themeFilter = theme === "eink" ? "grayscale(1) invert(1) contrast(1.1)" : theme === "hc" ? "grayscale(1) contrast(2.5)" : undefined;
   const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", ...(themeFilter ? { filter: themeFilter } : {}) };
-  const ctx = { lang, t };
+  const ctx = { lang, t, setLang };
 
   // Build focus title from current challenge
   const focusCh = CHALLENGES_DB.find(c => c.id === (screen === "lesson" ? lessonChId : lastCodeId));
@@ -4085,7 +4092,7 @@ export default function PunkSQLCLI() {
 
   return (
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar lang={lang} setLang={setLang} startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
+      <TopBar startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
