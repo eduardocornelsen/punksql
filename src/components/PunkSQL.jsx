@@ -200,6 +200,11 @@ const globalCSS = `
 @keyframes levelUp{0%{transform:scale(0.5);opacity:0}20%{transform:scale(1.2);opacity:1}40%{transform:scale(0.95)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
 @keyframes badgeUnlock{0%{transform:scale(0) rotate(-180deg);opacity:0}50%{transform:scale(1.3) rotate(10deg);opacity:1}75%{transform:scale(0.9) rotate(-5deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes xpLineIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+@keyframes xpFlyUp{0%{opacity:1;transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(-60px) scale(1.1)}100%{opacity:0;transform:translateY(-90px) scale(0.8)}}
+@keyframes xpTotalReveal{0%{opacity:0;transform:scale(0.7)}60%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
+@keyframes timerPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(1.06)}}
+@keyframes rankReveal{from{opacity:0;letter-spacing:8px}to{opacity:1;letter-spacing:3px}}
 @keyframes tapRippleSingle{0%{transform:scale(0.1);opacity:0.9}30%{transform:scale(1.5);opacity:0.5}42%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
 @keyframes tapDouble1{0%{transform:scale(0.1);opacity:0.9}22%{transform:scale(1.5);opacity:0.5}32%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
 @keyframes tapDouble2{0%,17%{transform:scale(0.1);opacity:0}18%{transform:scale(0.1);opacity:0.9}40%{transform:scale(1.5);opacity:0.5}50%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
@@ -355,12 +360,19 @@ const Scanlines = () => null; // Removed — Termux UI uses no CRT effects
 
 // ── Level & Achievement System ────────────────────────────
 const LEVELS = [0,25,75,150,250,400,600,850,1150,1500,1900,2400,3000,3700,4500,5500,6700,8000,9500,11200];
+const LEVEL_RANKS = [
+  "Script Kiddie","SELECT Novice","WHERE Warrior","JOIN Journeyman",
+  "GROUP BY Grunt","Subquery Scout","CTE Cadet","Window Wizard",
+  "DML Defector","DDL Destroyer","Index Infiltrator","Schema Shaman",
+  "Query Ranger","Data Desperado","SQL Enforcer","Query Punk",
+  "Schema Rebel","Data Oracle","SQL Anarchist","PUNK GOD",
+];
 function getLevel(xp) {
   let lvl = 1;
   for (let i = 1; i < LEVELS.length; i++) { if (xp >= LEVELS[i]) lvl = i + 1; else break; }
   const cur = LEVELS[lvl - 1] || 0;
   const nxt = LEVELS[lvl] || LEVELS[LEVELS.length - 1] + 2000;
-  return { level: lvl, cur, nxt, progress: (xp - cur) / (nxt - cur) };
+  return { level: lvl, cur, nxt, progress: (xp - cur) / (nxt - cur), rank: LEVEL_RANKS[lvl - 1] || "PUNK GOD" };
 }
 
 const ACHIEVEMENTS = [
@@ -376,16 +388,31 @@ const ACHIEVEMENTS = [
   { id: "all_done", i: "◈", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 112 challenges", d_pt: "Resolva todos os 112 desafios", c: C.cyanHot, check: (s) => s.size >= 112 },
   { id: "dml_done", i: "✎", n_en: "Data Surgeon", n_pt: "Cirurgião de Dados", d_en: "Complete the DML module", d_pt: "Complete o módulo DML", c: C.amber, check: (s) => CHALLENGES_DB.filter(c => c.mod === 9).every(c => s.has(c.id)) },
   { id: "ddl_done", i: "⬢", n_en: "Schema Architect", n_pt: "Arquiteto de Esquema", d_en: "Complete the DDL module", d_pt: "Complete o módulo DDL", c: C.purple, check: (s) => CHALLENGES_DB.filter(c => c.mod === 10).every(c => s.has(c.id)) },
+  // ── Skill badges ──
+  { id: "no_help", i: "◉", n_en: "No Help Needed", n_pt: "Sem Ajuda", d_en: "Solve 10 challenges without any hints", d_pt: "Resolva 10 desafios sem dicas", c: C.cyan, check: (s, xp, meta) => (meta?.noHintSolves || 0) >= 10 },
+  { id: "join_master", i: "⋈", n_en: "JOIN Master", n_pt: "Mestre do JOIN", d_en: "Solve all JOIN challenges (module 5)", d_pt: "Resolva todos os desafios JOIN", c: C.green, check: (s) => CHALLENGES_DB.filter(c => c.mod === 5).every(c => s.has(c.id)) },
+  { id: "window_wizard_badge", i: "▦", n_en: "Window Wizard", n_pt: "Feiticeiro de Janela", d_en: "Solve all window function challenges (module 7)", d_pt: "Resolva todos os desafios de window functions", c: C.purple, check: (s) => CHALLENGES_DB.filter(c => c.mod === 7).every(c => s.has(c.id)) },
+  // ── Level badges ──
+  { id: "lvl15", i: "◆", n_en: "SQL Enforcer", n_pt: "SQL Enforcer", d_en: "Reach level 15", d_pt: "Alcance o nível 15", c: C.orange, check: (s, xp) => getLevel(xp).level >= 15 },
+  { id: "punk_god", i: "◈", n_en: "PUNK GOD", n_pt: "PUNK GOD", d_en: "Reach level 20 — the pinnacle", d_pt: "Alcance o nível 20 — o topo", c: C.cyanHot, check: (s, xp) => getLevel(xp).level >= 20 },
+  // ── Daily badges ──
+  { id: "daily_x7", i: "◈", n_en: "Daily Grinder", n_pt: "Grindador Diário", d_en: "Complete 7 daily challenges", d_pt: "Complete 7 desafios diários", c: C.amber, check: (s, xp, meta) => (meta?.dailySolves || 0) >= 7 },
+  // ── Secret badges ──
+  { id: "persistent", i: "◕", n_en: "Persistent", n_pt: "Persistente", d_en: "Fail 5 times then solve the same challenge", d_pt: "Falhe 5 vezes e então resolva o mesmo desafio", c: C.red, check: (s, xp, meta) => (meta?.persistentSolves || 0) >= 1 },
+  { id: "legend", i: "★", n_en: "Legend", n_pt: "Lenda", d_en: "Solve 80 challenges", d_pt: "Resolva 80 desafios", c: C.cyanHot, check: (s) => s.size >= 80 },
 ];
 
 function LevelUpOverlay({ level, onDone }) {
-  useEffect(() => { const t = setTimeout(onDone, 2500); return () => clearTimeout(t); }, [onDone]);
+  useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, [onDone]);
+  const rank = LEVEL_RANKS[level - 1] || "PUNK GOD";
   return (
-    <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9999, background: `${C.void}E0`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer" }}>
-      <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, letterSpacing: 3, marginBottom: 12, animation: "fadeSlide 0.3s ease" }}>LEVEL UP</div>
-      <div style={{ fontFamily: F.mono, fontSize: 72, color: C.cyan, textShadow: `0 0 40px ${C.cyan}80, 0 0 80px ${C.cyan}40`, animation: "levelUp 0.8s ease", lineHeight: 1 }}>{level}</div>
-      <div style={{ width: 120, height: 2, background: C.cyan, margin: "16px 0", boxShadow: `0 0 20px ${C.cyan}`, animation: "fadeSlide 0.5s ease 0.3s both" }} />
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyanDim, letterSpacing: 2, animation: "fadeSlide 0.5s ease 0.5s both" }}>+{LEVELS[level - 1] ? LEVELS[level] - LEVELS[level - 1] : "???"} XP to next</div>
+    <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9999, background: `${C.void}E8`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer" }}>
+      <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, letterSpacing: 3, marginBottom: 12, animation: "fadeSlide 0.3s ease" }}>LEVEL UP</div>
+      <div style={{ fontFamily: F.mono, fontSize: 80, color: C.cyan, textShadow: `0 0 40px ${C.cyan}80, 0 0 80px ${C.cyan}40`, animation: "levelUp 0.8s ease", lineHeight: 1 }}>{level}</div>
+      <div style={{ fontFamily: F.mono, fontSize: 18, color: C.amber, letterSpacing: 3, marginTop: 14, animation: "rankReveal 0.6s ease 0.5s both", opacity: 0 }}>{rank}</div>
+      <div style={{ width: 160, height: 1, background: `linear-gradient(90deg,transparent,${C.cyan},transparent)`, margin: "16px 0", animation: "fadeSlide 0.5s ease 0.4s both" }} />
+      <div style={{ fontFamily: F.mono, fontSize: 12, color: C.cyanDim, letterSpacing: 2, animation: "fadeSlide 0.5s ease 0.7s both" }}>+{LEVELS[level - 1] && LEVELS[level] ? LEVELS[level] - LEVELS[level - 1] : "???"} XP to next level</div>
+      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, marginTop: 10, animation: "fadeSlide 0.4s ease 1s both" }}>tap to dismiss</div>
     </div>
   );
 }
@@ -398,6 +425,53 @@ function BadgeUnlockOverlay({ badge, lang, onDone }) {
       <div style={{ fontSize: 64, animation: "badgeUnlock 0.8s ease", color: badge.c, textShadow: `0 0 30px ${badge.c}80`, marginBottom: 12 }}>{badge.i}</div>
       <div style={{ fontFamily: F.mono, fontSize: 20, color: badge.c, letterSpacing: 2, animation: "fadeSlide 0.4s ease 0.3s both", textShadow: `0 0 12px ${badge.c}40` }}>{lang === "pt" ? badge.n_pt : badge.n_en}</div>
       <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 8, animation: "fadeSlide 0.4s ease 0.5s both" }}>{lang === "pt" ? badge.d_pt : badge.d_en}</div>
+    </div>
+  );
+}
+
+// ── XP Breakdown Overlay ─────────────────────────────────
+function XPBreakdownOverlay({ breakdown, lang, onDone }) {
+  const [visible, setVisible] = useState(0);
+  const ispt = lang === "pt";
+
+  const lines = [];
+  if (breakdown.base > 0) lines.push({ label: `BASE XP (${breakdown.diff})`, value: `+${breakdown.base}`, color: C.white });
+  if (breakdown.isFirstSolve) lines.push({ label: ispt ? "PRIMEIRO SOLVE" : "FIRST SOLVE", value: "✓", color: C.green });
+  if (breakdown.noHintBonus > 0) lines.push({ label: ispt ? "SEM DICAS" : "NO HINTS", value: `+${breakdown.noHintBonus}`, color: C.green });
+  if (breakdown.firstTryBonus) lines.push({ label: ispt ? "PRIMEIRA TENTATIVA +10%" : "FIRST TRY +10%", value: "✓", color: C.green });
+  if (breakdown.hintPenalty > 0) lines.push({ label: ispt ? "PENALIDADE DICA" : "HINT PENALTY", value: `−${breakdown.hintPenalty}`, color: C.red });
+  if (breakdown.perseveranceBonus > 0) lines.push({ label: ispt ? "PERSEVERANÇA" : "PERSEVERANCE", value: `+${breakdown.perseveranceBonus}`, color: C.cyan });
+  if (breakdown.timeMultiplier !== 1.0) lines.push({ label: ispt ? "BÔNUS TEMPO" : "TIME BONUS", value: `×${breakdown.timeMultiplier.toFixed(1)}`, color: C.amber });
+  if (breakdown.dailyBonus > 0) lines.push({ label: ispt ? "BÔNUS DIÁRIO" : "DAILY BONUS", value: `+${breakdown.dailyBonus}`, color: C.amber });
+
+  useEffect(() => {
+    const timers = lines.map((_, i) => setTimeout(() => setVisible(i + 1), i * 200 + 150));
+    const done = setTimeout(onDone, lines.length * 200 + 3000);
+    return () => { timers.forEach(clearTimeout); clearTimeout(done); };
+  }, []);
+
+  const showTotal = visible >= lines.length;
+
+  return (
+    <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9997, background: `${C.void}EE`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer", padding: "0 32px" }}>
+      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.green, letterSpacing: 3, marginBottom: 24, animation: "fadeSlide 0.3s ease" }}>// XP_BREAKDOWN</div>
+      <div style={{ width: "100%", maxWidth: 300 }}>
+        {lines.map((line, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 14, marginBottom: 10, opacity: visible > i ? 1 : 0, animation: visible > i ? "xpLineIn 0.2s ease" : "none" }}>
+            <span style={{ color: C.dim }}>{line.label}</span>
+            <span style={{ color: line.color, fontWeight: 700 }}>{line.value}</span>
+          </div>
+        ))}
+        {showTotal && (
+          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: F.mono }}>
+            <span style={{ fontSize: 14, color: C.dim, letterSpacing: 2 }}>{ispt ? "TOTAL" : "TOTAL"}</span>
+            <span style={{ fontSize: 28, color: C.amber, fontWeight: 700, textShadow: `0 0 24px ${C.amber}90, 0 0 48px ${C.amber}40`, animation: "xpTotalReveal 0.5s ease" }}>+{breakdown.total} XP</span>
+          </div>
+        )}
+      </div>
+      {showTotal && (
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, marginTop: 28, animation: "fadeSlide 0.4s ease 0.3s both", opacity: 0 }}>tap to dismiss</div>
+      )}
     </div>
   );
 }
@@ -573,9 +647,8 @@ function StatusBar({ xp = 0, solved = new Set() }) {
       }}>
         <span>
           <span style={{ color: C.green }}>punksql</span>
-          <span style={{ color: C.dim }}>@android</span>
-          <span style={{ color: C.muted }}> — </span>
-          <span style={{ color: C.amber }}>LVL {lv.level}</span>
+          <span style={{ color: C.dim }}>@</span>
+          <span style={{ color: C.amber, fontSize: 11 }}>{lv.rank}</span>
           <span style={{ color: C.muted }}> · </span>
           <span style={{ color: C.cyan }}>{xp.toLocaleString()} XP</span>
         </span>
@@ -1525,7 +1598,7 @@ function AuxKeyboard({ onInsert, onControl, tabsRef }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef, timerAreaRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1598,6 +1671,15 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       body: ispt
         ? "Use os botões TABLES, COLUMNS,\nSQL e AGG para inserir tokens.\nPressione ▶ RUN para executar."
         : "Use TABLES, COLUMNS, SQL & AGG\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
+    },
+    {
+      ref: timerAreaRef,
+      icon: "⏱",
+      color: C.amber,
+      title: ispt ? "TIMER & MULTIPLICADOR" : "TIMER & MULTIPLIER",
+      body: ispt
+        ? "Responda rápido para ganhar\nmais XP. Toque no timer\npara pausar quando precisar."
+        : "Answer fast to earn more XP.\nTap the timer to pause it\nwhenever you need a break.",
     },
     {
       ref: tourBtnRef,
@@ -1825,14 +1907,27 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
   );
 }
 
+// ── Challenge timer durations (seconds) ──────────────────
+const TIMER_DURATIONS = { EASY: 240, MED: 360, HARD: 600, EXPERT: 900 };
+
+function getTimeMultiplier(timerSec, totalSec, expired) {
+  if (expired) return 0.75;
+  const frac = timerSec / totalSec;
+  if (frac > 0.75) return 2.0;
+  if (frac > 0.50) return 1.5;
+  if (frac > 0.25) return 1.25;
+  return 1.0;
+}
+
 // ═══════════════════════════════════════════════════════════
 //  CHALLENGE EDITOR — Real SQL execution
 // ═══════════════════════════════════════════════════════════
-function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
+function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
   const { t, lang } = useLang();
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
   const defaultSql = ch.mod >= 9 ? "" : "SELECT \n  \nFROM ";
+  const totalTimerSec = TIMER_DURATIONS[ch.diff] || 360;
 
   const [sql, setSql] = useState(() => loadSQLDraft(challengeId) || defaultSql);
   const [result, setResult] = useState(null);
@@ -1853,11 +1948,19 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const [showCodeOnboarding, setShowCodeOnboarding] = useState(() => {
     try { return !localStorage.getItem(CODE_ONBOARDING_KEY); } catch(e) { return false; }
   });
+  // Timer state
+  const [timerSec, setTimerSec] = useState(totalTimerSec);
+  const [timerPaused, setTimerPaused] = useState(false);
+  const [timerExpired, setTimerExpired] = useState(false);
+  const timerIntervalRef = useRef(null);
+  // XP tracking
+  const [hadWrongRun, setHadWrongRun] = useState(false);
+  const [wrongRunCount, setWrongRunCount] = useState(0);
 
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
-  const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
+  const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null), timerAreaRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
@@ -1916,10 +2019,36 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
     setShowHint(false);
     setHintLevel(0);
     setShowExplain(false);
+    // Reset timer and tracking
+    setTimerSec(TIMER_DURATIONS[ch.diff] || 360);
+    setTimerPaused(false);
+    setTimerExpired(false);
+    setHadWrongRun(false);
+    setWrongRunCount(0);
     return () => setActiveChallenge(null);
   }, [challengeId]);
 
   useEffect(() => { getDB().then(d => { setDb(d); setDbReady(true); }); }, []);
+
+  // Timer countdown
+  useEffect(() => {
+    if (verdict?.pass || timerPaused || timerExpired || showCodeOnboarding) {
+      clearInterval(timerIntervalRef.current);
+      return;
+    }
+    timerIntervalRef.current = setInterval(() => {
+      setTimerSec(prev => {
+        if (prev <= 1) {
+          clearInterval(timerIntervalRef.current);
+          setTimerExpired(true);
+          SFX.play("wrong");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerIntervalRef.current);
+  }, [timerPaused, timerExpired, verdict?.pass, showCodeOnboarding]);
 
   // Auto-open explanation when challenge is correctly solved
   useEffect(() => { if (verdict?.pass) setShowExplain(true); }, [verdict]);
@@ -2120,16 +2249,46 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   const handleBlur = () => {
     setTimeout(() => { if (!kbToggling.current) setEditing(false); }, 200);
   };
+  const computeXPBreakdown = (isCorrect, isFirst) => {
+    const base = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
+    const hintPen = HINT_XP_PENALTIES[hintLevel] || 0;
+    const noHintBonus = hintLevel === 0 ? 5 : 0;
+    const firstTryBonus = !hadWrongRun && hintLevel === 0;
+    const timeMult = getTimeMultiplier(timerSec, totalTimerSec, timerExpired);
+    const perseveranceBonus = timerExpired ? 10 : 0;
+    const dailyBonus = isDaily ? 100 : 0;
+    const baseMod = Math.max(0, base - hintPen + noHintBonus);
+    const firstTryFactor = firstTryBonus ? 1.1 : 1.0;
+    const withMults = Math.round(baseMod * timeMult * firstTryFactor);
+    const total = isFirst ? Math.max(5, withMults + perseveranceBonus) + dailyBonus : 0;
+    return { base, diff: ch.diff, hintPenalty: hintPen, noHintBonus, firstTryBonus, timeMultiplier: timeMult, perseveranceBonus, dailyBonus, total, isFirstSolve: isFirst };
+  };
+
   const handleRun = () => {
     if (!db) return;
     const trimmed = sql.trim();
     pushQueryHistory(trimmed);
     resetHistoryIndex();
-    const pts = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
-    const hintPenalty = HINT_XP_PENALTIES[hintLevel] || 0;
-    const effectivePts = Math.max(0, pts - hintPenalty);
+
+    const processResult = (v, r) => {
+      setVerdict(v);
+      if (v.pass) {
+        SFX.play("correct");
+        const isFirst = !solved?.has(ch.id);
+        const bd = computeXPBreakdown(true, isFirst);
+        if (isFirst) {
+          if (onXPBreakdown) onXPBreakdown(bd);
+          if (onXP) onXP(bd.total, ch.id, { submitted_sql: trimmed, is_correct: true, xp_earned: bd.total, is_first_try: !hadWrongRun, had_hints: hintLevel > 0 });
+        }
+      } else {
+        SFX.play("wrong");
+        setHadWrongRun(true);
+        setWrongRunCount(c => c + 1);
+        if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
+      }
+    };
+
     if (ch.verify) {
-      // DML/DDL mode: run inside a savepoint so changes don't persist; show verify result
       let r;
       try {
         db.exec("SAVEPOINT sp_run");
@@ -2137,6 +2296,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         if (!ur.ok) {
           db.exec("ROLLBACK TO SAVEPOINT sp_run"); db.exec("RELEASE SAVEPOINT sp_run");
           setResult(ur); setVerdict(null); SFX.play("wrong");
+          setHadWrongRun(true); setWrongRunCount(c => c + 1);
           if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
           setResOpen(true); setOpenPanel(null); return;
         }
@@ -2146,46 +2306,22 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         try { db.exec("ROLLBACK TO SAVEPOINT sp_run"); db.exec("RELEASE SAVEPOINT sp_run"); } catch(_) {}
         const er = {ok:false, columns:[], rows:[], ms:'0', msg:e.message};
         setResult(er); setVerdict(null); SFX.play("wrong");
+        setHadWrongRun(true); setWrongRunCount(c => c + 1);
         if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
         setResOpen(true); setOpenPanel(null); return;
       }
       setResult(r);
-      const v = validateSQL(db, trimmed, ch.validate, ch.verify);
-      setVerdict(v);
-      if (v.pass) {
-        SFX.play("correct");
-        if (onXP) onXP(effectivePts + (isDaily ? 100 : 0), ch.id, { submitted_sql: trimmed, is_correct: true, xp_earned: effectivePts + (isDaily ? 100 : 0) });
-      } else {
-        SFX.play("wrong");
-        if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
-      }
+      processResult(validateSQL(db, trimmed, ch.validate, ch.verify), r);
     } else {
       const r = runSQL(db, trimmed);
       setResult(r);
       if (r.ok) {
-        const v = validateSQL(db, sql.trim(), ch.validate);
-        setVerdict(v);
-        if (v.pass) {
-          SFX.play("correct");
-          if (onXP) {
-            onXP(effectivePts + (isDaily ? 100 : 0), ch.id, {
-              submitted_sql: sql.trim(),
-              is_correct: true,
-              xp_earned: effectivePts + (isDaily ? 100 : 0)
-            });
-          }
-        } else {
-          SFX.play("wrong");
-          if (onXP) {
-            onXP(0, ch.id, { submitted_sql: sql.trim(), is_correct: false, xp_earned: 0 });
-          }
-        }
+        processResult(validateSQL(db, sql.trim(), ch.validate), r);
       } else {
         setVerdict(null);
         SFX.play("wrong");
-        if (onXP) {
-          onXP(0, ch.id, { submitted_sql: sql.trim(), is_correct: false, xp_earned: 0 });
-        }
+        setHadWrongRun(true); setWrongRunCount(c => c + 1);
+        if (onXP) onXP(0, ch.id, { submitted_sql: sql.trim(), is_correct: false, xp_earned: 0 });
       }
     }
     setResOpen(true);
@@ -2620,6 +2756,41 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             onControl={handleAuxControl}
             tabsRef={auxTabsRef}
           />
+          {/* ── Timer bar (shown until solved) ── */}
+          {(!verdict?.pass) && (() => {
+            const timerMins = Math.floor(timerSec / 60);
+            const timerSecs = timerSec % 60;
+            const frac = timerSec / totalTimerSec;
+            const timerColor = timerExpired ? C.muted : frac > 0.5 ? C.green : frac > 0.25 ? C.amber : C.red;
+            const mult = getTimeMultiplier(timerSec, totalTimerSec, timerExpired);
+            return (
+              <div ref={timerAreaRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} style={{ background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+                {/* Countdown progress bar */}
+                <div style={{ height: 2, background: C.border, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${frac * 100}%`, background: timerColor, transition: "width 1s linear, background 0.5s ease", boxShadow: !timerExpired && frac < 0.25 ? `0 0 8px ${C.red}60` : "none" }} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", padding: "3px 8px", gap: 6 }}>
+                  <button
+                    onClick={() => !timerExpired && setTimerPaused(p => !p)}
+                    onTouchStart={e => e.stopPropagation()}
+                    onTouchEnd={e => { e.stopPropagation(); if (!timerExpired) setTimerPaused(p => !p); }}
+                    style={{ background: "none", border: `1px solid ${timerExpired ? C.muted : timerColor}40`, cursor: timerExpired ? "default" : "pointer", fontFamily: F.mono, fontSize: 11, color: timerExpired ? C.muted : timerColor, padding: "2px 7px", flexShrink: 0, minHeight: 24, letterSpacing: 0.5, animation: !timerExpired && frac < 0.25 && !timerPaused ? "timerPulse 1s ease infinite" : "none" }}
+                  >
+                    {timerExpired ? "TIME" : timerPaused ? "▶" : `⏱ ${timerMins}:${String(timerSecs).padStart(2,"0")}`}
+                  </button>
+                  {!timerExpired && (
+                    <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{timerPaused ? "paused" : `×${mult.toFixed(1)} bonus`}</span>
+                  )}
+                  {!timerExpired && wrongRunCount > 0 && (
+                    <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginLeft: "auto" }}>{wrongRunCount} {lang === "pt" ? "erros" : "tries"}</span>
+                  )}
+                  {timerExpired && (
+                    <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>+10 {lang === "pt" ? "persistência" : "perseverance"} if solved</span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           {/* ── RUN + utility bar ── */}
           {(!result || !verdict?.pass) && (
             <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
@@ -2658,6 +2829,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
           validateQuery={ch.verify || ch.validate}
           auxTabsRef={auxTabsRef}
           runBtnRef={runBtnRef}
+          timerAreaRef={timerAreaRef}
         />
       )}
     </div>
@@ -2729,6 +2901,8 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
           const isSolved = solved.has(ch.id);
           const dc = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red;
           const tm = TAG_META[ch.tag];
+          const baseXp = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
+          const maxXp = Math.round((baseXp + 5) * 2.0 * 1.1); // no-hint + ×2 time + first-try
           return (
             <button key={ch.id} onClick={() => onNavigate("challenge", ch.id)} style={{
               background: "none", border: `1px solid ${isSolved ? `${C.green}25` : "transparent"}`,
@@ -2743,12 +2917,19 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
               <span style={{ fontSize: 13, color: isSolved ? C.dim : C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {ch.title}
               </span>
+              {!isSolved && (
+                <span style={{ fontSize: 9, color: C.amber, border: `1px solid ${C.amber}30`, padding: "1px 5px", flexShrink: 0, opacity: 0.8 }}>
+                  ⭐{maxXp}
+                </span>
+              )}
+              {isSolved && (
+                <span style={{ fontSize: 9, color: C.green, flexShrink: 0 }}>+{baseXp}</span>
+              )}
               {tm && (
                 <span style={{ fontSize: 9, color: tm.c, border: `1px solid ${tm.c}50`, padding: "1px 5px", flexShrink: 0, opacity: 0.85, letterSpacing: 0.5 }}>
                   {lang === "pt" ? tm.label_pt : tm.label_en}
                 </span>
               )}
-              <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>#{ch.id}</span>
             </button>
           );
         })}
@@ -3039,6 +3220,9 @@ function QuizScreen({ onXP }) {
     return () => clearInterval(timerRef.current);
   }, [idx, showResult === false]);
 
+  const getStreakMult = (s) => s >= 10 ? 2.0 : s >= 5 ? 1.5 : s >= 3 ? 1.25 : 1.0;
+  const getQuizTimeMult = (t) => t > 10 ? 1.5 : t > 5 ? 1.25 : 1.0;
+
   const handleAnswer = (optIdx) => {
     if (showResult) return;
     clearInterval(timerRef.current);
@@ -3046,9 +3230,14 @@ function QuizScreen({ onXP }) {
     setShowResult(true);
     setTotal(t => t + 1);
     if (optIdx === q.ans) {
-      setScore(s => s + pts);
-      setStreak(s => s + 1);
-      if (onXP) onXP(pts);
+      const nextStreak = streak + 1;
+      const streakMult = getStreakMult(nextStreak);
+      const timeMult = getQuizTimeMult(timer);
+      const combined = Math.min(3.0, streakMult * timeMult);
+      const earned = Math.round(pts * combined);
+      setScore(s => s + earned);
+      setStreak(nextStreak);
+      if (onXP) onXP(earned);
     } else {
       setStreak(0);
     }
@@ -3074,7 +3263,7 @@ function QuizScreen({ onXP }) {
           <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6, animation: "pulseGlow 3s ease infinite" }}>SQL_QUIZ</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ fontFamily: F.mono, fontSize: 14, color: C.amber }}>🔥{streak}</div>
+          <div style={{ fontFamily: F.mono, fontSize: 14, color: streak >= 5 ? C.red : C.amber, textShadow: streak >= 5 ? `0 0 8px ${C.red}60` : "none", animation: streak >= 10 ? "timerPulse 1s ease infinite" : "none" }}>🔥{streak}{streak >= 3 ? ` ×${getStreakMult(streak).toFixed(2)}` : ""}</div>
           <div style={{ fontFamily: F.mono, fontSize: 20, color: C.green, textShadow: `0 0 8px ${C.green}40` }}>{score}<span style={{ fontSize: 12, color: C.dim }}>pt</span></div>
         </div>
       </div>
@@ -3268,6 +3457,14 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
   const { user, signInWithGoogle, signOut, loading } = useAuth();
   const lv = getLevel(xp);
   const [expandedBadge, setExpandedBadge] = useState(null);
+  const [devTaps, setDevTaps] = useState(0);
+  const [devResetVisible, setDevResetVisible] = useState(false);
+
+  const handleDevTap = () => {
+    const next = devTaps + 1;
+    setDevTaps(next);
+    if (next >= 5) { setDevResetVisible(true); setDevTaps(0); }
+  };
   const earnedAch = ACHIEVEMENTS.filter(a => a.check(solved, xp));
   const acc = CHALLENGES_DB.length > 0 ? Math.round(solved.size / CHALLENGES_DB.length * 100) : 0;
   return (
@@ -3276,8 +3473,11 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         <div style={{ width: 80, height: 80, margin: "0 auto 16px", border: `2px solid ${C.cyan}`, display: "flex", alignItems: "center", justifyContent: "center", background: C.cyanGhost, boxShadow: `0 0 28px ${C.cyan}25`, transform: "rotate(45deg)" }}>
           <span style={{ transform: "rotate(-45deg)", fontFamily: F.mono, fontSize: 36, color: C.cyan, fontWeight: 700 }}>U</span>
         </div>
-        <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, animation: "pulseGlow 3s ease infinite" }}>player</div>
-        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 6 }}>LVL {lv.level} · {xp.toLocaleString()} XP</div>
+        <div style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, letterSpacing: 2, animation: "rankReveal 0.8s ease" }}>{lv.rank}</div>
+        <div onClick={handleDevTap} style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, marginTop: 4, userSelect: "none" }}>LVL {lv.level} · {xp.toLocaleString()} XP</div>
+        {devResetVisible && (
+          <button onClick={() => { if (confirm("Reset all XP and progress?")) { localStorage.clear(); location.reload(); } }} style={{ marginTop: 8, fontFamily: F.mono, fontSize: 11, color: C.red, background: "none", border: `1px solid ${C.red}40`, padding: "4px 12px", cursor: "pointer", letterSpacing: 1, opacity: 0.7 }}>⚠ DEV RESET</button>
+        )}
         
         {/* Sync Status */}
         {user && (
@@ -3528,9 +3728,12 @@ export default function PunkSQLCLI() {
   useEffect(() => {
     if (storageLoaded) saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext);
   }, [xp, solved, lang, lastCodeId, lastLearnId, lastContext, storageLoaded]);
-  // Level up & badge overlays
+  // Level up, badge, and XP breakdown overlays
   const [levelUpShow, setLevelUpShow] = useState(null);
   const [badgeShow, setBadgeShow] = useState(null);
+  const [xpBreakdownShow, setXpBreakdownShow] = useState(null);
+  const pendingXPBreakdown = useRef(null);
+  const levelUpActive = useRef(false);
   const prevLevel = useRef(getLevel(0).level);
   const prevEarned = useRef(new Set());
 
@@ -3551,7 +3754,7 @@ export default function PunkSQLCLI() {
       // Check level up
       const oldLv = getLevel(prev).level;
       const newLv = getLevel(n).level;
-      if (newLv > oldLv) setTimeout(() => { setLevelUpShow(newLv); SFX.play("levelup"); }, 300);
+      if (newLv > oldLv) { levelUpActive.current = true; setTimeout(() => { setLevelUpShow(newLv); SFX.play("levelup"); }, 300); }
       return n;
     });
     if (challengeId && pts > 0) markSolved(challengeId);
@@ -3566,6 +3769,24 @@ export default function PunkSQLCLI() {
        });
     }
   }, [addXP, logAttempt]);
+
+  const handleXPBreakdown = useCallback((bd) => {
+    if (levelUpActive.current) {
+      pendingXPBreakdown.current = bd;
+    } else {
+      setTimeout(() => setXpBreakdownShow(bd), 400);
+    }
+  }, []);
+
+  const dismissLevelUp = useCallback(() => {
+    setLevelUpShow(null);
+    levelUpActive.current = false;
+    if (pendingXPBreakdown.current) {
+      const bd = pendingXPBreakdown.current;
+      pendingXPBreakdown.current = null;
+      setTimeout(() => setXpBreakdownShow(bd), 250);
+    }
+  }, []);
 
   // Check for new badge unlocks after solved changes
   useEffect(() => {
@@ -3695,25 +3916,28 @@ export default function PunkSQLCLI() {
 
   if (screen === "daily") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
+      <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 
   if (screen === "challenge") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
+      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 
   if (screen === "lesson") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
+      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 
@@ -3730,10 +3954,9 @@ export default function PunkSQLCLI() {
         {tab === "profile" && <ProfileScreen xp={xp} solved={solved} syncing={syncing} />}
       </div>
       <TabBar active={tab} onTabChange={setTab} />
-      {/* Level up overlay */}
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
-      {/* Badge unlock overlay */}
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 }
