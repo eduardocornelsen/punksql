@@ -3123,7 +3123,7 @@ function ReviewScreen({ onXP }) {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim }}><Prompt path="/review" /></div>
+          <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}><Prompt path="/review" /><span style={{ color: C.text }}> ls --shuffle cards/</span></div>
           <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6 }}>{t("review_title")}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -3320,7 +3320,7 @@ function QuizScreen({ onXP }) {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim }}><Prompt path="/quiz" /></div>
+          <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}><Prompt path="/quiz" /><span style={{ color: C.text }}> run quiz --random</span></div>
           <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6 }}>SQL_QUIZ</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
