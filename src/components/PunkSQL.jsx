@@ -74,6 +74,9 @@ const C = {
 
 const F = { mono: "'JetBrains Mono', 'Fira Code', 'Share Tech Mono', 'Courier New', monospace" };
 
+// ── Theme Context — provides isEinkMode and toggleEinkMode ────
+const ThemeContext = createContext({ isEinkMode: false, toggleEinkMode: () => {} });
+
 // ── ASCII wordmark (figlet "ANSI Shadow" — PUNKSQL) ───────────
 const ASCII_LOGO = [
   "██████╗ ██╗   ██╗███╗   ██╗██╗  ██╗███████╗ ██████╗ ██╗     ",
@@ -350,6 +353,28 @@ function tokenizeSQL(sql, tables = [], columns = []) {
     }
   }
   return out;
+}
+
+// ── StdoutList — bash-style line-by-line reveal animation ────
+function StdoutList({ items, renderItem, delay = 15, resetKey, style: wrapStyle = {} }) {
+  const [visibleCount, setVisibleCount] = useState(0);
+  useEffect(() => { setVisibleCount(0); }, [resetKey]);
+  useEffect(() => {
+    if (visibleCount < items.length) {
+      const timer = setTimeout(() => setVisibleCount(v => v + 1), delay);
+      return () => clearTimeout(timer);
+    }
+  }, [visibleCount, items.length, delay]);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", ...wrapStyle }}>
+      {items.slice(0, visibleCount).map((item, index) => (
+        <div key={index}>{renderItem(item, index)}</div>
+      ))}
+      {visibleCount < items.length && (
+        <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, animation: "blink 600ms step-end infinite", paddingLeft: 10 }}>█</span>
+      )}
+    </div>
+  );
 }
 
 // ── Utilities ─────────────────────────────────────────────
@@ -656,6 +681,7 @@ function TabBar({ active, onTabChange }) {
 // ── Status Bar ────────────────────────────────────────────
 function StatusBar({ xp = 0, solved = new Set() }) {
   const [time, setTime] = useState("");
+  const { isEinkMode, toggleEinkMode } = useContext(ThemeContext);
   useEffect(() => { const tick = () => setTime(new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })); tick(); const id = setInterval(tick, 1000); return () => clearInterval(id); }, []);
   const lv = getLevel(xp);
   return (
@@ -671,9 +697,10 @@ function StatusBar({ xp = 0, solved = new Set() }) {
           <span style={{ color: C.muted }}> · </span>
           <span style={{ color: C.dim }}>{xp.toLocaleString()} XP</span>
         </span>
-        <span>
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ color: C.dim }}>{solved.size}/{CHALLENGES_DB.length}</span>
-          <span style={{ color: C.muted }}> {time}</span>
+          <button onClick={toggleEinkMode} title={isEinkMode ? "Switch to dark mode" : "Switch to e-ink mode"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "1px 5px", letterSpacing: 1, lineHeight: 1.4 }}>{isEinkMode ? "DARK" : "INK"}</button>
+          <span style={{ color: C.muted }}>{time}</span>
         </span>
       </div>
       <div style={{ padding: "0 14px 6px" }}>
@@ -832,8 +859,9 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
         {t("learn_title")} {t("learn_sub")}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {mods.map((m, i) => {
+      <StdoutList
+        items={mods}
+        renderItem={(m) => {
           const done = m.s === "done", act = m.s === "active", lock = m.s === "lock";
           const clickable = !lock;
           const nc = done ? C.green : act ? C.cyan : C.muted;
@@ -847,7 +875,6 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
                 background: act ? C.panel : "none", border: `1px solid ${act ? C.border : "transparent"}`,
                 cursor: clickable ? "pointer" : "default",
                 textAlign: "left", width: "100%",
-                animation: `fadeSlide 0.25s ease ${i * 0.03}s both`,
                 opacity: lock ? 0.35 : 1,
               }}
             >
@@ -871,8 +898,8 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
               </div>
             </button>
           );
-        })}
-      </div>
+        }}
+      />
     </div>
   );
 }
@@ -1940,6 +1967,8 @@ function getTimeMultiplier(timerSec, totalSec, expired) {
 // ═══════════════════════════════════════════════════════════
 function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
   const { t, lang } = useLang();
+  const { isEinkMode, toggleEinkMode } = useContext(ThemeContext);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
   const defaultSql = ch.mod >= 9 ? "" : "SELECT \n  \nFROM ";
@@ -2514,13 +2543,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.title}</span>
         </div>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, border: `1px solid ${C.border}`, padding: "2px 6px" }}>{ch.diff}</span>
+        <button onClick={() => setIsFocusMode(f => !f)} title={isFocusMode ? "Restore panels" : "Focus mode"} style={{ background: "none", border: `1px solid ${isFocusMode ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: isFocusMode ? C.cyan : C.dim, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>{isFocusMode ? "⊞" : "⊟"}</button>
+        <button onClick={toggleEinkMode} title={isEinkMode ? "Switch to dark" : "Switch to e-ink"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{isEinkMode ? "DARK" : "INK"}</button>
         {exercises && (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 16, color: C.dim, padding: "2px 8px", minHeight: 28, lineHeight: 1 }}>☰</button>
         )}
       </div>
 
-      {/* Problem description — collapsible */}
-      <button onClick={() => setProbOpen(!probOpen)} style={{
+      {/* Problem description — collapsible, hidden in focus mode */}
+      {!isFocusMode && <button onClick={() => setProbOpen(!probOpen)} style={{
         background: C.black, border: "none", borderBottom: `1px solid ${C.border}`,
         cursor: "pointer", textAlign: "left", width: "100%",
         padding: "5px 12px", display: "flex", alignItems: probOpen ? "flex-start" : "center", gap: 6, flexShrink: 0,
@@ -2529,8 +2560,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         <div style={{ fontFamily: F.mono, fontSize: 11, color: C.white, overflow: "hidden", textOverflow: probOpen ? "unset" : "ellipsis", whiteSpace: probOpen ? "normal" : "nowrap", flex: 1, lineHeight: 1.6 }}>
           <span style={{ color: C.dim }}>-- </span>{desc}
         </div>
-      </button>
-      {probOpen && (
+      </button>}
+      {!isFocusMode && probOpen && (
         <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${showSchema ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showSchema ? C.cyan : C.dim, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
@@ -2766,11 +2797,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         )}
         {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
         <div ref={bottomAreaRef}>
-          <AuxKeyboard
+          {!isFocusMode && <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
             tabsRef={auxTabsRef}
-          />
+          />}
           {/* ── Timer bar (shown until solved) ── */}
           {(!verdict?.pass) && (() => {
             const timerMins = Math.floor(timerSec / 60);
@@ -2909,20 +2940,21 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
           }}>{lang === "pt" ? tm.label_pt : tm.label_en}</button>
         ))}
       </div>
-      {/* Challenge list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {filtered.map((ch, i) => {
+      {/* Challenge list — stdout-style line-by-line reveal */}
+      <StdoutList
+        items={filtered}
+        resetKey={filter + "|" + tagFilter}
+        renderItem={(ch) => {
           const isSolved = solved.has(ch.id);
           const dc = C.muted;
           const tm = TAG_META[ch.tag];
           const baseXp = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
-          const maxXp = Math.round((baseXp + 5) * 2.0 * 1.1); // no-hint + ×2 time + first-try
+          const maxXp = Math.round((baseXp + 5) * 2.0 * 1.1);
           return (
-            <button key={ch.id} onClick={() => onNavigate("challenge", ch.id)} style={{
+            <button onClick={() => onNavigate("challenge", ch.id)} style={{
               background: "none", border: `1px solid ${isSolved ? `${C.green}25` : "transparent"}`,
               cursor: "pointer", textAlign: "left", width: "100%", padding: "8px 10px",
               display: "flex", alignItems: "center", gap: 10,
-              animation: `fadeSlide 0.2s ease ${Math.min(i, 20) * 0.02}s both`,
             }}>
               <span style={{ color: isSolved ? C.green : C.muted, fontSize: 11, width: 14, flexShrink: 0 }}>
                 {isSolved ? "✓" : "·"}
@@ -2946,8 +2978,8 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
               )}
             </button>
           );
-        })}
-      </div>
+        }}
+      />
       <div style={{ fontSize: 11, color: C.muted, marginTop: 10, textAlign: "center" }}>
         {filtered.length} challenges · {solved.size}/{CHALLENGES_DB.length} solved
       </div>
@@ -3734,6 +3766,17 @@ function OnboardingScreen({ onComplete, lang }) {
 export default function PunkSQLCLI() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [appFocusMode, setAppFocusMode] = useState(false);
+  const [isEinkMode, setIsEinkMode] = useState(() => {
+    try { return localStorage.getItem("punksql-eink") === "1"; } catch { return false; }
+  });
+  const toggleEinkMode = useCallback(() => {
+    setIsEinkMode(e => {
+      const next = !e;
+      try { localStorage.setItem("punksql-eink", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, []);
+  const themeCtx = useMemo(() => ({ isEinkMode, toggleEinkMode }), [isEinkMode, toggleEinkMode]);
   const [lang, setLang] = useState("en");
   const [tab, setTab] = useState("home");
   const [screen, setScreen] = useState("main");
@@ -3946,7 +3989,7 @@ export default function PunkSQLCLI() {
     if (dx > 0 && idx > 0) setTab(MAIN_TABS[idx - 1]);
   }, [tab]);
 
-  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" };
+  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", ...(isEinkMode ? { filter: "grayscale(1) invert(1) contrast(1.1)" } : {}) };
   const ctx = { lang, t };
 
   // Build focus title from current challenge
@@ -3954,7 +3997,7 @@ export default function PunkSQLCLI() {
   const focusTitle = appFocusMode && focusCh ? `#${focusCh.id} ${focusCh.title}` : null;
 
   if (showOnboarding) return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} /></div></LangContext.Provider>
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} /></div></LangContext.Provider></ThemeContext.Provider>
   );
 
   // Daily challenge rotates by date
@@ -3966,34 +4009,34 @@ export default function PunkSQLCLI() {
   })();
 
   if (screen === "daily") return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 
   if (screen === "challenge") return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 
   if (screen === "lesson") return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 
   return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <TopBar lang={lang} setLang={setLang} startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
@@ -4008,6 +4051,6 @@ export default function PunkSQLCLI() {
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 }
