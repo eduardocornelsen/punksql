@@ -3447,6 +3447,14 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
   const { user, signInWithGoogle, signOut, loading } = useAuth();
   const lv = getLevel(xp);
   const [expandedBadge, setExpandedBadge] = useState(null);
+  const [devTaps, setDevTaps] = useState(0);
+  const [devResetVisible, setDevResetVisible] = useState(false);
+
+  const handleDevTap = () => {
+    const next = devTaps + 1;
+    setDevTaps(next);
+    if (next >= 5) { setDevResetVisible(true); setDevTaps(0); }
+  };
   const earnedAch = ACHIEVEMENTS.filter(a => a.check(solved, xp));
   const acc = CHALLENGES_DB.length > 0 ? Math.round(solved.size / CHALLENGES_DB.length * 100) : 0;
   return (
@@ -3456,7 +3464,10 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
           <span style={{ transform: "rotate(-45deg)", fontFamily: F.mono, fontSize: 36, color: C.cyan, fontWeight: 700 }}>U</span>
         </div>
         <div style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, letterSpacing: 2, animation: "rankReveal 0.8s ease" }}>{lv.rank}</div>
-        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, marginTop: 4 }}>LVL {lv.level} · {xp.toLocaleString()} XP</div>
+        <div onClick={handleDevTap} style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, marginTop: 4, userSelect: "none" }}>LVL {lv.level} · {xp.toLocaleString()} XP</div>
+        {devResetVisible && (
+          <button onClick={() => { if (confirm("Reset all XP and progress?")) { localStorage.clear(); location.reload(); } }} style={{ marginTop: 8, fontFamily: F.mono, fontSize: 11, color: C.red, background: "none", border: `1px solid ${C.red}40`, padding: "4px 12px", cursor: "pointer", letterSpacing: 1, opacity: 0.7 }}>⚠ DEV RESET</button>
+        )}
         
         {/* Sync Status */}
         {user && (
