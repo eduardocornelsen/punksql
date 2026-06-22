@@ -212,6 +212,7 @@ const globalCSS = `
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes fadeSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(0.96)}to{opacity:1;transform:none}}
 @keyframes flipCard{0%{transform:perspective(600px) rotateY(0)}50%{transform:perspective(600px) rotateY(90deg)}100%{transform:perspective(600px) rotateY(0)}}
 @keyframes bootLine{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
 @keyframes langSwitch{from{opacity:0.85}to{opacity:1}}
@@ -3030,13 +3031,14 @@ function ReviewScreen({ onXP }) {
   const [statsByDiff, setStatsByDiff] = useState({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 } });
   const [swipeX, setSwipeX] = useState(0);
   const [swiping, setSwiping] = useState(false);
+  const [ejecting, setEjecting] = useState(null); // "left" | "right" | null
   const [gameOver, setGameOver] = useState(false);
   const touchStart = useRef(0);
 
   const card = cards[idx % cards.length];
   const pts = card?.diff === "EASY" ? 1 : card?.diff === "MED" ? 2 : 3;
 
-  const flip = () => { if (swiping || gameOver) return; setFlipAnim(true); setTimeout(() => { setFlipped(!flipped); setFlipAnim(false); }, 200); };
+  const flip = () => { if (swiping || ejecting || gameOver) return; setFlipAnim(true); setTimeout(() => { setFlipped(!flipped); setFlipAnim(false); }, 200); };
 
   const nextCard = (known) => {
     if (gameOver) return;
@@ -3048,7 +3050,7 @@ function ReviewScreen({ onXP }) {
     } else {
       const newLives = lives - 1;
       setLives(newLives);
-      if (newLives <= 0) { setGameOver(true); return; }
+      if (newLives <= 0) { setGameOver(true); setEjecting(null); return; }
     }
     setStatsByDiff(prev => ({
       ...prev,
@@ -3062,14 +3064,47 @@ function ReviewScreen({ onXP }) {
     setIdx(i => i + 1);
   };
 
-  const resetGame = () => { setScore(0); setLives(3); setReviewed(0); setCorrect(0); setIdx(0); setFlipped(false); setGameOver(false); setSwipeX(0); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 } }); };
+  const resetGame = () => { setScore(0); setLives(3); setReviewed(0); setCorrect(0); setIdx(0); setFlipped(false); setGameOver(false); setSwipeX(0); setEjecting(null); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 } }); };
 
-  const onTS = (e) => { e.stopPropagation(); touchStart.current = e.touches[0].clientX; setSwiping(false); };
-  const onTM = (e) => { const dx = e.touches[0].clientX - touchStart.current; if (Math.abs(dx) > 10) setSwiping(true); setSwipeX(dx); };
-  const onTE = (e) => { e.stopPropagation(); if (Math.abs(swipeX) > 80) { nextCard(swipeX > 0); } else { setSwipeX(0); setSwiping(false); } };
+  const onTS = (e) => {
+    if (ejecting) return;
+    e.stopPropagation();
+    touchStart.current = e.touches[0].clientX;
+    setSwiping(false);
+  };
+  const onTM = (e) => {
+    if (ejecting) return;
+    const dx = e.touches[0].clientX - touchStart.current;
+    if (Math.abs(dx) > 10) setSwiping(true);
+    setSwipeX(dx);
+  };
+  const onTE = (e) => {
+    if (ejecting) return;
+    e.stopPropagation();
+    if (Math.abs(swipeX) > 80) {
+      const dir = swipeX > 0 ? "right" : "left";
+      setEjecting(dir);
+      setTimeout(() => {
+        nextCard(dir === "right");
+        setEjecting(null);
+      }, 280);
+    } else {
+      setSwipeX(0);
+      setSwiping(false);
+    }
+  };
 
-  const swDir = swipeX > 30 ? "right" : swipeX < -30 ? "left" : null;
-  const swPct = Math.min(Math.abs(swipeX) / 120, 1);
+  const swDir = ejecting || (swipeX > 30 ? "right" : swipeX < -30 ? "left" : null);
+  const swPct = ejecting ? 1 : Math.min(Math.abs(swipeX) / 120, 1);
+
+  // Derived card transform
+  const cardTransform = ejecting
+    ? `translateX(${ejecting === "right" ? 520 : -520}px) rotate(${ejecting === "right" ? 20 : -20}deg)`
+    : `translateX(${swipeX}px) rotate(${swipeX * 0.04}deg)`;
+  const cardTransition = ejecting
+    ? "transform 0.28s cubic-bezier(0.35,0,0.65,0), opacity 0.22s ease"
+    : swiping ? "none" : "transform 0.3s ease, border-color 0.2s";
+  const cardOpacity = ejecting ? 0 : 1;
 
   // Hearts display
   const Hearts = () => (
@@ -3133,18 +3168,25 @@ function ReviewScreen({ onXP }) {
           </div>
 
           {/* Swipable card */}
-          <div onClick={!swiping ? flip : undefined} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE} style={{
-            marginTop: 4, background: C.panel,
-            border: `1px solid ${swDir === "right" ? C.green : swDir === "left" ? C.red : flipped ? C.cyanDim : C.border}`,
-            padding: "28px 20px", minHeight: 220, cursor: "pointer",
-            display: "flex", flexDirection: "column", justifyContent: "center",
-            animation: flipAnim ? "flipCard 0.4s ease" : "none",
-            position: "relative",
-            boxShadow: "none",
-            transform: `translateX(${swipeX}px) rotate(${swipeX * 0.04}deg)`,
-            transition: swiping ? "none" : "transform 0.3s ease, border-color 0.2s",
-            touchAction: "pan-y", userSelect: "none",
-          }}>
+          <div
+            key={idx}
+            onClick={!swiping && !ejecting ? flip : undefined}
+            onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
+            style={{
+              marginTop: 4, background: C.panel,
+              border: `1px solid ${swDir === "right" ? C.green : swDir === "left" ? C.red : flipped ? C.cyanDim : C.border}`,
+              padding: "28px 20px", minHeight: 220, cursor: "pointer",
+              display: "flex", flexDirection: "column", justifyContent: "center",
+              animation: flipAnim ? "flipCard 0.4s ease" : "cardIn 0.28s ease",
+              position: "relative",
+              boxShadow: "none",
+              transform: cardTransform,
+              transition: cardTransition,
+              opacity: cardOpacity,
+              touchAction: "pan-y", userSelect: "none",
+              willChange: "transform, opacity",
+            }}
+          >
             {swDir === "right" && <div style={{ position: "absolute", top: 14, left: 14, fontFamily: F.mono, fontSize: 20, color: C.green, opacity: swPct, fontWeight: 700, transform: "rotate(-10deg)", border: `1px solid ${C.green}`, padding: "4px 12px" }}>+{pts}</div>}
             {swDir === "left" && <div style={{ position: "absolute", top: 14, right: 14, fontFamily: F.mono, fontSize: 20, color: C.dim, opacity: swPct, fontWeight: 700, transform: "rotate(10deg)", border: `1px solid ${C.border}`, padding: "4px 12px" }}>miss</div>}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: flipped ? C.dim : C.border }} />
