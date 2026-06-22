@@ -74,8 +74,8 @@ const C = {
 
 const F = { mono: "'JetBrains Mono', 'Fira Code', 'Share Tech Mono', 'Courier New', monospace" };
 
-// ── Theme Context — provides isEinkMode and toggleEinkMode ────
-const ThemeContext = createContext({ isEinkMode: false, toggleEinkMode: () => {} });
+// ── Theme Context — provides theme ("dark"|"eink"|"hc") and cycleTheme ────
+const ThemeContext = createContext({ theme: "dark", cycleTheme: () => {} });
 
 // ── ASCII wordmark (figlet "ANSI Shadow" — PUNKSQL) ───────────
 const ASCII_LOGO = [
@@ -681,7 +681,7 @@ function TabBar({ active, onTabChange }) {
 // ── Status Bar ────────────────────────────────────────────
 function StatusBar({ xp = 0, solved = new Set() }) {
   const [time, setTime] = useState("");
-  const { isEinkMode, toggleEinkMode } = useContext(ThemeContext);
+  const { theme, cycleTheme } = useContext(ThemeContext);
   useEffect(() => { const tick = () => setTime(new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })); tick(); const id = setInterval(tick, 1000); return () => clearInterval(id); }, []);
   const lv = getLevel(xp);
   return (
@@ -699,7 +699,7 @@ function StatusBar({ xp = 0, solved = new Set() }) {
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ color: C.dim }}>{solved.size}/{CHALLENGES_DB.length}</span>
-          <button onClick={toggleEinkMode} title={isEinkMode ? "Switch to dark mode" : "Switch to e-ink mode"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "1px 5px", letterSpacing: 1, lineHeight: 1.4 }}>{isEinkMode ? "DARK" : "INK"}</button>
+          <button onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "1px 5px", letterSpacing: 1, lineHeight: 1.4 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
           <span style={{ color: C.muted }}>{time}</span>
         </span>
       </div>
@@ -1972,7 +1972,7 @@ function getTimeMultiplier(timerSec, totalSec, expired) {
 // ═══════════════════════════════════════════════════════════
 function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
   const { t, lang } = useLang();
-  const { isEinkMode, toggleEinkMode } = useContext(ThemeContext);
+  const { theme, cycleTheme } = useContext(ThemeContext);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
@@ -2549,7 +2549,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         </div>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, border: `1px solid ${C.border}`, padding: "2px 6px" }}>{ch.diff}</span>
         <button onClick={() => setIsFocusMode(f => !f)} title={isFocusMode ? "Restore panels" : "Focus mode"} style={{ background: "none", border: `1px solid ${isFocusMode ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: isFocusMode ? C.cyan : C.dim, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>{isFocusMode ? "⊞" : "⊟"}</button>
-        <button onClick={toggleEinkMode} title={isEinkMode ? "Switch to dark" : "Switch to e-ink"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{isEinkMode ? "DARK" : "INK"}</button>
+        <button onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
         {exercises && (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 16, color: C.dim, padding: "2px 8px", minHeight: 28, lineHeight: 1 }}>☰</button>
         )}
@@ -3771,17 +3771,21 @@ function OnboardingScreen({ onComplete, lang }) {
 export default function PunkSQLCLI() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [appFocusMode, setAppFocusMode] = useState(false);
-  const [isEinkMode, setIsEinkMode] = useState(() => {
-    try { return localStorage.getItem("punksql-eink") === "1"; } catch { return false; }
+  const [theme, setTheme] = useState(() => {
+    try {
+      const s = localStorage.getItem("punksql-theme");
+      if (s === "eink" || s === "hc") return s;
+    } catch {}
+    return "dark";
   });
-  const toggleEinkMode = useCallback(() => {
-    setIsEinkMode(e => {
-      const next = !e;
-      try { localStorage.setItem("punksql-eink", next ? "1" : "0"); } catch {}
+  const cycleTheme = useCallback(() => {
+    setTheme(t => {
+      const next = t === "dark" ? "eink" : t === "eink" ? "hc" : "dark";
+      try { localStorage.setItem("punksql-theme", next); } catch {}
       return next;
     });
   }, []);
-  const themeCtx = useMemo(() => ({ isEinkMode, toggleEinkMode }), [isEinkMode, toggleEinkMode]);
+  const themeCtx = useMemo(() => ({ theme, cycleTheme }), [theme, cycleTheme]);
   const [lang, setLang] = useState("en");
   const [tab, setTab] = useState("home");
   const [screen, setScreen] = useState("main");
@@ -3994,7 +3998,8 @@ export default function PunkSQLCLI() {
     if (dx > 0 && idx > 0) setTab(MAIN_TABS[idx - 1]);
   }, [tab]);
 
-  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", ...(isEinkMode ? { filter: "grayscale(1) invert(1) contrast(1.1)" } : {}) };
+  const themeFilter = theme === "eink" ? "grayscale(1) invert(1) contrast(1.1)" : theme === "hc" ? "grayscale(1) contrast(2.5)" : undefined;
+  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", ...(themeFilter ? { filter: themeFilter } : {}) };
   const ctx = { lang, t };
 
   // Build focus title from current challenge
