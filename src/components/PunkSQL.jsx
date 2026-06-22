@@ -1649,7 +1649,7 @@ function AuxKeyboard({ onInsert, onControl, tabsRef }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef, timerAreaRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef, timerAreaRef, focusBtnRef, themeBtnRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1731,6 +1731,24 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       body: ispt
         ? "Responda rápido para ganhar\nmais XP. Toque no timer\npara pausar quando precisar."
         : "Answer fast to earn more XP.\nTap the timer to pause it\nwhenever you need a break.",
+    },
+    {
+      ref: focusBtnRef,
+      icon: "⊟",
+      color: C.cyan,
+      title: ispt ? "MODO FOCO" : "FOCUS MODE",
+      body: ispt
+        ? "Oculta o teclado auxiliar e\nos painéis laterais para que\no editor ocupe a tela toda."
+        : "Hides the aux keyboard and\nside panels so the editor\nfills the entire screen.",
+    },
+    {
+      ref: themeBtnRef,
+      icon: "◑",
+      color: C.purple,
+      title: ispt ? "TEMAS" : "THEMES",
+      body: ispt
+        ? "Alterna entre 3 temas:\nDARK · tela escura padrão\nINK · e-ink invertido\nHC · alto contraste P&B"
+        : "Cycles through 3 themes:\nDARK · default dark screen\nINK · e-ink inverted\nHC · high-contrast B&W",
     },
     {
       ref: tourBtnRef,
@@ -1918,14 +1936,14 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           {steps.map((s, i) => (
             <div key={i} style={{
               width: i === step ? 22 : 7, height: 2,
-              background: i === step ? C.cyan : C.border,
+              background: i === step ? current.color : C.border,
               transition: "all 0.3s ease",
             }} />
           ))}
         </div>
         {/* Icon */}
         <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 30, color: C.cyan }}>
+          <span style={{ fontFamily: F.mono, fontSize: 30, color: current.color }}>
             {current.icon}
           </span>
         </div>
@@ -1946,8 +1964,8 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           }}>{ispt ? "PULAR" : "SKIP"}</button>
           <button onPointerDown={e => { e.preventDefault(); isLast ? done() : setStep(s => s + 1); }} style={{
             flex: 2, padding: "10px 0", cursor: "pointer", minHeight: 42,
-            fontFamily: F.mono, fontSize: 13, color: C.cyan, fontWeight: 700, letterSpacing: 2,
-            background: "none", border: `1px solid ${C.cyan}`,
+            fontFamily: F.mono, fontSize: 13, color: current.color, fontWeight: 700, letterSpacing: 2,
+            background: "none", border: `1px solid ${current.color}`,
           }}>{isLast ? (ispt ? "ENTENDIDO ▶" : "GOT IT ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
         </div>
       </div>
@@ -2011,6 +2029,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null), timerAreaRef = useRef(null);
+  const focusBtnRef = useRef(null), themeBtnRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
@@ -2548,8 +2567,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.title}</span>
         </div>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, border: `1px solid ${C.border}`, padding: "2px 6px" }}>{ch.diff}</span>
-        <button onClick={() => setIsFocusMode(f => !f)} title={isFocusMode ? "Restore panels" : "Focus mode"} style={{ background: "none", border: `1px solid ${isFocusMode ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: isFocusMode ? C.cyan : C.dim, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>{isFocusMode ? "⊞" : "⊟"}</button>
-        <button onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
+        <button ref={focusBtnRef} onClick={() => setIsFocusMode(f => !f)} title={isFocusMode ? "Restore panels" : "Focus mode"} style={{ background: "none", border: `1px solid ${isFocusMode ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: isFocusMode ? C.cyan : C.dim, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>{isFocusMode ? "⊞" : "⊟"}</button>
+        <button ref={themeBtnRef} onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
         {exercises && (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 16, color: C.dim, padding: "2px 8px", minHeight: 28, lineHeight: 1 }}>☰</button>
         )}
@@ -2881,6 +2900,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           auxTabsRef={auxTabsRef}
           runBtnRef={runBtnRef}
           timerAreaRef={timerAreaRef}
+          focusBtnRef={focusBtnRef}
+          themeBtnRef={themeBtnRef}
         />
       )}
     </div>
