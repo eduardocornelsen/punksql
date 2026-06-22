@@ -3239,23 +3239,21 @@ function ArchetypeViz({ solved }) {
     <div>
       <div style={{ fontFamily: F.mono, fontSize: 13, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 10 }}>┤ {t("archetype")} ├</div>
       <RadarChart axes={axes} color={C.purple} w={270} h={260} cx={135} cy={130} r={82} labelDist={108} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 14 }}>
-        {data.map(d => {
-          const filled = Math.round(d.pct * 10);
-          const bar = "█".repeat(filled) + "░".repeat(10 - filled);
-          return (
-            <div key={d.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontFamily: F.mono, fontSize: 12, color: d.c, width: 14, textAlign: "center", flexShrink: 0 }}>{d.icon}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, width: 76, letterSpacing: 0.5, flexShrink: 0 }}>
-                {lang === "pt" ? d.label_pt : d.label_en}
-              </span>
-              <span style={{ fontFamily: F.mono, fontSize: 11, color: d.c, letterSpacing: 0.5, flexShrink: 0 }}>{bar}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, marginLeft: 4 }}>
-                {Math.round(d.pct * 100)}% {d.sc}/{d.total}
-              </span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
+        {data.map(d => (
+          <div key={d.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: F.mono, fontSize: 12, color: d.c, width: 14, textAlign: "center", flexShrink: 0 }}>{d.icon}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, width: 76, letterSpacing: 0.5, flexShrink: 0 }}>
+              {lang === "pt" ? d.label_pt : d.label_en}
+            </span>
+            <div style={{ flex: 1, height: 5, background: C.border, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", inset: 0, width: `${d.pct * 100}%`, background: d.c, boxShadow: `0 0 6px ${d.c}80`, transition: "width 0.5s ease" }} />
             </div>
-          );
-        })}
+            <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, width: 64, textAlign: "right", flexShrink: 0 }}>
+              {Math.round(d.pct * 100)}% {d.sc}/{d.total}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
