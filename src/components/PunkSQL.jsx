@@ -3191,20 +3191,23 @@ function ReviewScreen({ onXP }) {
       </div>
 
       {/* Difficulty selector */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
-        {["ALL","EASY","MED","HARD"].map(d => {
+      <StdoutList
+        items={["ALL","EASY","MED","HARD"]}
+        delay={60}
+        style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}
+        renderItem={(d) => {
           const st = statsByDiff[d] || { r: 0, c: 0 };
           const pct = st.r > 0 ? Math.round(st.c / st.r * 100) : 0;
           return (
-            <button key={d} onClick={() => { setDiff(d); setIdx(0); setFlipped(false); }} style={{
+            <button onClick={() => { setDiff(d); setIdx(0); setFlipped(false); }} style={{
               background: "none", border: `1px solid ${diff === d ? C.dim : C.border}`,
               cursor: "pointer", padding: "8px 14px", minHeight: 40,
               fontFamily: F.mono, fontSize: 14, color: diff === d ? C.text : C.dim,
               display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap",
             }}><span>{d}</span><span style={{ fontSize: 11, color: diff === d ? C.dim : C.muted }}>{pct}%</span></button>
           );
-        })}
-      </div>
+        }}
+      />
 
       <ProgressBar progress={cards.length > 0 ? ((idx % cards.length) + 1) / cards.length : 0} />
 
@@ -3415,8 +3418,12 @@ function QuizScreen({ onXP }) {
       </div>
 
       {/* Options */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-        {q.opts.map((opt, i) => {
+      <StdoutList
+        items={q.opts}
+        resetKey={idx}
+        delay={80}
+        style={{ gap: 8, marginBottom: 14 }}
+        renderItem={(opt, i) => {
           const isCorrect = i === q.ans;
           const isSelected = i === selected;
           let bg = "none", borderColor = C.border, textColor = C.white;
@@ -3426,7 +3433,7 @@ function QuizScreen({ onXP }) {
             else { textColor = C.dim; }
           }
           return (
-            <button key={i} onClick={() => handleAnswer(i)} disabled={showResult} style={{
+            <button onClick={() => handleAnswer(i)} disabled={showResult} style={{
               background: bg, border: `1px solid ${borderColor}`, cursor: showResult ? "default" : "pointer",
               padding: "14px 16px", fontFamily: F.mono, fontSize: 16, color: textColor,
               textAlign: "left", minHeight: 50, display: "flex", alignItems: "center", gap: 12,
@@ -3438,8 +3445,8 @@ function QuizScreen({ onXP }) {
               <span style={{ fontFamily: F.mono }}>{opt}</span>
             </button>
           );
-        })}
-      </div>
+        }}
+      />
 
       {/* Next button */}
       {showResult && (
@@ -3635,19 +3642,22 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         )}
       </div>
       <Divider />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}>
-        {[
+      <StdoutList
+        items={[
           { l: t("total_xp"), v: xp.toLocaleString(), c: C.text },
           { l: t("solved_label"), v: String(solved.size), c: C.text },
           { l: "LEVEL", v: String(lv.level), c: C.text },
           { l: t("accuracy_label"), v: `${acc}%`, c: C.text },
-        ].map((s, i) => (
-          <div key={i} style={{ background: C.panel, border: `1px solid ${C.border}`, padding: "16px 18px" }}>
+        ]}
+        delay={60}
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}
+        renderItem={(s) => (
+          <div style={{ background: C.panel, border: `1px solid ${C.border}`, padding: "16px 18px" }}>
             <div style={{ fontFamily: F.mono, fontSize: 13, color: C.muted, letterSpacing: 1.5, marginBottom: 6 }}>{s.l}</div>
             <div style={{ fontFamily: F.mono, fontSize: 32, color: s.c }}>{s.v}</div>
           </div>
-        ))}
-      </div>
+        )}
+      />
       <Divider />
       <SkillRadar solved={solved} />
       <Divider />
