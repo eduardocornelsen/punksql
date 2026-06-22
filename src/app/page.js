@@ -1,49 +1,56 @@
 "use client";
 import dynamic from "next/dynamic";
 
-const ASCII_LOGO = `
- ██████╗ ██╗   ██╗███╗  ██╗██╗  ██╗
- ██╔══██╗██║   ██║████╗ ██║██║ ██╔╝
- ██████╔╝██║   ██║██╔██╗██║█████╔╝
- ██╔═══╝ ██║   ██║██║╚████║██╔═██╗
- ██║     ╚██████╔╝██║ ╚███║██║  ██╗
- ╚═╝      ╚═════╝ ╚═╝  ╚══╝╚═╝  ╚═╝
-`.trim();
+const ASCII_LOGO = [
+  "██████╗ ██╗   ██╗███╗   ██╗██╗  ██╗███████╗ ██████╗ ██╗     ",
+  "██╔══██╗██║   ██║████╗  ██║██║ ██╔╝██╔════╝██╔═══██╗██║     ",
+  "██████╔╝██║   ██║██╔██╗ ██║█████╔╝ ███████╗██║   ██║██║     ",
+  "██╔═══╝ ██║   ██║██║╚██╗██║██╔═██╗ ╚════██║██║▄▄ ██║██║     ",
+  "██║     ╚██████╔╝██║ ╚████║██║  ██╗███████║╚██████╔╝███████╗",
+  "╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝ ╚══▀▀═╝ ╚══════╝",
+].join("\n");
 
 const PunkSQL = dynamic(() => import("@/components/PunkSQL"), {
   ssr: false,
   loading: () => (
     <div style={{
       height: "100vh",
+      width: "100%",
       background: "#000000",
       display: "flex",
       flexDirection: "column",
       justifyContent: "center",
       alignItems: "center",
+      overflow: "hidden",
+      padding: "0 12px",
       fontFamily: "'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace",
     }}>
       <pre style={{
-        margin: "0 0 8px 0",
-        fontSize: "clamp(6px, 1.8vw, 11px)",
-        color: "#CCCCCC",
-        lineHeight: 1.2,
+        margin: 0,
+        fontSize: "clamp(4px, 1.55vw, 9px)",
+        color: "#E0E0E0",
+        lineHeight: 1.15,
         letterSpacing: 0,
         textAlign: "left",
         fontFamily: "inherit",
         userSelect: "none",
+        whiteSpace: "pre",
       }}>{ASCII_LOGO}</pre>
       <div style={{
         fontSize: 10,
-        color: "#444444",
-        letterSpacing: 3,
-        marginBottom: 28,
+        color: "#555555",
+        letterSpacing: 4,
+        marginTop: 14,
+        marginBottom: 30,
         fontFamily: "inherit",
-      }}>SQL ─── learn by doing</div>
-      <div style={{ fontSize: 12, color: "#555555", animation: "pulse 1.5s ease infinite", fontFamily: "inherit" }}>
-        loading sql engine...
+      }}>learn sql by doing</div>
+      <div style={{ fontSize: 12, color: "#00FFFF", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ color: "#555555" }}>$</span>
+        <span style={{ color: "#888888" }}>booting engine</span>
+        <span style={{ animation: "blinkLoad 1s step-end infinite", color: "#00FFFF" }}>█</span>
       </div>
       <style>{`
-        @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+        @keyframes blinkLoad{0%,49%{opacity:1}50%,100%{opacity:0}}
       `}</style>
     </div>
   ),

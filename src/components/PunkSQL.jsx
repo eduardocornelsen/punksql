@@ -74,6 +74,27 @@ const C = {
 
 const F = { mono: "'JetBrains Mono', 'Fira Code', 'Share Tech Mono', 'Courier New', monospace" };
 
+// ── ASCII wordmark (figlet "ANSI Shadow" — PUNKSQL) ───────────
+const ASCII_LOGO = [
+  "██████╗ ██╗   ██╗███╗   ██╗██╗  ██╗███████╗ ██████╗ ██╗     ",
+  "██╔══██╗██║   ██║████╗  ██║██║ ██╔╝██╔════╝██╔═══██╗██║     ",
+  "██████╔╝██║   ██║██╔██╗ ██║█████╔╝ ███████╗██║   ██║██║     ",
+  "██╔═══╝ ██║   ██║██║╚██╗██║██╔═██╗ ╚════██║██║▄▄ ██║██║     ",
+  "██║     ╚██████╔╝██║ ╚████║██║  ██╗███████║╚██████╔╝███████╗",
+  "╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝ ╚══▀▀═╝ ╚══════╝",
+].join("\n");
+
+const AsciiLogo = ({ color = C.text, accent = C.dim }) => (
+  <div style={{ width: "100%", overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <pre style={{
+      margin: 0, fontFamily: F.mono, fontSize: "clamp(4px, 1.55vw, 9px)",
+      lineHeight: 1.15, letterSpacing: 0, color, whiteSpace: "pre",
+      userSelect: "none", textAlign: "left",
+    }}>{ASCII_LOGO}</pre>
+    <div style={{ fontFamily: F.mono, fontSize: 10, color: accent, letterSpacing: 4, marginTop: 12 }}>learn sql by doing</div>
+  </div>
+);
+
 // ── i18n ──────────────────────────────────────────────────
 const i18n = {
   en: {
@@ -421,8 +442,8 @@ function BadgeUnlockOverlay({ badge, lang, onDone }) {
   return (
     <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9998, background: `${C.void}E0`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer" }}>
       <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, letterSpacing: 3, marginBottom: 16, animation: "fadeSlide 0.3s ease" }}>ACHIEVEMENT UNLOCKED</div>
-      <div style={{ fontSize: 64, animation: "badgeUnlock 0.8s ease", color: badge.c, marginBottom: 12 }}>{badge.i}</div>
-      <div style={{ fontFamily: F.mono, fontSize: 20, color: badge.c, letterSpacing: 2, animation: "fadeSlide 0.4s ease 0.3s both" }}>{lang === "pt" ? badge.n_pt : badge.n_en}</div>
+      <div style={{ fontSize: 64, animation: "badgeUnlock 0.8s ease", color: C.cyan, marginBottom: 12 }}>{badge.i}</div>
+      <div style={{ fontFamily: F.mono, fontSize: 20, color: C.cyan, letterSpacing: 2, animation: "fadeSlide 0.4s ease 0.3s both" }}>{lang === "pt" ? badge.n_pt : badge.n_en}</div>
       <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginTop: 8, animation: "fadeSlide 0.4s ease 0.5s both" }}>{lang === "pt" ? badge.d_pt : badge.d_en}</div>
     </div>
   );
@@ -440,8 +461,8 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
   if (breakdown.firstTryBonus) lines.push({ label: ispt ? "PRIMEIRA TENTATIVA +10%" : "FIRST TRY +10%", value: "✓", color: C.green });
   if (breakdown.hintPenalty > 0) lines.push({ label: ispt ? "PENALIDADE DICA" : "HINT PENALTY", value: `−${breakdown.hintPenalty}`, color: C.red });
   if (breakdown.perseveranceBonus > 0) lines.push({ label: ispt ? "PERSEVERANÇA" : "PERSEVERANCE", value: `+${breakdown.perseveranceBonus}`, color: C.cyan });
-  if (breakdown.timeMultiplier !== 1.0) lines.push({ label: ispt ? "BÔNUS TEMPO" : "TIME BONUS", value: `×${breakdown.timeMultiplier.toFixed(1)}`, color: C.amber });
-  if (breakdown.dailyBonus > 0) lines.push({ label: ispt ? "BÔNUS DIÁRIO" : "DAILY BONUS", value: `+${breakdown.dailyBonus}`, color: C.amber });
+  if (breakdown.timeMultiplier !== 1.0) lines.push({ label: ispt ? "BÔNUS TEMPO" : "TIME BONUS", value: `×${breakdown.timeMultiplier.toFixed(1)}`, color: C.cyan });
+  if (breakdown.dailyBonus > 0) lines.push({ label: ispt ? "BÔNUS DIÁRIO" : "DAILY BONUS", value: `+${breakdown.dailyBonus}`, color: C.cyan });
 
   useEffect(() => {
     const timers = lines.map((_, i) => setTimeout(() => setVisible(i + 1), i * 200 + 150));
@@ -464,7 +485,7 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
         {showTotal && (
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: F.mono }}>
             <span style={{ fontSize: 14, color: C.dim, letterSpacing: 2 }}>{ispt ? "TOTAL" : "TOTAL"}</span>
-            <span style={{ fontSize: 28, color: C.amber, fontWeight: 700, animation: "xpTotalReveal 0.5s ease" }}>+{breakdown.total} XP</span>
+            <span style={{ fontSize: 28, color: C.cyan, fontWeight: 700, animation: "xpTotalReveal 0.5s ease" }}>+{breakdown.total} XP</span>
           </div>
         )}
       </div>
@@ -501,14 +522,13 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
               <button key={ex.id} onClick={() => onExNav(ex.id)} style={{
                 width: sz, height: sz, minWidth: sz,
                 background: isCur ? C.cyan : "none",
-                border: `1.5px solid ${isCur ? C.cyan : C.border}`,
+                border: `1px solid ${isCur ? C.cyan : C.border}`,
                 cursor: "pointer", fontFamily: F.mono, fontSize: compact ? 8 : 9, fontWeight: 700,
                 color: isCur ? C.black : C.dim,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                transform: "rotate(45deg)",
                 padding: 0, flexShrink: 0,
               }}>
-                <span style={{ transform: "rotate(-45deg)" }}>{i + 1}</span>
+                <span>{i + 1}</span>
               </button>
             );
           })}
@@ -2536,33 +2556,33 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           {showHint && hintLevel > 0 && (
             <div style={{ marginTop: 8, animation: "fadeSlide 0.15s ease" }}>
               {/* Hint 1 — clause hint, free */}
-              <div style={{ background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>
-                <div style={{ fontSize: 10, color: C.amberDim, marginBottom: 3 }}>// hint_1 · clause</div>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderLeft: `2px solid ${C.dim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.text, lineHeight: 1.7 }}>
+                <div style={{ fontSize: 10, color: C.muted, marginBottom: 3 }}>// hint_1 · clause</div>
                 <span style={{ whiteSpace: "pre-wrap" }}>{ch.hint}</span>
               </div>
               {/* Unlock Hint 2 */}
               {hintLevel === 1 && (
-                <button onClick={() => setHintLevel(2)} style={{ marginTop: 5, background: "none", border: `1px dashed ${C.amberDim}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amberDim, padding: "6px 10px", width: "100%", textAlign: "left", display: "block" }}>
+                <button onClick={() => setHintLevel(2)} style={{ marginTop: 5, background: "none", border: `1px dashed ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "6px 10px", width: "100%", textAlign: "left", display: "block" }}>
                   {lang === "pt" ? "▸ dica 2 — custo: -5 xp ao resolver" : "▸ hint 2 — cost: -5 xp on solve"}
                 </button>
               )}
               {/* Hint 2 — skeleton query */}
               {hintLevel >= 2 && (
-                <div style={{ marginTop: 5, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>
-                  <div style={{ fontSize: 10, color: C.amberDim, marginBottom: 3 }}>// hint_2 · skeleton (-5 xp)</div>
+                <div style={{ marginTop: 5, background: C.surface, border: `1px solid ${C.border}`, borderLeft: `2px solid ${C.dim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.text, lineHeight: 1.7 }}>
+                  <div style={{ fontSize: 10, color: C.muted, marginBottom: 3 }}>// hint_2 · skeleton (-5 xp)</div>
                   <span style={{ whiteSpace: "pre-wrap" }}>{getHint2(ch)}</span>
                 </div>
               )}
               {/* Unlock Hint 3 */}
               {hintLevel === 2 && (
-                <button onClick={() => setHintLevel(3)} style={{ marginTop: 5, background: "none", border: `1px dashed ${C.amberDim}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.amberDim, padding: "6px 10px", width: "100%", textAlign: "left", display: "block" }}>
+                <button onClick={() => setHintLevel(3)} style={{ marginTop: 5, background: "none", border: `1px dashed ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "6px 10px", width: "100%", textAlign: "left", display: "block" }}>
                   {lang === "pt" ? "▸ dica 3 — custo: -15 xp ao resolver" : "▸ hint 3 — cost: -15 xp on solve"}
                 </button>
               )}
               {/* Hint 3 — fill-in-the-blank */}
               {hintLevel >= 3 && (
-                <div style={{ marginTop: 5, background: C.amberGhost, border: `1px solid ${C.amberDim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.amber, lineHeight: 1.7 }}>
-                  <div style={{ fontSize: 10, color: C.amberDim, marginBottom: 3 }}>// hint_3 · fill-in-the-blank (-15 xp)</div>
+                <div style={{ marginTop: 5, background: C.surface, border: `1px solid ${C.border}`, borderLeft: `2px solid ${C.dim}`, padding: "8px 10px", fontFamily: F.mono, fontSize: 11, color: C.text, lineHeight: 1.7 }}>
+                  <div style={{ fontSize: 10, color: C.muted, marginBottom: 3 }}>// hint_3 · fill-in-the-blank (-15 xp)</div>
                   <span style={{ whiteSpace: "pre-wrap" }}>{getHint3(ch)}</span>
                 </div>
               )}
@@ -3273,7 +3293,7 @@ function QuizScreen({ onXP }) {
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: C.border }} />
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
           <span style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>[{(idx % questions.length) + 1}/{questions.length}]</span>
-          <Tag color={q.color || (q.diff === "EASY" ? C.green : q.diff === "MED" ? C.cyan : q.diff === "HARD" ? C.amber : C.red)}>{q.diff}</Tag>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, border: `1px solid ${C.border}`, padding: "3px 10px", letterSpacing: 1 }}>{q.diff}</span>
         </div>
         <div style={{ fontFamily: F.mono, fontSize: 18, color: C.white, lineHeight: 1.6 }}>{lang === "pt" ? q.q_pt : q.q_en}</div>
       </div>
@@ -3463,7 +3483,7 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         
         {/* Sync Status */}
         {user && (
-          <div style={{ fontFamily: F.mono, fontSize: 10, color: syncing ? C.amber : C.green, marginTop: 4, letterSpacing: 1 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 10, color: syncing ? C.dim : C.green, marginTop: 4, letterSpacing: 1 }}>
             {syncing ? t("syncing").toUpperCase() : t("synced").toUpperCase()}
           </div>
         )}
@@ -3527,23 +3547,23 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
             const expanded = expandedBadge === a.id;
             return (
               <div key={a.id} onClick={() => setExpandedBadge(expanded ? null : a.id)} style={{
-                background: C.panel, border: `1px solid ${earned ? `${a.c}50` : C.border}`,
+                background: C.panel, border: `1px solid ${earned ? C.borderBright : C.border}`,
                 padding: expanded ? "14px 10px" : "18px 10px", textAlign: "center",
-                opacity: earned ? 1 : 0.35, cursor: "pointer",
+                opacity: earned ? 1 : 0.3, cursor: "pointer",
                 gridColumn: expanded ? "1 / -1" : "auto",
                 transition: "all 0.2s",
                 animation: earned ? `popIn 0.4s ease ${i * 0.1}s both` : "none",
               }}>
                 <div style={{
                   fontFamily: F.mono, fontSize: expanded ? 42 : 36, marginBottom: 8,
-                  color: earned ? a.c : C.muted,
+                  color: earned ? C.text : C.muted,
                 }}>{a.i}</div>
                 <div style={{ fontFamily: F.mono, fontSize: 14, color: earned ? C.white : C.dim }}>{lang === "pt" ? a.n_pt : a.n_en}</div>
                 {expanded && (
                   <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, marginTop: 6, animation: "fadeSlide 0.2s ease" }}>
                     {lang === "pt" ? a.d_pt : a.d_en}
-                    {earned && <div style={{ color: a.c, marginTop: 4 }}>✓ {lang === "pt" ? "DESBLOQUEADO" : "UNLOCKED"}</div>}
-                    {!earned && <div style={{ color: C.muted, marginTop: 4 }}>🔒 {lang === "pt" ? "BLOQUEADO" : "LOCKED"}</div>}
+                    {earned && <div style={{ color: C.cyan, marginTop: 4 }}>✓ {lang === "pt" ? "DESBLOQUEADO" : "UNLOCKED"}</div>}
+                    {!earned && <div style={{ color: C.muted, marginTop: 4 }}>[ {lang === "pt" ? "BLOQUEADO" : "LOCKED"} ]</div>}
                   </div>
                 )}
               </div>
@@ -3599,16 +3619,20 @@ function OnboardingScreen({ onComplete, lang }) {
         ))}
       </div>
 
-      {/* Icon */}
-      <div style={{
-        fontFamily: F.mono, fontSize: 48, color: C.cyan, marginBottom: 20,
-      }}>{s.icon}</div>
+      {/* Icon / logo */}
+      {step === 0 ? (
+        <div style={{ marginBottom: 24 }}><AsciiLogo color={C.text} accent={C.dim} /></div>
+      ) : (
+        <div style={{
+          fontFamily: F.mono, fontSize: 40, color: C.dim, marginBottom: 20,
+        }}>{s.icon}</div>
+      )}
 
       {/* Title */}
       <div style={{
-        fontFamily: F.mono, fontSize: 20, color: C.text, letterSpacing: 3,
+        fontFamily: F.mono, fontSize: 18, color: C.text, letterSpacing: 3,
         marginBottom: 20, textAlign: "center",
-      }}>{s.title}</div>
+      }}>{step === 0 ? null : s.title}</div>
 
       {/* Body */}
       <div style={{
