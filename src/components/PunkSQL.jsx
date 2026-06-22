@@ -3952,14 +3952,21 @@ export default function PunkSQLCLI() {
   const currentCode = CHALLENGES_DB.find(c => c.id === lastCodeId);
   const currentMod = LEARN_MODULES.find(m => m.id === lastLearnId);
   const isLearnCtx = lastContext === "learn";
-  const continueCtx = isLearnCtx
-    ? (lang === "pt" ? "CONTINUAR LIÇÃO" : "CONTINUE LESSON")
-    : (lang === "pt" ? "CONTINUAR CÓDIGO" : "CONTINUE CODING");
-  const continueLabel = isLearnCtx
-    ? `#${lastLearnId} ${currentMod?.n || "aggregations"}`
-    : `#${lastCodeId} ${currentCode?.title || "select_all"}`;
+  const isNewUser = solved.size === 0 && xp === 0;
+  const firstMod = LEARN_MODULES[0];
+  const continueCtx = isNewUser
+    ? (lang === "pt" ? "COMEÇAR" : "START")
+    : isLearnCtx
+      ? (lang === "pt" ? "CONTINUAR LIÇÃO" : "CONTINUE LESSON")
+      : (lang === "pt" ? "CONTINUAR CÓDIGO" : "CONTINUE CODING");
+  const continueLabel = isNewUser
+    ? `#${firstMod?.id || 1} ${firstMod?.n || "first_query"}`
+    : isLearnCtx
+      ? `#${lastLearnId} ${currentMod?.n || "aggregations"}`
+      : `#${lastCodeId} ${currentCode?.title || "select_all"}`;
   const handleContinue = () => {
-    if (isLearnCtx) nav("lesson", lastLearnId);
+    if (isNewUser) nav("lesson", firstMod?.id || 1);
+    else if (isLearnCtx) nav("lesson", lastLearnId);
     else nav("challenge", lastCodeId);
   };
 
