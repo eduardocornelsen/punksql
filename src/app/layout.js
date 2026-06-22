@@ -50,18 +50,25 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#020410",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ fontFamily: "'JetBrains Mono','Fira Code','SF Mono','Courier New',monospace" }}>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <style>{`
+          *, *::before, *::after { font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace !important; box-sizing: border-box; }
+          html, body { font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace; }
+        `}</style>
       </head>
-      <body suppressHydrationWarning style={{ margin: 0, padding: 0, background: "#111111", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
+      <body suppressHydrationWarning style={{ margin: 0, padding: 0, background: "#000000", fontFamily: "'JetBrains Mono','Fira Code','SF Mono','Courier New',monospace", overflowX: "hidden", overflowY: "hidden", height: "100%" }}>
         {/* Landscape warning — hidden by default, shown via CSS media query */}
         <style>{`
           .landscape-warn { display: none; }
