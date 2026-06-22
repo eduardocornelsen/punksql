@@ -118,6 +118,7 @@ const i18n = {
     flash_3_back: "SELECT customer_id,\n  COUNT(*) AS cnt\nFROM orders\nGROUP BY customer_id;",
     profile_title: "QUERY_APPRENTICE // LVL 12",
     total_xp: "TOTAL_XP", solved_label: "SOLVED", streak_label: "STREAK", accuracy_label: "ACCURACY",
+    skill_radar: "SKILL_RADAR", archetype: "ARCHETYPE",
     league_title: "league_silver", league_sub: "// resets 4d | top 10 → GOLD",
     achievements: "ACHIEVEMENTS",
     badge_1: "1st_SELECT", badge_2: "JOIN_MASTER", badge_3: "7D_STREAK",
@@ -170,6 +171,7 @@ const i18n = {
     flash_3_back: "SELECT customer_id,\n  COUNT(*) AS cnt\nFROM orders\nGROUP BY customer_id;",
     profile_title: "APRENDIZ // NVL 12",
     total_xp: "XP_TOTAL", solved_label: "RESOLVIDOS", streak_label: "SEQUÊNCIA", accuracy_label: "PRECISÃO",
+    skill_radar: "RADAR", archetype: "ARQUÉTIPO",
     league_title: "liga_prata", league_sub: "// reseta 4d | top 10 → OURO",
     achievements: "CONQUISTAS",
     badge_1: "1º_SELECT", badge_2: "JOIN", badge_3: "SÉRIE_7D",
@@ -1184,6 +1186,13 @@ const CHALLENGE_TAGS = {
   107:"data-eng", 108:"data-eng", 109:"fintech", 110:"data-eng", 111:"data-eng", 112:"data-eng",
 };
 CHALLENGES_DB.forEach(ch => { ch.tag = CHALLENGE_TAGS[ch.id] || "analytics"; });
+
+const MOD_LABELS = [
+  {id:1, label:"SELECT"}, {id:2, label:"WHERE"}, {id:3, label:"ORDER"},
+  {id:4, label:"GROUP"}, {id:5, label:"JOIN"},   {id:6, label:"SUB"},
+  {id:7, label:"WINDOW"}, {id:8, label:"CTE"},   {id:9, label:"DML"}, {id:10, label:"DDL"},
+];
+const ARCHETYPE_ORDER = ["ecomm", "fintech", "analytics", "social", "hr", "data-eng"];
 
 // ═══════════════════════════════════════════════════════════
 //  QUIZ DATABASE — 30 multiple-choice questions
@@ -3155,6 +3164,103 @@ function QuizScreen({ onXP }) {
   );
 }
 
+// ── Radar chart (shared SVG primitive) ──────────────────────
+function RadarChart({ axes, color, w = 300, h = 300, cx, cy, r, labelDist }) {
+  cx = cx ?? w / 2; cy = cy ?? h / 2;
+  r = r ?? Math.min(w, h) * 0.32;
+  labelDist = labelDist ?? r + 26;
+  const n = axes.length;
+  const rings = [0.25, 0.5, 0.75, 1.0];
+  const pt = (i, pct) => {
+    const a = (2 * Math.PI * i / n) - Math.PI / 2;
+    return [cx + r * pct * Math.cos(a), cy + r * pct * Math.sin(a)];
+  };
+  const poly = (pct) => Array.from({ length: n }, (_, i) => pt(i, pct).join(",")).join(" ");
+  const dataPoly = axes.map((ax, i) => pt(i, Math.max(ax.pct, 0.01)).join(",")).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", maxWidth: w, display: "block", margin: "0 auto", overflow: "visible" }}>
+      {rings.map((p, gi) => (
+        <polygon key={gi} points={poly(p)} fill="none" stroke={C.border} strokeWidth={p === 1 ? 1 : 0.5} opacity={0.5} />
+      ))}
+      {Array.from({ length: n }, (_, i) => {
+        const [x, y] = pt(i, 1);
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={C.border} strokeWidth={0.5} opacity={0.4} />;
+      })}
+      <polygon points={dataPoly} fill={`${color}18`} stroke={color} strokeWidth={1.5} />
+      {axes.map((ax, i) => {
+        const [x, y] = pt(i, Math.max(ax.pct, 0.01));
+        return <circle key={i} cx={x} cy={y} r={3} fill={ax.dotColor || color} />;
+      })}
+      {axes.map((ax, i) => {
+        const a = (2 * Math.PI * i / n) - Math.PI / 2;
+        const lx = cx + labelDist * Math.cos(a);
+        const ly = cy + labelDist * Math.sin(a);
+        const ta = Math.cos(a) > 0.1 ? "start" : Math.cos(a) < -0.1 ? "end" : "middle";
+        return (
+          <text key={i} x={lx} y={ly} textAnchor={ta} dominantBaseline="middle"
+            fontFamily={F.mono} fontSize={9} fill={ax.labelColor || C.dim} letterSpacing={0.5}>
+            {ax.label}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
+function SkillRadar({ solved }) {
+  const { t } = useLang();
+  const axes = MOD_LABELS.map(({ id, label }) => {
+    const chs = CHALLENGES_DB.filter(c => c.mod === id);
+    const pct = chs.length ? chs.filter(c => solved.has(c.id)).length / chs.length : 0;
+    return { label, pct };
+  });
+  return (
+    <div>
+      <div style={{ fontFamily: F.mono, fontSize: 13, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 10 }}>┤ {t("skill_radar")} ├</div>
+      <RadarChart axes={axes} color={C.cyan} w={310} h={300} cx={155} cy={150} r={100} labelDist={130} />
+    </div>
+  );
+}
+
+function ArchetypeViz({ solved }) {
+  const { t, lang } = useLang();
+  const data = ARCHETYPE_ORDER.map(key => {
+    const meta = TAG_META[key];
+    const chs = CHALLENGES_DB.filter(c => c.tag === key);
+    const sc = chs.filter(c => solved.has(c.id)).length;
+    const total = chs.length;
+    return { key, ...meta, sc, total, pct: total ? sc / total : 0 };
+  });
+  const axes = data.map(d => ({
+    label: `${d.icon} ${lang === "pt" ? d.label_pt : d.label_en}`,
+    pct: d.pct, dotColor: d.c, labelColor: d.c,
+  }));
+  return (
+    <div>
+      <div style={{ fontFamily: F.mono, fontSize: 13, color: C.cyanDim, letterSpacing: 1.5, marginBottom: 10 }}>┤ {t("archetype")} ├</div>
+      <RadarChart axes={axes} color={C.purple} w={270} h={260} cx={135} cy={130} r={82} labelDist={108} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 14 }}>
+        {data.map(d => {
+          const filled = Math.round(d.pct * 10);
+          const bar = "█".repeat(filled) + "░".repeat(10 - filled);
+          return (
+            <div key={d.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 12, color: d.c, width: 14, textAlign: "center", flexShrink: 0 }}>{d.icon}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, width: 76, letterSpacing: 0.5, flexShrink: 0 }}>
+                {lang === "pt" ? d.label_pt : d.label_en}
+              </span>
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: d.c, letterSpacing: 0.5, flexShrink: 0 }}>{bar}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, marginLeft: 4 }}>
+                {Math.round(d.pct * 100)}% {d.sc}/{d.total}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 //  PROFILE
 // ═══════════════════════════════════════════════════════════
@@ -3229,6 +3335,11 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
           </div>
         ))}
       </div>
+      <Divider />
+      <SkillRadar solved={solved} />
+      <Divider />
+      <ArchetypeViz solved={solved} />
+      <Divider />
 
       {/* Achievements — expandable */}
       <div>
