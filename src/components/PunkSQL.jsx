@@ -202,6 +202,7 @@ const globalCSS = `
 @keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 @keyframes xpLineIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
 @keyframes xpFlyUp{0%{opacity:1;transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(-60px) scale(1.1)}100%{opacity:0;transform:translateY(-90px) scale(0.8)}}
+@keyframes xpTotalReveal{0%{opacity:0;transform:scale(0.7)}60%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
 @keyframes timerPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(1.06)}}
 @keyframes rankReveal{from{opacity:0;letter-spacing:8px}to{opacity:1;letter-spacing:3px}}
 @keyframes tapRippleSingle{0%{transform:scale(0.1);opacity:0.9}30%{transform:scale(1.5);opacity:0.5}42%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
@@ -428,41 +429,48 @@ function BadgeUnlockOverlay({ badge, lang, onDone }) {
   );
 }
 
-// ── XP Breakdown Toast ───────────────────────────────────
-function XPBreakdownToast({ breakdown, lang, onDone }) {
+// ── XP Breakdown Overlay ─────────────────────────────────
+function XPBreakdownOverlay({ breakdown, lang, onDone }) {
   const [visible, setVisible] = useState(0);
   const ispt = lang === "pt";
 
   const lines = [];
-  if (breakdown.base > 0) lines.push({ label: ispt ? `BASE XP (${breakdown.diff})` : `BASE XP (${breakdown.diff})`, value: `+${breakdown.base}`, color: C.white });
+  if (breakdown.base > 0) lines.push({ label: `BASE XP (${breakdown.diff})`, value: `+${breakdown.base}`, color: C.white });
   if (breakdown.isFirstSolve) lines.push({ label: ispt ? "PRIMEIRO SOLVE" : "FIRST SOLVE", value: "✓", color: C.green });
   if (breakdown.noHintBonus > 0) lines.push({ label: ispt ? "SEM DICAS" : "NO HINTS", value: `+${breakdown.noHintBonus}`, color: C.green });
   if (breakdown.firstTryBonus) lines.push({ label: ispt ? "PRIMEIRA TENTATIVA +10%" : "FIRST TRY +10%", value: "✓", color: C.green });
-  if (breakdown.hintPenalty > 0) lines.push({ label: ispt ? `PENALIDADE DICA` : "HINT PENALTY", value: `−${breakdown.hintPenalty}`, color: C.red });
+  if (breakdown.hintPenalty > 0) lines.push({ label: ispt ? "PENALIDADE DICA" : "HINT PENALTY", value: `−${breakdown.hintPenalty}`, color: C.red });
   if (breakdown.perseveranceBonus > 0) lines.push({ label: ispt ? "PERSEVERANÇA" : "PERSEVERANCE", value: `+${breakdown.perseveranceBonus}`, color: C.cyan });
-  if (breakdown.timeMultiplier !== 1.0) lines.push({ label: ispt ? "BÔNUS TEMPO" : "TIME BONUS", value: `×${breakdown.timeMultiplier.toFixed(1)}`, color: C.cyan });
+  if (breakdown.timeMultiplier !== 1.0) lines.push({ label: ispt ? "BÔNUS TEMPO" : "TIME BONUS", value: `×${breakdown.timeMultiplier.toFixed(1)}`, color: C.amber });
   if (breakdown.dailyBonus > 0) lines.push({ label: ispt ? "BÔNUS DIÁRIO" : "DAILY BONUS", value: `+${breakdown.dailyBonus}`, color: C.amber });
 
   useEffect(() => {
-    const timers = lines.map((_, i) => setTimeout(() => setVisible(i + 1), i * 220 + 100));
-    const done = setTimeout(onDone, lines.length * 220 + 2800);
+    const timers = lines.map((_, i) => setTimeout(() => setVisible(i + 1), i * 200 + 150));
+    const done = setTimeout(onDone, lines.length * 200 + 3000);
     return () => { timers.forEach(clearTimeout); clearTimeout(done); };
   }, []);
 
+  const showTotal = visible >= lines.length;
+
   return (
-    <div style={{ background: C.panel, border: `1px solid ${C.green}50`, padding: "10px 14px", margin: "0", flexShrink: 0, animation: "fadeSlide 0.2s ease" }}>
-      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.green, letterSpacing: 2, marginBottom: 8 }}>// XP_BREAKDOWN</div>
-      {lines.map((line, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 12, marginBottom: 3, opacity: visible > i ? 1 : 0, animation: visible > i ? "xpLineIn 0.2s ease" : "none", color: line.color }}>
-          <span style={{ color: C.dim }}>{line.label}</span>
-          <span style={{ color: line.color, fontWeight: 700 }}>{line.value}</span>
-        </div>
-      ))}
-      {visible >= lines.length && (
-        <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 6, display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 15, animation: "xpLineIn 0.25s ease" }}>
-          <span style={{ color: C.dim }}>{ispt ? "TOTAL" : "TOTAL"}</span>
-          <span style={{ color: C.amber, fontWeight: 700, textShadow: `0 0 8px ${C.amber}60`, animation: "xpFlyUp 2.5s ease 0.5s both" }}>+{breakdown.total} XP</span>
-        </div>
+    <div onClick={onDone} style={{ position: "fixed", inset: 0, zIndex: 9997, background: `${C.void}EE`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer", padding: "0 32px" }}>
+      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.green, letterSpacing: 3, marginBottom: 24, animation: "fadeSlide 0.3s ease" }}>// XP_BREAKDOWN</div>
+      <div style={{ width: "100%", maxWidth: 300 }}>
+        {lines.map((line, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 14, marginBottom: 10, opacity: visible > i ? 1 : 0, animation: visible > i ? "xpLineIn 0.2s ease" : "none" }}>
+            <span style={{ color: C.dim }}>{line.label}</span>
+            <span style={{ color: line.color, fontWeight: 700 }}>{line.value}</span>
+          </div>
+        ))}
+        {showTotal && (
+          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: F.mono }}>
+            <span style={{ fontSize: 14, color: C.dim, letterSpacing: 2 }}>{ispt ? "TOTAL" : "TOTAL"}</span>
+            <span style={{ fontSize: 28, color: C.amber, fontWeight: 700, textShadow: `0 0 24px ${C.amber}90, 0 0 48px ${C.amber}40`, animation: "xpTotalReveal 0.5s ease" }}>+{breakdown.total} XP</span>
+          </div>
+        )}
+      </div>
+      {showTotal && (
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, marginTop: 28, animation: "fadeSlide 0.4s ease 0.3s both", opacity: 0 }}>tap to dismiss</div>
       )}
     </div>
   );
@@ -1905,7 +1913,7 @@ function getTimeMultiplier(timerSec, totalSec, expired) {
 // ═══════════════════════════════════════════════════════════
 //  CHALLENGE EDITOR — Real SQL execution
 // ═══════════════════════════════════════════════════════════
-function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
+function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
   const { t, lang } = useLang();
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
@@ -1939,7 +1947,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
   // XP tracking
   const [hadWrongRun, setHadWrongRun] = useState(false);
   const [wrongRunCount, setWrongRunCount] = useState(0);
-  const [xpBreakdown, setXpBreakdown] = useState(null);
 
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
@@ -2262,7 +2269,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
         const isFirst = !solved?.has(ch.id);
         const bd = computeXPBreakdown(true, isFirst);
         if (isFirst) {
-          setXpBreakdown(bd);
+          if (onXPBreakdown) onXPBreakdown(bd);
           if (onXP) onXP(bd.total, ch.id, { submitted_sql: trimmed, is_correct: true, xp_earned: bd.total, is_first_try: !hadWrongRun, had_hints: hintLevel > 0 });
         }
       } else {
@@ -2691,10 +2698,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                 </button>
               )}
             </div>}
-            {/* XP breakdown toast — shown after first-solve, inside result panel so it's always visible */}
-            {verdict?.pass && xpBreakdown && (
-              <XPBreakdownToast breakdown={xpBreakdown} lang={lang} onDone={() => setXpBreakdown(null)} />
-            )}
             {/* Solution explanation — shown after a correct solve */}
             {verdict?.pass && showExplain && SOLUTION_EXPLANATIONS[ch.id] && (
               <div style={{ borderTop: `1px solid ${C.green}30`, background: C.greenGhost, padding: "10px 16px", animation: "fadeSlide 0.15s ease" }}>
@@ -3705,9 +3708,12 @@ export default function PunkSQLCLI() {
   useEffect(() => {
     if (storageLoaded) saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext);
   }, [xp, solved, lang, lastCodeId, lastLearnId, lastContext, storageLoaded]);
-  // Level up & badge overlays
+  // Level up, badge, and XP breakdown overlays
   const [levelUpShow, setLevelUpShow] = useState(null);
   const [badgeShow, setBadgeShow] = useState(null);
+  const [xpBreakdownShow, setXpBreakdownShow] = useState(null);
+  const pendingXPBreakdown = useRef(null);
+  const levelUpActive = useRef(false);
   const prevLevel = useRef(getLevel(0).level);
   const prevEarned = useRef(new Set());
 
@@ -3728,7 +3734,7 @@ export default function PunkSQLCLI() {
       // Check level up
       const oldLv = getLevel(prev).level;
       const newLv = getLevel(n).level;
-      if (newLv > oldLv) setTimeout(() => { setLevelUpShow(newLv); SFX.play("levelup"); }, 300);
+      if (newLv > oldLv) { levelUpActive.current = true; setTimeout(() => { setLevelUpShow(newLv); SFX.play("levelup"); }, 300); }
       return n;
     });
     if (challengeId && pts > 0) markSolved(challengeId);
@@ -3743,6 +3749,24 @@ export default function PunkSQLCLI() {
        });
     }
   }, [addXP, logAttempt]);
+
+  const handleXPBreakdown = useCallback((bd) => {
+    if (levelUpActive.current) {
+      pendingXPBreakdown.current = bd;
+    } else {
+      setTimeout(() => setXpBreakdownShow(bd), 400);
+    }
+  }, []);
+
+  const dismissLevelUp = useCallback(() => {
+    setLevelUpShow(null);
+    levelUpActive.current = false;
+    if (pendingXPBreakdown.current) {
+      const bd = pendingXPBreakdown.current;
+      pendingXPBreakdown.current = null;
+      setTimeout(() => setXpBreakdownShow(bd), 250);
+    }
+  }, []);
 
   // Check for new badge unlocks after solved changes
   useEffect(() => {
@@ -3872,25 +3896,28 @@ export default function PunkSQLCLI() {
 
   if (screen === "daily") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
+      <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 
   if (screen === "challenge") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
+      <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 
   if (screen === "lesson") return (
     <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
+      <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 
@@ -3907,10 +3934,9 @@ export default function PunkSQLCLI() {
         {tab === "profile" && <ProfileScreen xp={xp} solved={solved} syncing={syncing} />}
       </div>
       <TabBar active={tab} onTabChange={setTab} />
-      {/* Level up overlay */}
-      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={() => setLevelUpShow(null)} />}
-      {/* Badge unlock overlay */}
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider>
   );
 }
