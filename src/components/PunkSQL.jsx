@@ -2023,7 +2023,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
 
   // Timer countdown
   useEffect(() => {
-    if (verdict?.pass || timerPaused || timerExpired) {
+    if (verdict?.pass || timerPaused || timerExpired || showCodeOnboarding) {
       clearInterval(timerIntervalRef.current);
       return;
     }
@@ -2039,7 +2039,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
       });
     }, 1000);
     return () => clearInterval(timerIntervalRef.current);
-  }, [timerPaused, timerExpired, verdict?.pass]);
+  }, [timerPaused, timerExpired, verdict?.pass, showCodeOnboarding]);
 
   // Auto-open explanation when challenge is correctly solved
   useEffect(() => { if (verdict?.pass) setShowExplain(true); }, [verdict]);
