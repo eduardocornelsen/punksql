@@ -3253,7 +3253,18 @@ function QuizScreen({ onXP }) {
   const [timer, setTimer] = useState(15);
   const timerRef = useRef(null);
 
-  const questions = modFilter === 0 ? QUIZ_DB : QUIZ_DB.filter(q => q.mod === modFilter);
+  const questions = useMemo(() => {
+    const base = modFilter === 0 ? QUIZ_DB : QUIZ_DB.filter(q => q.mod === modFilter);
+    return base.map(q => {
+      const tagged = q.opts.map((opt, i) => ({ opt, correct: i === q.ans }));
+      for (let i = tagged.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
+      }
+      return { ...q, opts: tagged.map(t => t.opt), ans: tagged.findIndex(t => t.correct) };
+    });
+  }, [modFilter]);
+
   const q = questions[idx % questions.length];
   const pts = q?.diff === "EASY" ? 10 : q?.diff === "MED" ? 20 : q?.diff === "HARD" ? 30 : 40;
 
