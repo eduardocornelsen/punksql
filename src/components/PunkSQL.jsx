@@ -3121,11 +3121,11 @@ function ReviewScreen({ onXP }) {
   return (
     <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
       {/* Header */}
+      <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
+        <Prompt path="/review" /><span style={{ color: C.text }}> ls --shuffle cards/</span>
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div>
-          <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}><Prompt path="/review" /><span style={{ color: C.text }}> ls --shuffle cards/</span></div>
-          <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6 }}>{t("review_title")}</div>
-        </div>
+        <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan }}>{t("review_title")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Hearts />
           <div style={{ fontFamily: F.mono, fontSize: 20, color: C.dim }}>{score}<span style={{ fontSize: 13, color: C.muted }}>pt</span></div>
@@ -3318,11 +3318,11 @@ function QuizScreen({ onXP }) {
   return (
     <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
       {/* Header */}
+      <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
+        <Prompt path="/quiz" /><span style={{ color: C.text }}> run quiz --random</span>
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div>
-          <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}><Prompt path="/quiz" /><span style={{ color: C.text }}> run quiz --random</span></div>
-          <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, marginTop: 6 }}>SQL_QUIZ</div>
-        </div>
+        <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan }}>SQL_QUIZ</div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, letterSpacing: 0.5 }}>[ STREAK: {streak}{streak >= 3 ? ` ×${getStreakMult(streak).toFixed(2)}` : "" } ]</div>
           <div style={{ fontFamily: F.mono, fontSize: 20, color: C.dim }}>{score}<span style={{ fontSize: 12, color: C.muted }}>pt</span></div>
