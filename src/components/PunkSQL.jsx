@@ -1598,7 +1598,7 @@ function AuxKeyboard({ onInsert, onControl, tabsRef }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef, timerAreaRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1671,6 +1671,15 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       body: ispt
         ? "Use os botões TABLES, COLUMNS,\nSQL e AGG para inserir tokens.\nPressione ▶ RUN para executar."
         : "Use TABLES, COLUMNS, SQL & AGG\nbuttons to insert tokens.\nPress ▶ RUN to execute.",
+    },
+    {
+      ref: timerAreaRef,
+      icon: "⏱",
+      color: C.amber,
+      title: ispt ? "TIMER & MULTIPLICADOR" : "TIMER & MULTIPLIER",
+      body: ispt
+        ? "Responda rápido para ganhar\nmais XP. Toque no timer\npara pausar quando precisar."
+        : "Answer fast to earn more XP.\nTap the timer to pause it\nwhenever you need a break.",
     },
     {
       ref: tourBtnRef,
@@ -1951,7 +1960,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
-  const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null);
+  const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null), timerAreaRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
@@ -2755,7 +2764,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             const timerColor = timerExpired ? C.muted : frac > 0.5 ? C.green : frac > 0.25 ? C.amber : C.red;
             const mult = getTimeMultiplier(timerSec, totalTimerSec, timerExpired);
             return (
-              <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} style={{ background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+              <div ref={timerAreaRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} style={{ background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
                 {/* Countdown progress bar */}
                 <div style={{ height: 2, background: C.border, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${frac * 100}%`, background: timerColor, transition: "width 1s linear, background 0.5s ease", boxShadow: !timerExpired && frac < 0.25 ? `0 0 8px ${C.red}60` : "none" }} />
@@ -2820,6 +2829,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           validateQuery={ch.verify || ch.validate}
           auxTabsRef={auxTabsRef}
           runBtnRef={runBtnRef}
+          timerAreaRef={timerAreaRef}
         />
       )}
     </div>
