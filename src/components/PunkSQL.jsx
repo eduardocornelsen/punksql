@@ -3246,8 +3246,9 @@ function ArchetypeViz({ solved }) {
             <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, width: 76, letterSpacing: 0.5, flexShrink: 0 }}>
               {lang === "pt" ? d.label_pt : d.label_en}
             </span>
-            <div style={{ flex: 1, height: 5, background: C.border, position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", inset: 0, width: `${d.pct * 100}%`, background: d.c, boxShadow: `0 0 6px ${d.c}80`, transition: "width 0.5s ease" }} />
+            <div style={{ flex: 1, position: "relative", overflow: "hidden", lineHeight: 1 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: C.border, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{"░".repeat(60)}</span>
+              <span style={{ position: "absolute", left: 0, top: 0, display: "block", overflow: "hidden", width: `${d.pct * 100}%`, fontFamily: F.mono, fontSize: 11, color: d.c, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{"█".repeat(60)}</span>
             </div>
             <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, width: 64, textAlign: "right", flexShrink: 0 }}>
               {Math.round(d.pct * 100)}% {d.sc}/{d.total}
