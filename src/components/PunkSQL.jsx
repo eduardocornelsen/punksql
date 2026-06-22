@@ -3119,7 +3119,7 @@ function ReviewScreen({ onXP }) {
   );
 
   return (
-    <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
+    <div style={{ padding: "12px 16px 20px", animation: "langSwitch 0.3s ease" }}>
       {/* Header */}
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
         <Prompt path="/review" /><span style={{ color: C.text }}> ls --shuffle cards/</span>
@@ -3316,7 +3316,7 @@ function QuizScreen({ onXP }) {
   const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL"];
 
   return (
-    <div style={{ padding: "16px 18px 20px", animation: "langSwitch 0.3s ease" }}>
+    <div style={{ padding: "12px 16px 20px", animation: "langSwitch 0.3s ease" }}>
       {/* Header */}
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
         <Prompt path="/quiz" /><span style={{ color: C.text }}> run quiz --random</span>
