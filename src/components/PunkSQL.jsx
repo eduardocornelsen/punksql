@@ -2691,6 +2691,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
                 </button>
               )}
             </div>}
+            {/* XP breakdown toast — shown after first-solve, inside result panel so it's always visible */}
+            {verdict?.pass && xpBreakdown && (
+              <XPBreakdownToast breakdown={xpBreakdown} lang={lang} onDone={() => setXpBreakdown(null)} />
+            )}
             {/* Solution explanation — shown after a correct solve */}
             {verdict?.pass && showExplain && SOLUTION_EXPLANATIONS[ch.id] && (
               <div style={{ borderTop: `1px solid ${C.green}30`, background: C.greenGhost, padding: "10px 16px", animation: "fadeSlide 0.15s ease" }}>
@@ -2734,11 +2738,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, isDaily = fals
             ))}
           </div>
         )}
-        {/* XP breakdown toast — shown after first-solve */}
-        {verdict?.pass && xpBreakdown && (
-          <XPBreakdownToast breakdown={xpBreakdown} lang={lang} onDone={() => setXpBreakdown(null)} />
-        )}
-
         {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
         <div ref={bottomAreaRef}>
           <AuxKeyboard
