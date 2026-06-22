@@ -2939,6 +2939,11 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
               {isSolved && (
                 <span style={{ fontSize: 9, color: C.dim, flexShrink: 0 }}>+{baseXp}xp</span>
               )}
+              {tm && (
+                <span style={{ fontSize: 9, color: C.muted, flexShrink: 0, letterSpacing: 0.5 }}>
+                  {lang === "pt" ? tm.label_pt : tm.label_en}
+                </span>
+              )}
             </button>
           );
         })}
