@@ -73,6 +73,26 @@ const META_CMDS = [
 const SQL_SYMBOLS = [
   "(",")",",",";","*","=","!=","<",">","<=",">=","'","\"","--","/*","*/","%","_",
 ];
+const DBT_TOKENS = [
+  "{{ ref('') }}",
+  "{{ source('', '') }}",
+  "{{ config(materialized='view') }}",
+  "{{ config(materialized='table') }}",
+  "{{ config(materialized='incremental') }}",
+  "{{ var('') }}",
+  "{{ this }}",
+  "{% if is_incremental() %}",
+  "{% endif %}",
+  "{% set x = ... %}",
+  "{% for item in ... %}",
+  "{% endfor %}",
+  "unique_key=''",
+  "stg_",
+  "int_",
+  "fct_",
+  "dim_",
+  "mart_",
+];
 const ALL_SQL = [...SQL_KEYWORDS, ...SQL_DDL, ...SQL_FUNCS, ...SQL_TYPES, ...SQL_PRAGMA];
 
 // ── Autocomplete helpers ──────────────────────────────────────
@@ -340,12 +360,17 @@ function OnboardingModal({ onClose, lang }) {
 // ── SQL Aux Keyboard ──────────────────────────────────────────
 function SandboxAuxKeyboard({ onInsert, tableNames, columnNames, onSwipeDown }) {
   const [activeTab, setActiveTab] = useState("sql");
-  const swipeRef = useRef(null);
+  // Drag-handle swipe-down tracking
+  const dragRef = useRef(null);
+  // Chip-row scroll tracking — prevents accidental tap during horizontal scroll
+  const chipScrolling = useRef(false);
+  const chipTouchX = useRef(0);
 
   const tabDefs = [
     { id: "sql",    label: "SQL",    color: C.cyan,   tokens: SQL_KEYWORDS, onTap: (k) => onInsert(k + " ") },
     { id: "ddl",    label: "DDL",    color: C.amber,  tokens: SQL_DDL,      onTap: (k) => onInsert(k + " ") },
     { id: "func",   label: "FUNC",   color: C.purple, tokens: SQL_FUNCS,    onTap: (k) => onInsert(k) },
+    { id: "dbt",    label: "DBT",    color: C.green,  tokens: DBT_TOKENS,   onTap: (t) => onInsert(t) },
     { id: "tables", label: "TABLES", color: C.dim,    tokens: tableNames,   onTap: (t) => onInsert(t) },
     { id: "cols",   label: "COLS",   color: C.dim,    tokens: columnNames,  onTap: (c) => onInsert(c) },
     { id: "sym",    label: "{}",     color: C.dim,    tokens: SQL_SYMBOLS,  onTap: (s) => onInsert(s) },
@@ -353,68 +378,79 @@ function SandboxAuxKeyboard({ onInsert, tableNames, columnNames, onSwipeDown }) 
 
   const active = tabDefs.find((t) => t.id === activeTab) || tabDefs[0];
 
-  const onHandleTouchStart = (e) => {
-    swipeRef.current = e.touches[0].clientY;
+  // Drag handle handlers (swipe down → close)
+  const onDragStart = (e) => { dragRef.current = e.touches[0].clientY; };
+  const onDragMove  = (e) => {
+    if (dragRef.current === null) return;
+    if (e.touches[0].clientY - dragRef.current > 40) { dragRef.current = null; onSwipeDown(); }
   };
-  const onHandleTouchMove = (e) => {
-    if (swipeRef.current === null) return;
-    const dy = e.touches[0].clientY - swipeRef.current;
-    if (dy > 40) { swipeRef.current = null; onSwipeDown(); }
-  };
-  const onHandleTouchEnd = () => { swipeRef.current = null; };
+  const onDragEnd   = () => { dragRef.current = null; };
+
+  // Chip row handlers (track horizontal scroll to suppress accidental taps)
+  const onChipsStart = (e) => { chipScrolling.current = false; chipTouchX.current = e.touches[0].clientX; };
+  const onChipsMove  = (e) => { if (Math.abs(e.touches[0].clientX - chipTouchX.current) > 8) chipScrolling.current = true; };
 
   return (
     <div style={{ background: C.panel, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-      {/* Drag handle — swipe down to close */}
+      {/* ── Drag handle (full-width touch target, swipe down to close) ── */}
       <div
-        onTouchStart={onHandleTouchStart}
-        onTouchMove={onHandleTouchMove}
-        onTouchEnd={onHandleTouchEnd}
+        onTouchStart={onDragStart}
+        onTouchMove={onDragMove}
+        onTouchEnd={onDragEnd}
         style={{
-          display: "flex", justifyContent: "center", alignItems: "center",
-          padding: "5px 0 4px", cursor: "row-resize", touchAction: "none",
-          borderBottom: `1px solid ${C.border}20`,
+          width: "100%", padding: "6px 0 4px", display: "flex",
+          justifyContent: "center", alignItems: "center",
+          touchAction: "none", cursor: "row-resize",
+          background: C.black, borderBottom: `1px solid ${C.border}`,
         }}
       >
-        <div style={{ width: 36, height: 3, background: C.border, borderRadius: 2 }} />
+        <div style={{ width: 40, height: 3, background: C.borderBright, borderRadius: 2 }} />
       </div>
 
-      {/* Tab row */}
-      <div style={{ display: "flex", overflowX: "auto", borderBottom: `1px solid ${C.border}` }}>
+      {/* ── Tab row (always visible, full-width, no overflow needed) ── */}
+      <div style={{
+        display: "flex", overflowX: "auto",
+        background: C.black, borderBottom: `1px solid ${C.border}`,
+        // prevent tab-row touch from triggering chip scroll tracking
+      }}>
         {tabDefs.map((tab) => (
           <button
             key={tab.id}
             onMouseDown={(e) => { e.preventDefault(); setActiveTab(tab.id); }}
-            onTouchStart={(e) => { e.stopPropagation(); }}
+            onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab(tab.id); }}
             style={{
-              fontFamily: F.mono, fontSize: 10, padding: "6px 12px", flexShrink: 0,
-              background: activeTab === tab.id ? `${tab.color}12` : "none",
+              fontFamily: F.mono, fontSize: 10, padding: "8px 11px", flexShrink: 0,
+              background: activeTab === tab.id ? `${tab.color}15` : "none",
               color: activeTab === tab.id ? tab.color : C.muted,
               border: "none",
               borderBottom: activeTab === tab.id ? `2px solid ${tab.color}` : "2px solid transparent",
-              cursor: "pointer", letterSpacing: 1,
+              cursor: "pointer", letterSpacing: 1, fontWeight: activeTab === tab.id ? "bold" : "normal",
             }}
           >{tab.label}</button>
         ))}
       </div>
 
-      {/* Token chips */}
-      <div style={{
-        display: "flex", overflowX: "auto", padding: "6px 8px", gap: 5,
-        minHeight: 46,
-      }}>
+      {/* ── Token chips (scroll-aware: suppresses tap if horizontal scroll detected) ── */}
+      <div
+        style={{ display: "flex", overflowX: "auto", padding: "6px 8px", gap: 5, minHeight: 48 }}
+        onTouchStart={onChipsStart}
+        onTouchMove={onChipsMove}
+      >
         {active.tokens.length === 0 ? (
           <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, alignSelf: "center", padding: "0 4px" }}>
-            {activeTab === "tables" ? "create a table first" : activeTab === "cols" ? "no columns yet" : "empty"}
+            {activeTab === "tables" ? "no tables — try \\reset" : activeTab === "cols" ? "no columns yet" : "empty"}
           </span>
         ) : (
           active.tokens.map((tok) => (
             <button
               key={tok}
               onMouseDown={(e) => { e.preventDefault(); active.onTap(tok); }}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); active.onTap(tok); }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!chipScrolling.current) active.onTap(tok);
+              }}
               style={{
                 fontFamily: F.mono, fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap",
                 background: "none", border: `1px solid ${C.border}`, color: active.color,
@@ -863,13 +899,15 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   }, []);
 
   // Chip bar swipe-up gesture → open keyboard
+  // Track both x and y so a horizontal scroll doesn't accidentally trigger
   const onChipBarTouchStart = (e) => {
-    chipBarSwipeRef.current = e.touches[0].clientY;
+    chipBarSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
   const onChipBarTouchMove = (e) => {
-    if (chipBarSwipeRef.current === null) return;
-    const dy = e.touches[0].clientY - chipBarSwipeRef.current;
-    if (dy < -35) { chipBarSwipeRef.current = null; setKbdOpen(true); }
+    if (!chipBarSwipeRef.current) return;
+    const dx = Math.abs(e.touches[0].clientX - chipBarSwipeRef.current.x);
+    const dy = e.touches[0].clientY - chipBarSwipeRef.current.y;
+    if (dy < -35 && dx < 20) { chipBarSwipeRef.current = null; setKbdOpen(true); }
   };
   const onChipBarTouchEnd = () => { chipBarSwipeRef.current = null; };
 
