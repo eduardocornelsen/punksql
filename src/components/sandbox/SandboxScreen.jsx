@@ -70,6 +70,9 @@ const SQL_PRAGMA = [
 const META_CMDS = [
   "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\save","\\reset","\\h","\\?",
 ];
+const SQL_SYMBOLS = [
+  "(",")",",",";","*","=","!=","<",">","<=",">=","'","\"","--","/*","*/","%","_",
+];
 const ALL_SQL = [...SQL_KEYWORDS, ...SQL_DDL, ...SQL_FUNCS, ...SQL_TYPES, ...SQL_PRAGMA];
 
 // ── Autocomplete helpers ──────────────────────────────────────
@@ -130,22 +133,300 @@ function loadObjects(db) {
   }));
 }
 
-// ── Help text ─────────────────────────────────────────────────
-const HELP_TEXT = `\\dt              list tables
-\\dv              list views
-\\d <name>        describe columns of a table or view
-\\l               list attached databases
-\\history         show command history
-\\clear (or cls)  clear terminal output
-\\save            save workspace to IndexedDB (persists across refreshes)
-\\reset           reset database to initial dataset
-\\h, \\?           show this help
+// ── Help text (expanded) ──────────────────────────────────────
+const HELP_TEXT = `AVAILABLE COMMANDS
+══════════════════
 
-Naming conventions for LINEAGE view:
-  stg_*   Staging — clean/rename raw sources
-  int_*   Intermediate — joins and aggregations
+SCHEMA / INSPECTION
+  \\dt              list all tables
+  \\dv              list all views
+  \\d               list all objects (tables + views)
+  \\d <name>        describe columns of a table or view
+  \\l               list attached databases
+
+WORKSPACE
+  \\history         show command history (last 200)
+  \\clear  (\\cls)   clear terminal output (DB unchanged)
+  \\save            persist DB to IndexedDB (survives refresh)
+  \\reset           restore original dataset (clears DB)
+
+HELP
+  \\h, \\?           show this help
+
+KEYBOARD SHORTCUTS
+  Enter            execute query
+  Shift+Enter      new line (multi-line query)
+  Tab              accept first autocomplete suggestion
+  Escape           clear autocomplete suggestions
+  ↑ / ↓            navigate command history
+
+SQL KEYBOARD
+  Swipe UP on chip bar   open floating SQL keyboard
+  Swipe DOWN on keyboard close it
+  [⌨] button in input   toggle keyboard
+
+LINEAGE NAMING CONVENTIONS
+  stg_*   Staging — clean raw sources
+  int_*   Intermediate — joins / aggregations
   fct_*   Fact table (Mart layer)
-  dim_*   Dimension table (Mart layer)`;
+  dim_*   Dimension table (Mart layer)
+
+TIP: Tap [?] in the header to reopen the onboarding tour.`;
+
+// ── Onboarding ────────────────────────────────────────────────
+const ONBOARD_KEY = "punksql-sandbox-onboard-v1";
+
+const ONBOARDING_STEPS = [
+  {
+    title: "FREE EXPLORE // SANDBOX",
+    icon: "⬡",
+    color: C.cyan,
+    body: "A fully in-browser SQLite REPL.\nNo server. No signup. Works offline.\n\nYour schema and data are saved in\nyour browser via IndexedDB and\npersist across refreshes.",
+  },
+  {
+    title: "WRITING QUERIES",
+    icon: "≡",
+    color: C.cyan,
+    body: "Type any SQL in the input box below.\n\nENTER or ▶ RUN — execute query\nSHIFT+ENTER — new line\n\nExample:\n  SELECT * FROM customers LIMIT 5;\n\n  SELECT name, SUM(total_amount)\n  FROM orders\n  GROUP BY name\n  ORDER BY 2 DESC;",
+  },
+  {
+    title: "AUTOCOMPLETE",
+    icon: "⇥",
+    color: C.cyan,
+    body: "Type a word and press TAB to complete.\nThe chip bar shows suggestions live.\n\nWorks for:\n  • SQL keywords (SELECT, FROM…)\n  • DDL (CREATE TABLE, DROP VIEW…)\n  • Functions (COUNT(), AVG()…)\n  • Your table & column names\n  • Meta-commands (\\dt, \\dv…)\n\nESC clears suggestions.",
+  },
+  {
+    title: "META-COMMANDS",
+    icon: "\\",
+    color: C.amber,
+    body: "psql-style backslash commands:\n\n  \\dt            list all tables\n  \\dv            list all views\n  \\d <name>      describe a table\n  \\history       show command history\n  \\clear         clear terminal output\n  \\save          save DB to browser\n  \\reset         restore original data\n  \\?             show all commands",
+  },
+  {
+    title: "OBJECT BROWSER",
+    icon: "obj",
+    color: C.cyan,
+    body: "Tap [obj] in the header to open\nthe Object Browser panel.\n\nShows all tables and views.\n  • Tap any object → expand columns\n  • Tap a column → insert into editor\n\nThe panel refreshes automatically\nafter you create or drop objects.",
+  },
+  {
+    title: "DATA LINEAGE",
+    icon: "dag",
+    color: C.green,
+    body: "Tap [dag] to open the Lineage panel.\n\nObjects are grouped by naming:\n  stg_*  → STAGING (clean raw data)\n  int_*  → INTERMEDIATE (joins/aggs)\n  fct_*  → MART fact tables\n  dim_*  → MART dimension tables\n\nViews show upstream dependencies.\n\nExample pipeline:\n  stg_orders → int_revenue → fct_kpi",
+  },
+  {
+    title: "SQL KEYBOARD",
+    icon: "⌨",
+    color: C.purple,
+    body: "A floating SQL keyword keyboard,\nhidden by default.\n\nTo OPEN:\n  Swipe UP on the chip bar below\n  or tap [⌨] in the input area\n\nTo CLOSE:\n  Swipe DOWN on the keyboard\n  or tap [⌨] again\n\nTabs: SQL · DDL · FUNC · TABLES · COLS · {}",
+  },
+  {
+    title: "SAVING YOUR WORK",
+    icon: "▪",
+    color: C.green,
+    body: "Query history auto-saves locally\n(up to 200 entries per session).\n\nTo save the database:\n  Tap [save] in the header\n  or type: \\save\n\nTo clear terminal output:\n  Tap [cls] in the header\n  (DB is NOT affected)\n\nTo restore original dataset:\n  Type: \\reset\n\nTap [?] anytime to reopen this guide.",
+  },
+];
+
+// ── Onboarding Modal ──────────────────────────────────────────
+function OnboardingModal({ onClose, lang }) {
+  const [step, setStep] = useState(0);
+  const current = ONBOARDING_STEPS[step];
+  const isLast = step === ONBOARDING_STEPS.length - 1;
+
+  return (
+    <div style={{
+      position: "absolute", inset: 0, background: "rgba(0,0,0,0.88)",
+      zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "16px 12px",
+    }}>
+      <div style={{
+        background: C.panel, border: `1px solid ${current.color}40`,
+        maxWidth: 380, width: "100%", padding: "20px 18px", position: "relative",
+        boxShadow: `0 0 40px ${current.color}18`,
+      }}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: 8, right: 10,
+            background: "none", border: "none", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 14, color: C.muted, lineHeight: 1,
+          }}
+        >✕</button>
+
+        {/* Step dots */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 5, marginBottom: 18 }}>
+          {ONBOARDING_STEPS.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => setStep(i)}
+              style={{
+                width: i === step ? 22 : 6, height: 6,
+                background: i === step ? current.color : C.border,
+                border: "none", cursor: "pointer", padding: 0,
+                transition: "width 0.2s, background 0.2s",
+                flexShrink: 0,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Icon */}
+        <div style={{
+          fontFamily: F.mono, fontSize: 30, color: current.color,
+          textAlign: "center", marginBottom: 6, lineHeight: 1,
+        }}>
+          {current.icon}
+        </div>
+
+        {/* Title */}
+        <div style={{
+          fontFamily: F.mono, fontSize: 11, color: current.color,
+          textAlign: "center", letterSpacing: 2.5, marginBottom: 16,
+        }}>
+          {current.title}
+        </div>
+
+        {/* Body */}
+        <pre style={{
+          fontFamily: F.mono, fontSize: 11, color: C.text,
+          margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.75,
+          textAlign: "left",
+        }}>
+          {current.body}
+        </pre>
+
+        {/* Navigation */}
+        <div style={{ display: "flex", gap: 8, marginTop: 22, justifyContent: "space-between", alignItems: "center" }}>
+          <button
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            disabled={step === 0}
+            style={{
+              fontFamily: F.mono, fontSize: 11, padding: "7px 14px",
+              background: "none", border: `1px solid ${step === 0 ? C.border : C.borderBright}`,
+              color: step === 0 ? C.border : C.dim, cursor: step === 0 ? "default" : "pointer",
+            }}
+          >← prev</button>
+
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>
+            {step + 1} / {ONBOARDING_STEPS.length}
+          </span>
+
+          {!isLast ? (
+            <button
+              onClick={() => setStep((s) => s + 1)}
+              style={{
+                fontFamily: F.mono, fontSize: 11, padding: "7px 14px",
+                background: `${current.color}14`, border: `1px solid ${current.color}`,
+                color: current.color, cursor: "pointer",
+              }}
+            >next →</button>
+          ) : (
+            <button
+              onClick={onClose}
+              style={{
+                fontFamily: F.mono, fontSize: 11, padding: "7px 16px",
+                background: `${C.green}14`, border: `1px solid ${C.green}`,
+                color: C.green, cursor: "pointer", letterSpacing: 1,
+              }}
+            >▶ START</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SQL Aux Keyboard ──────────────────────────────────────────
+function SandboxAuxKeyboard({ onInsert, tableNames, columnNames, onSwipeDown }) {
+  const [activeTab, setActiveTab] = useState("sql");
+  const swipeRef = useRef(null);
+
+  const tabDefs = [
+    { id: "sql",    label: "SQL",    color: C.cyan,   tokens: SQL_KEYWORDS, onTap: (k) => onInsert(k + " ") },
+    { id: "ddl",    label: "DDL",    color: C.amber,  tokens: SQL_DDL,      onTap: (k) => onInsert(k + " ") },
+    { id: "func",   label: "FUNC",   color: C.purple, tokens: SQL_FUNCS,    onTap: (k) => onInsert(k) },
+    { id: "tables", label: "TABLES", color: C.dim,    tokens: tableNames,   onTap: (t) => onInsert(t) },
+    { id: "cols",   label: "COLS",   color: C.dim,    tokens: columnNames,  onTap: (c) => onInsert(c) },
+    { id: "sym",    label: "{}",     color: C.dim,    tokens: SQL_SYMBOLS,  onTap: (s) => onInsert(s) },
+  ];
+
+  const active = tabDefs.find((t) => t.id === activeTab) || tabDefs[0];
+
+  const onHandleTouchStart = (e) => {
+    swipeRef.current = e.touches[0].clientY;
+  };
+  const onHandleTouchMove = (e) => {
+    if (swipeRef.current === null) return;
+    const dy = e.touches[0].clientY - swipeRef.current;
+    if (dy > 40) { swipeRef.current = null; onSwipeDown(); }
+  };
+  const onHandleTouchEnd = () => { swipeRef.current = null; };
+
+  return (
+    <div style={{ background: C.panel, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+      {/* Drag handle — swipe down to close */}
+      <div
+        onTouchStart={onHandleTouchStart}
+        onTouchMove={onHandleTouchMove}
+        onTouchEnd={onHandleTouchEnd}
+        style={{
+          display: "flex", justifyContent: "center", alignItems: "center",
+          padding: "5px 0 4px", cursor: "row-resize", touchAction: "none",
+          borderBottom: `1px solid ${C.border}20`,
+        }}
+      >
+        <div style={{ width: 36, height: 3, background: C.border, borderRadius: 2 }} />
+      </div>
+
+      {/* Tab row */}
+      <div style={{ display: "flex", overflowX: "auto", borderBottom: `1px solid ${C.border}` }}>
+        {tabDefs.map((tab) => (
+          <button
+            key={tab.id}
+            onMouseDown={(e) => { e.preventDefault(); setActiveTab(tab.id); }}
+            onTouchStart={(e) => { e.stopPropagation(); }}
+            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab(tab.id); }}
+            style={{
+              fontFamily: F.mono, fontSize: 10, padding: "6px 12px", flexShrink: 0,
+              background: activeTab === tab.id ? `${tab.color}12` : "none",
+              color: activeTab === tab.id ? tab.color : C.muted,
+              border: "none",
+              borderBottom: activeTab === tab.id ? `2px solid ${tab.color}` : "2px solid transparent",
+              cursor: "pointer", letterSpacing: 1,
+            }}
+          >{tab.label}</button>
+        ))}
+      </div>
+
+      {/* Token chips */}
+      <div style={{
+        display: "flex", overflowX: "auto", padding: "6px 8px", gap: 5,
+        minHeight: 46,
+      }}>
+        {active.tokens.length === 0 ? (
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, alignSelf: "center", padding: "0 4px" }}>
+            {activeTab === "tables" ? "create a table first" : activeTab === "cols" ? "no columns yet" : "empty"}
+          </span>
+        ) : (
+          active.tokens.map((tok) => (
+            <button
+              key={tok}
+              onMouseDown={(e) => { e.preventDefault(); active.onTap(tok); }}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); active.onTap(tok); }}
+              style={{
+                fontFamily: F.mono, fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap",
+                background: "none", border: `1px solid ${C.border}`, color: active.color,
+                cursor: "pointer", flexShrink: 0,
+              }}
+            >{tok}</button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Result Table (ASCII box-drawing) ─────────────────────────
 function ResultTable({ columns, rows }) {
@@ -219,8 +500,6 @@ function ObjectBrowser({ db, onInsert, onRefresh, lang }) {
   }, [db]);
 
   useEffect(() => { refresh(); }, [refresh]);
-
-  // expose refresh to parent so it can be called after exec
   useEffect(() => { if (onRefresh) onRefresh.current = refresh; }, [refresh, onRefresh]);
 
   const toggleExpand = (name) => {
@@ -341,7 +620,7 @@ function LineageStack({ db, lang }) {
       {LAYER_ORDER.map((layerKey) => {
         const m = LAYER_META[layerKey];
         const items = byLayer[layerKey];
-        if (!items.length && hasLayers) return null; // hide empty non-source layers if others exist
+        if (!items.length && hasLayers) return null;
         return (
           <div key={layerKey} style={{ marginBottom: 10 }}>
             <div style={{ fontFamily: F.mono, fontSize: 10, color: m.color, letterSpacing: 2, marginBottom: 4 }}>
@@ -360,9 +639,7 @@ function LineageStack({ db, lang }) {
                     <span style={{ fontFamily: F.mono, fontSize: 11, color: obj.type === "view" ? C.purple : m.color }}>
                       {obj.type === "view" ? "◻" : "▪"} {obj.name}
                     </span>
-                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>
-                      {obj.type}
-                    </span>
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>{obj.type}</span>
                   </div>
                   {obj.upstreams.length > 0 && (
                     <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 10 }}>
@@ -376,7 +653,6 @@ function LineageStack({ db, lang }) {
         );
       })}
 
-      {/* Tip when no layers yet */}
       {!hasLayers && (
         <div style={{
           fontFamily: F.mono, fontSize: 10, color: C.muted,
@@ -435,10 +711,13 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const [suggestions, setSuggestions] = useState([]);
   const [tableNames, setTableNames] = useState([]);
   const [columnNames, setColumnNames] = useState([]);
+  const [kbdOpen, setKbdOpen] = useState(false);
+  const [showOnboard, setShowOnboard] = useState(false);
 
   const textareaRef = useRef(null);
   const scrollRef = useRef(null);
   const browserRefreshRef = useRef(null);
+  const chipBarSwipeRef = useRef(null);
   const ispt = lang === "pt";
 
   // Load table + column names for autocomplete
@@ -448,14 +727,12 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     const tr = execSQL(d, "SELECT name FROM sqlite_master WHERE type IN ('table','view') ORDER BY name");
     const tNames = tr.ok ? tr.rows.map((r) => r[0]) : [];
     setTableNames(tNames);
-    // Load all columns for all tables
     const cols = new Set();
     tNames.forEach((t) => {
       const pr = execSQL(d, `PRAGMA table_info("${t}")`);
       if (pr.ok) pr.rows.forEach((r) => cols.add(r[1]));
     });
     setColumnNames([...cols]);
-    // also refresh the object browser if open
     if (browserRefreshRef.current) browserRefreshRef.current();
   }, [db]);
 
@@ -468,9 +745,10 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         if (scrollback.length === 0) {
           pushBlock({ type: "info", text: ispt
             ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda. Use \\dt para listar tabelas.`
-            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help. \\dt to list tables, \\? for all commands.`
+            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help. \\dt lists tables. [?] opens the guide.`
           });
         }
+        if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboard(true);
       })
       .catch(() => pushBlock({ type: "error", text: "Failed to load sql.js engine" }))
       .finally(() => setLoading(false));
@@ -481,7 +759,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [scrollback]);
 
-  // Compute autocomplete suggestions on sql change
   const updateSuggestions = useCallback((value, pos) => {
     const word = getWordAtCursor(value, pos ?? value.length);
     if (word.length < 1) { setSuggestions([]); return; }
@@ -540,9 +817,8 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
     const result = execSQL(db, trimmed);
     pushBlock({ type: "sql", cmd: trimmed, result });
-    // Refresh catalog after DDL (CREATE/DROP/ALTER)
     if (/^\s*(CREATE|DROP|ALTER)\b/i.test(trimmed)) refreshCatalog();
-  }, [sql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, lang, ispt]);
+  }, [sql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt]);
 
   const onKeyDown = useCallback((e) => {
     if (e.key === "Tab") {
@@ -581,26 +857,46 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     });
   }, [sql]);
 
-  // Save button state
+  const closeOnboard = useCallback(() => {
+    try { localStorage.setItem(ONBOARD_KEY, "1"); } catch {}
+    setShowOnboard(false);
+  }, []);
+
+  // Chip bar swipe-up gesture → open keyboard
+  const onChipBarTouchStart = (e) => {
+    chipBarSwipeRef.current = e.touches[0].clientY;
+  };
+  const onChipBarTouchMove = (e) => {
+    if (chipBarSwipeRef.current === null) return;
+    const dy = e.touches[0].clientY - chipBarSwipeRef.current;
+    if (dy < -35) { chipBarSwipeRef.current = null; setKbdOpen(true); }
+  };
+  const onChipBarTouchEnd = () => { chipBarSwipeRef.current = null; };
+
   const saveBtnLabel = saveStatus === "saving" ? (ispt ? "salvando…" : "saving…")
     : saveStatus === "saved" ? "✓ ok"
     : saveStatus === "error" ? "✗ err"
     : (ispt ? "save" : "save");
   const saveBtnColor = saveStatus === "saved" ? C.green : saveStatus === "error" ? C.red : C.dim;
 
-  // Panel toggle helper
   const togglePanel = (name) => setPanel((v) => v === name ? "none" : name);
 
-  // Chip bar: autocomplete suggestions (when typing) or keyword shortcuts (idle)
   const SHORTCUTS = ["SELECT * FROM", "WHERE", "LEFT JOIN", "GROUP BY", "ORDER BY", "LIMIT 10", "\\dt", "\\d"];
   const showSuggestions = suggestions.length > 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void, fontFamily: F.mono }}>
+    <div style={{
+      display: "flex", flexDirection: "column", height: "100%",
+      background: C.void, fontFamily: F.mono,
+      position: "relative", // needed for OnboardingModal absolute positioning
+    }}>
+
+      {/* ── Onboarding modal ── */}
+      {showOnboard && <OnboardingModal onClose={closeOnboard} lang={lang} />}
 
       {/* ── Header ── */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 6,
+        display: "flex", alignItems: "center", gap: 5,
         padding: "7px 10px", borderBottom: `1px solid ${C.border}`,
         background: C.black, flexShrink: 0,
       }}>
@@ -613,6 +909,16 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
         </div>
+
+        {/* Help / onboarding */}
+        <button
+          onClick={() => setShowOnboard(true)}
+          title={ispt ? "Abrir guia" : "Open guide"}
+          style={{
+            background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
+            fontFamily: F.mono, fontSize: 12, color: C.amber, padding: "4px 7px", minHeight: 28, flexShrink: 0,
+          }}
+        >?</button>
 
         {/* Clear log button */}
         <button onClick={clearScrollback} title="Clear terminal output" style={{
@@ -680,12 +986,25 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       </div>
 
       {/* ── Autocomplete / shortcut chip bar ── */}
-      <div style={{
-        display: "flex", gap: 4, padding: "4px 10px", flexShrink: 0,
-        borderTop: `1px solid ${C.border}20`, overflowX: "auto",
-        background: showSuggestions ? `${C.cyan}06` : "transparent",
-        transition: "background 0.15s",
-      }}>
+      <div
+        onTouchStart={onChipBarTouchStart}
+        onTouchMove={onChipBarTouchMove}
+        onTouchEnd={onChipBarTouchEnd}
+        style={{
+          display: "flex", gap: 4, padding: "4px 10px", flexShrink: 0,
+          borderTop: `1px solid ${C.border}20`, overflowX: "auto",
+          background: showSuggestions ? `${C.cyan}06` : "transparent",
+          transition: "background 0.15s", touchAction: "pan-x",
+        }}
+      >
+        {/* Swipe-up hint when keyboard is closed */}
+        {!kbdOpen && !showSuggestions && (
+          <span style={{
+            fontFamily: F.mono, fontSize: 9, color: C.border,
+            alignSelf: "center", flexShrink: 0, paddingRight: 4, userSelect: "none",
+          }}>↑⌨</span>
+        )}
+
         {showSuggestions ? (
           <>
             <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>
@@ -711,6 +1030,16 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
           ))
         )}
       </div>
+
+      {/* ── SQL Aux Keyboard (hidden by default) ── */}
+      {kbdOpen && (
+        <SandboxAuxKeyboard
+          onInsert={insertAtCursor}
+          tableNames={tableNames}
+          columnNames={columnNames}
+          onSwipeDown={() => setKbdOpen(false)}
+        />
+      )}
 
       {/* ── Input area ── */}
       <div style={{
@@ -739,11 +1068,27 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
             disabled={loading || !db}
           />
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-          <button onClick={() => { setSql(""); setSuggestions([]); textareaRef.current?.focus(); }} style={{
-            background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
-            fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "4px 10px",
-          }}>{ispt ? "limpar" : "clear"}</button>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            {/* Keyboard toggle button */}
+            <button
+              onMouseDown={(e) => { e.preventDefault(); setKbdOpen((v) => !v); requestAnimationFrame(() => textareaRef.current?.focus()); }}
+              title={ispt ? "Teclado SQL" : "SQL keyboard"}
+              style={{
+                background: kbdOpen ? `${C.purple}14` : "none",
+                border: `1px solid ${kbdOpen ? C.purple : C.border}`,
+                cursor: "pointer", fontFamily: F.mono, fontSize: 13,
+                color: kbdOpen ? C.purple : C.muted, padding: "4px 10px",
+              }}
+            >⌨</button>
+
+            {/* Clear input */}
+            <button onClick={() => { setSql(""); setSuggestions([]); textareaRef.current?.focus(); }} style={{
+              background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
+              fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "4px 10px",
+            }}>{ispt ? "limpar" : "clear"}</button>
+          </div>
+
           <button onClick={execute} disabled={loading || !db || !sql.trim()} style={{
             background: sql.trim() ? C.cyanGhost : "none",
             border: `1px solid ${sql.trim() ? C.cyan : C.border}`,
