@@ -68,11 +68,14 @@ const C = {
   amber: "#FFBB00", amberDim: "#CC9900", amberGhost: "rgba(255,187,0,0.10)",
   orange: "#FF8800", orangeGhost: "rgba(255,136,0,0.10)",
   red: "#FF3333", redDim: "#CC2222", redGhost: "rgba(255,51,51,0.10)",
-  white: "#FFFFFF", dim: "#888888", muted: "#555555", purple: "#CC88FF",
+  white: "#FFFFFF", dim: "#9a9a9a", muted: "#7a7a7a", purple: "#CC88FF",
   text: "#CCCCCC",
 };
 
 const F = { mono: "'JetBrains Mono', 'Fira Code', 'Share Tech Mono', 'Courier New', monospace" };
+
+// ── Theme Context — provides theme ("dark"|"eink"|"hc") and cycleTheme ────
+const ThemeContext = createContext({ theme: "dark", cycleTheme: () => {} });
 
 // ── ASCII wordmark (figlet "ANSI Shadow" — PUNKSQL) ───────────
 const ASCII_LOGO = [
@@ -352,6 +355,28 @@ function tokenizeSQL(sql, tables = [], columns = []) {
   return out;
 }
 
+// ── StdoutList — bash-style line-by-line reveal animation ────
+function StdoutList({ items, renderItem, delay = 15, resetKey, style: wrapStyle = {} }) {
+  const [visibleCount, setVisibleCount] = useState(0);
+  useEffect(() => { setVisibleCount(0); }, [resetKey]);
+  useEffect(() => {
+    if (visibleCount < items.length) {
+      const timer = setTimeout(() => setVisibleCount(v => v + 1), delay);
+      return () => clearTimeout(timer);
+    }
+  }, [visibleCount, items.length, delay]);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", ...wrapStyle }}>
+      {items.slice(0, visibleCount).map((item, index) => (
+        <div key={index}>{renderItem(item, index)}</div>
+      ))}
+      {visibleCount < items.length && (
+        <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, animation: "blink 600ms step-end infinite", paddingLeft: 10 }}>█</span>
+      )}
+    </div>
+  );
+}
+
 // ── Utilities ─────────────────────────────────────────────
 const Cursor = () => <span style={{ display: "inline-block", width: 9, height: "1em", background: C.green, marginLeft: 2, animation: "blink 600ms step-end infinite", verticalAlign: "text-bottom" }} />;
 
@@ -498,33 +523,27 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
 }
 
 // ── Language Switcher ─────────────────────────────────────
-function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
-  const [collapsed, setCollapsed] = useState(startCollapsed);
+function TopBar({ showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
+  const { theme, cycleTheme } = useContext(ThemeContext);
+  const themeLabel = theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK";
 
-  // Auto-collapse when entering focus mode
-  useEffect(() => {
-    if (focusTitle) setCollapsed(true);
-  }, [focusTitle]);
-
-  // Exercise dots renderer (reused in both collapsed and expanded)
-  const ExDots = ({ compact = false }) => {
+  const ExDots = () => {
     if (!exercises) return null;
     const curIdx = exercises.findIndex(e => e.id === currentExId);
     const prev = curIdx > 0 ? exercises[curIdx - 1] : null;
     const next = curIdx < exercises.length - 1 ? exercises[curIdx + 1] : null;
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: compact ? 4 : 5, flex: 1, justifyContent: "center", minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", minWidth: 0 }}>
         <button onClick={() => prev && onExNav(prev.id)} disabled={!prev} style={{ background: "none", border: "none", cursor: prev ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: prev ? C.cyan : C.border, padding: "2px 4px", flexShrink: 0 }}>◂</button>
-        <div style={{ display: "flex", gap: compact ? 3 : 4, alignItems: "center", overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 3, alignItems: "center", overflowX: "auto" }}>
           {exercises.map((ex, i) => {
             const isCur = ex.id === currentExId;
-            const sz = compact ? 16 : 18;
             return (
               <button key={ex.id} onClick={() => onExNav(ex.id)} style={{
-                width: sz, height: sz, minWidth: sz,
+                width: 16, height: 16, minWidth: 16,
                 background: isCur ? C.cyan : "none",
                 border: `1px solid ${isCur ? C.cyan : C.border}`,
-                cursor: "pointer", fontFamily: F.mono, fontSize: compact ? 8 : 9, fontWeight: 700,
+                cursor: "pointer", fontFamily: F.mono, fontSize: 8, fontWeight: 700,
                 color: isCur ? C.black : C.dim,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 padding: 0, flexShrink: 0,
@@ -540,58 +559,19 @@ function TopBar({ lang, setLang, startCollapsed = false, showContinue = false, o
     );
   };
 
-  if (collapsed) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", padding: "6px 14px 5px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 6 }}>
-        {focusTitle ? (
-          <div style={{ flex: 1, fontFamily: F.mono, fontSize: 15, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{focusTitle}</div>
-        ) : exercises ? (
-          <ExDots compact />
-        ) : showContinue ? (
-          <button onClick={onContinue} style={{ background: "none", border: `1px solid ${C.cyan}50`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
-            <span style={{ flexShrink: 0 }}>▶</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
-          </button>
-        ) : <div style={{ flex: 1 }} />}
-        <button onClick={() => setCollapsed(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyanDim, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {lang.toUpperCase()} ▼
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "8px 14px 7px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 8 }}>
-      {/* Left: Exercise dots or Continue button */}
-      {exercises ? (
+    <div style={{ display: "flex", alignItems: "center", padding: "6px 14px 5px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 6 }}>
+      {focusTitle ? (
+        <div style={{ flex: 1, fontFamily: F.mono, fontSize: 15, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{focusTitle}</div>
+      ) : exercises ? (
         <ExDots />
       ) : showContinue ? (
-        <button onClick={onContinue} style={{
-          background: "none", border: `1px solid ${C.cyan}60`, cursor: "pointer",
-          fontFamily: F.mono, fontSize: 12, color: C.cyan, fontWeight: 700,
-          padding: "7px 10px", display: "flex", alignItems: "center", gap: 6,
-          letterSpacing: 0.5,
-          overflow: "hidden", flexShrink: 1, minWidth: 0,
-        }}>
+        <button onClick={onContinue} style={{ background: "none", border: `1px solid ${C.cyan}50`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
           <span style={{ flexShrink: 0 }}>▶</span>
-          <div style={{ textAlign: "left", overflow: "hidden", minWidth: 0 }}>
-            <div style={{ fontSize: 13, lineHeight: 1.2, whiteSpace: "nowrap" }}>{continueCtx}</div>
-            <div style={{ fontSize: 12, color: C.dim, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueLabel}</div>
-          </div>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
         </button>
       ) : <div style={{ flex: 1 }} />}
-      {/* Spacer */}
-      {!exercises && <div style={{ flex: 1 }} />}
-      {/* Right: Lang switcher + collapse */}
-      <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, background: C.void, overflow: "hidden", width: 110, flexShrink: 0 }}>
-        <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
-        {["en", "pt"].map(l => (
-          <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "6px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 11, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
-            {l.toUpperCase()}
-          </button>
-        ))}
-      </div>
-      <button onClick={() => setCollapsed(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px", flexShrink: 0 }}>▲</button>
+      <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 10px", letterSpacing: 1, flexShrink: 0 }}>{themeLabel}</button>
     </div>
   );
 }
@@ -671,9 +651,9 @@ function StatusBar({ xp = 0, solved = new Set() }) {
           <span style={{ color: C.muted }}> · </span>
           <span style={{ color: C.dim }}>{xp.toLocaleString()} XP</span>
         </span>
-        <span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: C.dim }}>{solved.size}/{CHALLENGES_DB.length}</span>
-          <span style={{ color: C.muted }}> {time}</span>
+          <span style={{ color: C.dim }}>{time}</span>
         </span>
       </div>
       <div style={{ padding: "0 14px 6px" }}>
@@ -747,9 +727,13 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
         <span style={{ color: C.green }}>$ </span>ls modules/
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: 16 }}>
-        {menuItems.map((item) => (
-          <button key={item.num} onClick={item.action} style={{
+      <StdoutList
+        items={menuItems}
+        resetKey={lang}
+        delay={40}
+        style={{ gap: 1, marginBottom: 16 }}
+        renderItem={(item) => (
+          <button onClick={item.action} style={{
             display: "flex", alignItems: "center", gap: 0,
             background: "none", border: "none", cursor: "pointer",
             fontFamily: F.mono, fontSize: 13, textAlign: "left",
@@ -759,8 +743,8 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
             <span style={{ color: C.white, minWidth: 140 }}>{item.id}</span>
             <span style={{ color: C.dim, fontSize: 12 }}>{item.desc}</span>
           </button>
-        ))}
-      </div>
+        )}
+      />
 
       {/* Stats summary */}
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
@@ -829,11 +813,13 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}>
         <Prompt path="/learn" /><span style={{ color: C.text }}> ls -la modules/</span>
       </div>
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
+      <div style={{ fontSize: 11, color: C.dim, marginBottom: 14 }}>
         {t("learn_title")} {t("learn_sub")}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {mods.map((m, i) => {
+      <StdoutList
+        items={mods}
+        delay={50}
+        renderItem={(m) => {
           const done = m.s === "done", act = m.s === "active", lock = m.s === "lock";
           const clickable = !lock;
           const nc = done ? C.green : act ? C.cyan : C.muted;
@@ -847,7 +833,6 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
                 background: act ? C.panel : "none", border: `1px solid ${act ? C.border : "transparent"}`,
                 cursor: clickable ? "pointer" : "default",
                 textAlign: "left", width: "100%",
-                animation: `fadeSlide 0.25s ease ${i * 0.03}s both`,
                 opacity: lock ? 0.35 : 1,
               }}
             >
@@ -856,12 +841,12 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
               </span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.muted }}>mod_{String(m.id).padStart(2,"0")}/</span>
+                  <span style={{ fontSize: 12, color: C.dim }}>mod_{String(m.id).padStart(2,"0")}/</span>
                   <span style={{ fontSize: 13, color: nc }}>{m.n}</span>
                   {done && <span style={{ fontSize: 11, color: C.green, marginLeft: "auto" }}>+{m.xp}xp</span>}
                   {lock && <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>[LOCKED]</span>}
                 </div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{m.tp}</div>
+                <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>{m.tp}</div>
                 {(act || done) && (
                   <div style={{ marginTop: 6, height: 2, background: C.border, overflow: "hidden", maxWidth: 120 }}>
                     <div style={{ height: "100%", width: `${Math.min(100, m.p * 100)}%`, background: done ? C.green : C.cyan }} />
@@ -871,8 +856,8 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
               </div>
             </button>
           );
-        })}
-      </div>
+        }}
+      />
     </div>
   );
 }
@@ -1565,7 +1550,7 @@ function AuxKeyboard({ onInsert, onControl, tabsRef }) {
                   border: "none",
                   borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
                   cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-                  color: isActive ? tab.color : "#555",
+                  color: isActive ? tab.color : C.dim,
                   fontWeight: isActive ? 700 : 400,
                   letterSpacing: 1, userSelect: "none",
                 }}
@@ -1617,7 +1602,7 @@ function AuxKeyboard({ onInsert, onControl, tabsRef }) {
 // ═══════════════════════════════════════════════════════════
 //  CODE SCREEN ONBOARDING — First-time walkthrough
 // ═══════════════════════════════════════════════════════════
-function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef, timerAreaRef }) {
+function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, schemaRef, hintRef, expectedRef, tourBtnRef, hintBarRef, bottomAreaRef, schema, hint, db, validateQuery, auxTabsRef, runBtnRef, timerAreaRef, focusBtnRef, themeBtnRef }) {
   const [step, setStep] = useState(0);
   const [spotRect, setSpotRect] = useState(null);
   const ispt = lang === "pt";
@@ -1699,6 +1684,24 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
       body: ispt
         ? "Responda rápido para ganhar\nmais XP. Toque no timer\npara pausar quando precisar."
         : "Answer fast to earn more XP.\nTap the timer to pause it\nwhenever you need a break.",
+    },
+    {
+      ref: focusBtnRef,
+      icon: "⊟",
+      color: C.cyan,
+      title: ispt ? "MODO FOCO" : "FOCUS MODE",
+      body: ispt
+        ? "Oculta o teclado auxiliar e\nos painéis laterais para que\no editor ocupe a tela toda."
+        : "Hides the aux keyboard and\nside panels so the editor\nfills the entire screen.",
+    },
+    {
+      ref: themeBtnRef,
+      icon: "◑",
+      color: C.purple,
+      title: ispt ? "TEMAS" : "THEMES",
+      body: ispt
+        ? "Alterna entre 3 temas:\nDARK · tela escura padrão\nINK · e-ink invertido\nHC · alto contraste P&B"
+        : "Cycles through 3 themes:\nDARK · default dark screen\nINK · e-ink inverted\nHC · high-contrast B&W",
     },
     {
       ref: tourBtnRef,
@@ -1886,14 +1889,14 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           {steps.map((s, i) => (
             <div key={i} style={{
               width: i === step ? 22 : 7, height: 2,
-              background: i === step ? C.cyan : C.border,
+              background: i === step ? current.color : C.border,
               transition: "all 0.3s ease",
             }} />
           ))}
         </div>
         {/* Icon */}
         <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 30, color: C.cyan }}>
+          <span style={{ fontFamily: F.mono, fontSize: 30, color: current.color }}>
             {current.icon}
           </span>
         </div>
@@ -1914,8 +1917,8 @@ function CodeScreenOnboarding({ onComplete, lang, editorRef, kbdRef, auxRef, sch
           }}>{ispt ? "PULAR" : "SKIP"}</button>
           <button onPointerDown={e => { e.preventDefault(); isLast ? done() : setStep(s => s + 1); }} style={{
             flex: 2, padding: "10px 0", cursor: "pointer", minHeight: 42,
-            fontFamily: F.mono, fontSize: 13, color: C.cyan, fontWeight: 700, letterSpacing: 2,
-            background: "none", border: `1px solid ${C.cyan}`,
+            fontFamily: F.mono, fontSize: 13, color: current.color, fontWeight: 700, letterSpacing: 2,
+            background: "none", border: `1px solid ${current.color}`,
           }}>{isLast ? (ispt ? "ENTENDIDO ▶" : "GOT IT ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
         </div>
       </div>
@@ -1940,6 +1943,8 @@ function getTimeMultiplier(timerSec, totalSec, expired) {
 // ═══════════════════════════════════════════════════════════
 function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown, isDaily = false, moduleId = null, exercises = null, onExNav = null, solved = null }) {
   const { t, lang } = useLang();
+  const { theme, cycleTheme } = useContext(ThemeContext);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const ch = CHALLENGES_DB.find(c => c.id === challengeId) || CHALLENGES_DB[0];
   const nextCh = CHALLENGES_DB.find(c => c.id === challengeId + 1);
   const defaultSql = ch.mod >= 9 ? "" : "SELECT \n  \nFROM ";
@@ -1977,6 +1982,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
   const hintBarRef = useRef(null), bottomAreaRef = useRef(null), auxTabsRef = useRef(null), runBtnRef = useRef(null);
   const schemaBtnRef = useRef(null), hintBtnRef = useRef(null), expectedBtnRef = useRef(null), tourBtnRef = useRef(null), timerAreaRef = useRef(null);
+  const focusBtnRef = useRef(null), themeBtnRef = useRef(null);
   const bsTimerRef = useRef(null), bsIntervalRef = useRef(null);
   // Mirrors current sql/cPos/editing without stale-closure issues in repeat callbacks
   const sqlRef = useRef(sql);
@@ -2514,13 +2520,15 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           <span style={{ fontFamily: F.mono, fontSize: 13, color: C.green, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.title}</span>
         </div>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, border: `1px solid ${C.border}`, padding: "2px 6px" }}>{ch.diff}</span>
+        <button ref={focusBtnRef} onClick={() => setIsFocusMode(f => !f)} title={isFocusMode ? "Restore panels" : "Focus mode"} style={{ background: "none", border: `1px solid ${isFocusMode ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: isFocusMode ? C.cyan : C.dim, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>{isFocusMode ? "⊞" : "⊟"}</button>
+        <button ref={themeBtnRef} onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.dim, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
         {exercises && (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 16, color: C.dim, padding: "2px 8px", minHeight: 28, lineHeight: 1 }}>☰</button>
         )}
       </div>
 
-      {/* Problem description — collapsible */}
-      <button onClick={() => setProbOpen(!probOpen)} style={{
+      {/* Problem description — collapsible, hidden in focus mode */}
+      {!isFocusMode && <button onClick={() => setProbOpen(!probOpen)} style={{
         background: C.black, border: "none", borderBottom: `1px solid ${C.border}`,
         cursor: "pointer", textAlign: "left", width: "100%",
         padding: "5px 12px", display: "flex", alignItems: probOpen ? "flex-start" : "center", gap: 6, flexShrink: 0,
@@ -2529,8 +2537,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         <div style={{ fontFamily: F.mono, fontSize: 11, color: C.white, overflow: "hidden", textOverflow: probOpen ? "unset" : "ellipsis", whiteSpace: probOpen ? "normal" : "nowrap", flex: 1, lineHeight: 1.6 }}>
           <span style={{ color: C.dim }}>-- </span>{desc}
         </div>
-      </button>
-      {probOpen && (
+      </button>}
+      {!isFocusMode && probOpen && (
         <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${showSchema ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showSchema ? C.cyan : C.dim, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
@@ -2696,8 +2704,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           </div>
         </div>
         {/* Hint bar */}
-        <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {!dbReady ? "loading sql engine..." : "swipe to move cursor · tap to focus"}
+        <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: ⌨  ·  tap: close"}
         </div>
         {/* Results — shown in BOTH modes */}
         {result && (
@@ -2766,11 +2774,11 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         )}
         {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
         <div ref={bottomAreaRef}>
-          <AuxKeyboard
+          {!isFocusMode && <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
             tabsRef={auxTabsRef}
-          />
+          />}
           {/* ── Timer bar (shown until solved) ── */}
           {(!verdict?.pass) && (() => {
             const timerMins = Math.floor(timerSec / 60);
@@ -2845,6 +2853,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           auxTabsRef={auxTabsRef}
           runBtnRef={runBtnRef}
           timerAreaRef={timerAreaRef}
+          focusBtnRef={focusBtnRef}
+          themeBtnRef={themeBtnRef}
         />
       )}
     </div>
@@ -2909,20 +2919,21 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
           }}>{lang === "pt" ? tm.label_pt : tm.label_en}</button>
         ))}
       </div>
-      {/* Challenge list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {filtered.map((ch, i) => {
+      {/* Challenge list — stdout-style line-by-line reveal */}
+      <StdoutList
+        items={filtered}
+        resetKey={filter + "|" + tagFilter}
+        renderItem={(ch) => {
           const isSolved = solved.has(ch.id);
           const dc = C.muted;
           const tm = TAG_META[ch.tag];
           const baseXp = ch.diff === "EASY" ? 25 : ch.diff === "MED" ? 50 : ch.diff === "HARD" ? 75 : 100;
-          const maxXp = Math.round((baseXp + 5) * 2.0 * 1.1); // no-hint + ×2 time + first-try
+          const maxXp = Math.round((baseXp + 5) * 2.0 * 1.1);
           return (
-            <button key={ch.id} onClick={() => onNavigate("challenge", ch.id)} style={{
+            <button onClick={() => onNavigate("challenge", ch.id)} style={{
               background: "none", border: `1px solid ${isSolved ? `${C.green}25` : "transparent"}`,
               cursor: "pointer", textAlign: "left", width: "100%", padding: "8px 10px",
               display: "flex", alignItems: "center", gap: 10,
-              animation: `fadeSlide 0.2s ease ${Math.min(i, 20) * 0.02}s both`,
             }}>
               <span style={{ color: isSolved ? C.green : C.muted, fontSize: 11, width: 14, flexShrink: 0 }}>
                 {isSolved ? "✓" : "·"}
@@ -2946,8 +2957,8 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
               )}
             </button>
           );
-        })}
-      </div>
+        }}
+      />
       <div style={{ fontSize: 11, color: C.muted, marginTop: 10, textAlign: "center" }}>
         {filtered.length} challenges · {solved.size}/{CHALLENGES_DB.length} solved
       </div>
@@ -3133,20 +3144,23 @@ function ReviewScreen({ onXP }) {
       </div>
 
       {/* Difficulty selector */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
-        {["ALL","EASY","MED","HARD"].map(d => {
+      <StdoutList
+        items={["ALL","EASY","MED","HARD"]}
+        delay={60}
+        style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}
+        renderItem={(d) => {
           const st = statsByDiff[d] || { r: 0, c: 0 };
           const pct = st.r > 0 ? Math.round(st.c / st.r * 100) : 0;
           return (
-            <button key={d} onClick={() => { setDiff(d); setIdx(0); setFlipped(false); }} style={{
+            <button onClick={() => { setDiff(d); setIdx(0); setFlipped(false); }} style={{
               background: "none", border: `1px solid ${diff === d ? C.dim : C.border}`,
               cursor: "pointer", padding: "8px 14px", minHeight: 40,
               fontFamily: F.mono, fontSize: 14, color: diff === d ? C.text : C.dim,
               display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap",
             }}><span>{d}</span><span style={{ fontSize: 11, color: diff === d ? C.dim : C.muted }}>{pct}%</span></button>
           );
-        })}
-      </div>
+        }}
+      />
 
       <ProgressBar progress={cards.length > 0 ? ((idx % cards.length) + 1) / cards.length : 0} />
 
@@ -3342,7 +3356,7 @@ function QuizScreen({ onXP }) {
 
       {/* Progress + Timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <ProgressBar progress={questions.length > 0 ? ((idx % questions.length) + 1) / questions.length : 0} />
+        <ProgressBar progress={questions.length > 0 ? (idx % questions.length) / questions.length : 0} />
         <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
       </div>
 
@@ -3357,8 +3371,12 @@ function QuizScreen({ onXP }) {
       </div>
 
       {/* Options */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-        {q.opts.map((opt, i) => {
+      <StdoutList
+        items={q.opts}
+        resetKey={idx}
+        delay={80}
+        style={{ gap: 8, marginBottom: 14 }}
+        renderItem={(opt, i) => {
           const isCorrect = i === q.ans;
           const isSelected = i === selected;
           let bg = "none", borderColor = C.border, textColor = C.white;
@@ -3368,7 +3386,7 @@ function QuizScreen({ onXP }) {
             else { textColor = C.dim; }
           }
           return (
-            <button key={i} onClick={() => handleAnswer(i)} disabled={showResult} style={{
+            <button onClick={() => handleAnswer(i)} disabled={showResult} style={{
               background: bg, border: `1px solid ${borderColor}`, cursor: showResult ? "default" : "pointer",
               padding: "14px 16px", fontFamily: F.mono, fontSize: 16, color: textColor,
               textAlign: "left", minHeight: 50, display: "flex", alignItems: "center", gap: 12,
@@ -3380,8 +3398,8 @@ function QuizScreen({ onXP }) {
               <span style={{ fontFamily: F.mono }}>{opt}</span>
             </button>
           );
-        })}
-      </div>
+        }}
+      />
 
       {/* Next button */}
       {showResult && (
@@ -3513,7 +3531,7 @@ function ArchetypeViz({ solved }) {
 //  PROFILE
 // ═══════════════════════════════════════════════════════════
 function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
-  const { t, lang } = useLang();
+  const { t, lang, setLang } = useLang();
   const { user, signInWithGoogle, signOut, loading } = useAuth();
   const lv = getLevel(xp);
   const [expandedBadge, setExpandedBadge] = useState(null);
@@ -3577,19 +3595,22 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         )}
       </div>
       <Divider />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}>
-        {[
+      <StdoutList
+        items={[
           { l: t("total_xp"), v: xp.toLocaleString(), c: C.text },
           { l: t("solved_label"), v: String(solved.size), c: C.text },
           { l: "LEVEL", v: String(lv.level), c: C.text },
           { l: t("accuracy_label"), v: `${acc}%`, c: C.text },
-        ].map((s, i) => (
-          <div key={i} style={{ background: C.panel, border: `1px solid ${C.border}`, padding: "16px 18px" }}>
-            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.muted, letterSpacing: 1.5, marginBottom: 6 }}>{s.l}</div>
+        ]}
+        delay={60}
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}
+        renderItem={(s) => (
+          <div style={{ background: C.panel, border: `1px solid ${C.border}`, padding: "16px 18px" }}>
+            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, letterSpacing: 1.5, marginBottom: 6 }}>{s.l}</div>
             <div style={{ fontFamily: F.mono, fontSize: 32, color: s.c }}>{s.v}</div>
           </div>
-        ))}
-      </div>
+        )}
+      />
       <Divider />
       <SkillRadar solved={solved} />
       <Divider />
@@ -3630,7 +3651,20 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         </div>
       </div>
 
-      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 20, lineHeight: 2.2, textAlign: "center" }}>
+      <Divider />
+      <div style={{ marginTop: 16, marginBottom: 20 }}>
+        <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, marginBottom: 10, letterSpacing: 1.5 }}>┤ {lang === "pt" ? "IDIOMA" : "LANGUAGE"} ├</div>
+        <div style={{ display: "flex", position: "relative", border: `1px solid ${C.cyan}50`, overflow: "hidden", width: 110 }}>
+          <div style={{ position: "absolute", top: 1, bottom: 1, left: lang === "en" ? 1 : "50%", width: "calc(50% - 1px)", background: C.cyan, transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
+          {["en", "pt"].map(l => (
+            <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: "8px 0", background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 12, letterSpacing: 2, color: lang === l ? C.black : C.cyanDim, fontWeight: 700, position: "relative", zIndex: 1 }}>
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.muted, marginTop: 4, lineHeight: 2.2, textAlign: "center" }}>
         {t("footer_1")}<br />{t("footer_2")}<br />
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           {loading ? (
@@ -3657,9 +3691,9 @@ function OnboardingScreen({ onComplete, lang }) {
   const slides = [
     { icon: ">_", title: ispt ? "BEM-VINDO AO PUNKSQL" : "WELCOME TO PUNKSQL", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.cyan },
     { icon: "◈", title: ispt ? "APRENDA" : "LEARN", body: ispt ? "A aba LEARN tem 8 módulos:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nCada módulo tem 5-6 exercícios\nque vão do fácil ao expert." : "The LEARN tab has 8 modules:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nEach module has 5-6 exercises\nranging from easy to expert.", color: C.green },
-    { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? "CODE: 41 desafios SQL reais.\nEscreva SQL, clique RUN para testar,\nSUBMIT para validar. Use os botões\nde keywords — sem precisar de teclado!\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s." : "CODE: 41 real SQL challenges.\nWrite SQL, tap RUN to test,\nSUBMIT to validate. Use keyword\nbuttons — no keyboard needed!\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.", color: C.cyan },
+    { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? "CODE: 41 desafios SQL reais.\nEscreva queries e execute-as\ndiretamente no navegador.\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s." : "CODE: 41 real SQL challenges.\nWrite queries and execute them\ndirectly in your browser.\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.", color: C.cyan },
     { icon: "◇", title: ispt ? "CARDS + XP" : "CARDS + XP", body: ispt ? "CARDS: Flashcards com swipe.\nDireita = sabia (+pts)\nEsquerda = não sabia (-1 vida)\n3 vidas — Game Over reseta!\n\nXP: Tudo dá XP — challenges, quiz,\ncards. Suba de nível e ganhe badges!" : "CARDS: Swipeable flashcards.\nRight = knew it (+pts)\nLeft = didn't know (-1 life)\n3 lives — Game Over resets!\n\nXP: Everything earns XP — challenges,\nquiz, cards. Level up and earn badges!", color: C.amber },
-    { icon: "▲", title: ispt ? "PRONTO PARA COMEÇAR?" : "READY TO START?", body: ispt ? "Dica: Na tela de código, use\nos botões SQL no rodapé.\nToque na tela para mover o cursor.\nBotão ⌨ abre o teclado.\n\nComece pelo módulo 1: first_query\nBoa sorte, dev!" : "Tip: In the code editor, use\nthe SQL buttons at the bottom.\nTap the screen to move cursor.\nThe ⌨ button opens keyboard.\n\nStart with module 1: first_query\nGood luck, dev!", color: C.green },
+    { icon: "▲", title: ispt ? "PRONTO PARA COMEÇAR?" : "READY TO START?", body: ispt ? "A tela de código tem um tutorial\nintegrado que te guia por todos\nos controles no primeiro uso.\n\nComece pelo módulo 1: first_query\nBoa sorte, dev!" : "The code screen has a built-in\ntutorial that walks you through\nall the controls on first use.\n\nStart with module 1: first_query\nGood luck, dev!", color: C.green },
   ];
   const s = slides[step];
   const isLast = step === slides.length - 1;
@@ -3734,6 +3768,21 @@ function OnboardingScreen({ onComplete, lang }) {
 export default function PunkSQLCLI() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [appFocusMode, setAppFocusMode] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try {
+      const s = localStorage.getItem("punksql-theme");
+      if (s === "eink" || s === "hc") return s;
+    } catch {}
+    return "dark";
+  });
+  const cycleTheme = useCallback(() => {
+    setTheme(t => {
+      const next = t === "dark" ? "eink" : t === "eink" ? "hc" : "dark";
+      try { localStorage.setItem("punksql-theme", next); } catch {}
+      return next;
+    });
+  }, []);
+  const themeCtx = useMemo(() => ({ theme, cycleTheme }), [theme, cycleTheme]);
   const [lang, setLang] = useState("en");
   const [tab, setTab] = useState("home");
   const [screen, setScreen] = useState("main");
@@ -3879,14 +3928,21 @@ export default function PunkSQLCLI() {
   const currentCode = CHALLENGES_DB.find(c => c.id === lastCodeId);
   const currentMod = LEARN_MODULES.find(m => m.id === lastLearnId);
   const isLearnCtx = lastContext === "learn";
-  const continueCtx = isLearnCtx
-    ? (lang === "pt" ? "CONTINUAR LIÇÃO" : "CONTINUE LESSON")
-    : (lang === "pt" ? "CONTINUAR CÓDIGO" : "CONTINUE CODING");
-  const continueLabel = isLearnCtx
-    ? `#${lastLearnId} ${currentMod?.n || "aggregations"}`
-    : `#${lastCodeId} ${currentCode?.title || "select_all"}`;
+  const isNewUser = solved.size === 0 && xp === 0;
+  const firstMod = LEARN_MODULES[0];
+  const continueCtx = isNewUser
+    ? (lang === "pt" ? "COMEÇAR" : "START")
+    : isLearnCtx
+      ? (lang === "pt" ? "CONTINUAR LIÇÃO" : "CONTINUE LESSON")
+      : (lang === "pt" ? "CONTINUAR CÓDIGO" : "CONTINUE CODING");
+  const continueLabel = isNewUser
+    ? `#${firstMod?.id || 1} ${firstMod?.n || "first_query"}`
+    : isLearnCtx
+      ? `#${lastLearnId} ${currentMod?.n || "aggregations"}`
+      : `#${lastCodeId} ${currentCode?.title || "select_all"}`;
   const handleContinue = () => {
-    if (isLearnCtx) nav("lesson", lastLearnId);
+    if (isNewUser) nav("lesson", firstMod?.id || 1);
+    else if (isLearnCtx) nav("lesson", lastLearnId);
     else nav("challenge", lastCodeId);
   };
 
@@ -3946,15 +4002,16 @@ export default function PunkSQLCLI() {
     if (dx > 0 && idx > 0) setTab(MAIN_TABS[idx - 1]);
   }, [tab]);
 
-  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" };
-  const ctx = { lang, t };
+  const themeFilter = theme === "eink" ? "grayscale(1) invert(1) contrast(1.1)" : theme === "hc" ? "grayscale(1) contrast(2.5)" : undefined;
+  const shell = { maxWidth: 480, margin: "0 auto", height: "var(--app-h, 100dvh)", background: "#000000", fontFamily: F.mono, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", ...(themeFilter ? { filter: themeFilter } : {}) };
+  const ctx = { lang, t, setLang };
 
   // Build focus title from current challenge
   const focusCh = CHALLENGES_DB.find(c => c.id === (screen === "lesson" ? lessonChId : lastCodeId));
   const focusTitle = appFocusMode && focusCh ? `#${focusCh.id} ${focusCh.title}` : null;
 
   if (showOnboarding) return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} /></div></LangContext.Provider>
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} /></div></LangContext.Provider></ThemeContext.Provider>
   );
 
   // Daily challenge rotates by date
@@ -3966,35 +4023,35 @@ export default function PunkSQLCLI() {
   })();
 
   if (screen === "daily") return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 
   if (screen === "challenge") return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 
   if (screen === "lesson") return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 
   return (
-    <LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar lang={lang} setLang={setLang} startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+      <TopBar showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
@@ -4008,6 +4065,6 @@ export default function PunkSQLCLI() {
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
-    </div></LangContext.Provider>
+    </div></LangContext.Provider></ThemeContext.Provider>
   );
 }
