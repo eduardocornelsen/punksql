@@ -68,7 +68,7 @@ const C = {
   amber: "#FFBB00", amberDim: "#CC9900", amberGhost: "rgba(255,187,0,0.10)",
   orange: "#FF8800", orangeGhost: "rgba(255,136,0,0.10)",
   red: "#FF3333", redDim: "#CC2222", redGhost: "rgba(255,51,51,0.10)",
-  white: "#FFFFFF", dim: "#9a9a9a", muted: "#666666", purple: "#CC88FF",
+  white: "#FFFFFF", dim: "#9a9a9a", muted: "#7a7a7a", purple: "#CC88FF",
   text: "#CCCCCC",
 };
 
@@ -882,7 +882,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
               </span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.muted }}>mod_{String(m.id).padStart(2,"0")}/</span>
+                  <span style={{ fontSize: 12, color: C.dim }}>mod_{String(m.id).padStart(2,"0")}/</span>
                   <span style={{ fontSize: 13, color: nc }}>{m.n}</span>
                   {done && <span style={{ fontSize: 11, color: C.green, marginLeft: "auto" }}>+{m.xp}xp</span>}
                   {lock && <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>[LOCKED]</span>}
@@ -2562,7 +2562,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         </div>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, border: `1px solid ${C.border}`, padding: "2px 6px" }}>{ch.diff}</span>
         <button ref={focusBtnRef} onClick={() => setIsFocusMode(f => !f)} title={isFocusMode ? "Restore panels" : "Focus mode"} style={{ background: "none", border: `1px solid ${isFocusMode ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: isFocusMode ? C.cyan : C.dim, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>{isFocusMode ? "⊞" : "⊟"}</button>
-        <button ref={themeBtnRef} onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
+        <button ref={themeBtnRef} onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.dim, padding: "2px 6px", minHeight: 28, flexShrink: 0, letterSpacing: 1 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
         {exercises && (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 16, color: C.dim, padding: "2px 8px", minHeight: 28, lineHeight: 1 }}>☰</button>
         )}
@@ -2745,7 +2745,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           </div>
         </div>
         {/* Hint bar */}
-        <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.muted, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+        <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
           {!dbReady ? "loading sql engine..." : "swipe to move cursor · tap to focus"}
         </div>
         {/* Results — shown in BOTH modes */}
@@ -3647,7 +3647,7 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}
         renderItem={(s) => (
           <div style={{ background: C.panel, border: `1px solid ${C.border}`, padding: "16px 18px" }}>
-            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.muted, letterSpacing: 1.5, marginBottom: 6 }}>{s.l}</div>
+            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, letterSpacing: 1.5, marginBottom: 6 }}>{s.l}</div>
             <div style={{ fontFamily: F.mono, fontSize: 32, color: s.c }}>{s.v}</div>
           </div>
         )}
