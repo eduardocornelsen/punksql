@@ -2705,7 +2705,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         </div>
         {/* Hint bar */}
         <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: kbd  ·  tap: close"}
+          {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: ⌨  ·  tap: close"}
         </div>
         {/* Results — shown in BOTH modes */}
         {result && (
@@ -3356,7 +3356,7 @@ function QuizScreen({ onXP }) {
 
       {/* Progress + Timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <ProgressBar progress={questions.length > 0 ? ((idx % questions.length) + 1) / questions.length : 0} />
+        <ProgressBar progress={questions.length > 0 ? (idx % questions.length) / questions.length : 0} />
         <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
       </div>
 
