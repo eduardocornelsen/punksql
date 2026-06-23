@@ -493,8 +493,7 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
 
   useEffect(() => {
     const timers = lines.map((_, i) => setTimeout(() => setVisible(i + 1), i * 200 + 150));
-    const done = setTimeout(onDone, lines.length * 200 + 3000);
-    return () => { timers.forEach(clearTimeout); clearTimeout(done); };
+    return () => { timers.forEach(clearTimeout); };
   }, []);
 
   const showTotal = visible >= lines.length;
@@ -678,7 +677,7 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const menuItems = [
     { num: "1", id: "SYSTEM_STORY",  desc: lang === "pt" ? "// trilha de aprendizado SQL" : "// SQL learning campaign",   action: () => onNavigate("learn") },
     { num: "2", id: "BOUNTY_BOARD",  desc: lang === "pt" ? "// desafio diário rotativo"   : "// daily rotating challenge", action: () => onNavigate("daily") },
-    { num: "3", id: "PRACTICE",      desc: lang === "pt" ? "// todos os 80 desafios SQL"  : "// all 80 SQL challenges",    action: () => onNavigate("practice") },
+    { num: "3", id: "PRACTICE",      desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL`  : `// all ${CHALLENGES_DB.length} SQL challenges`,    action: () => onNavigate("practice") },
     { num: "4", id: "QUIZ",          desc: lang === "pt" ? "// múltipla escolha"           : "// multiple-choice questions", action: () => onNavigate("quiz") },
     { num: "5", id: "REVIEW_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"  : "// spaced repetition cards",  action: () => onNavigate("review") },
     { num: "6", id: "PROFILE",       desc: lang === "pt" ? "// stats e conquistas"        : "// stats & achievements",     action: () => onNavigate("profile") },
@@ -701,7 +700,7 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   return (
     <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
       {/* Boot lines */}
-      {[t("boot_1"), t("boot_2"), t("boot_3")].map((line, i) => (
+      {[t("boot_1"), t("boot_2"), lang === "pt" ? `[USR] eduardo // nvl ${lv.level}` : `[USR] eduardo // lvl ${lv.level}`].map((line, i) => (
         <div key={i} style={{ fontSize: 12, color: C.dim, lineHeight: 1.9, animation: `bootLine 0.25s ease ${i * 0.1}s both` }}>
           {line}
         </div>
@@ -2267,8 +2266,8 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   const toggleKeyboard = () => {
     kbToggling.current = true;
     if (editing) { taRef.current?.blur(); setEditing(false); }
-    else { setEditing(true); setTimeout(() => { const ta = taRef.current; if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); } kbToggling.current = false; }, 100); }
-    setTimeout(() => { kbToggling.current = false; }, 300);
+    else { setEditing(true); setTimeout(() => { const ta = taRef.current; if (ta) { ta.focus(); ta.setSelectionRange(cPos, cPos); } }, 100); }
+    setTimeout(() => { kbToggling.current = false; }, 600);
   };
   const handleBlur = () => {
     setTimeout(() => { if (!kbToggling.current) setEditing(false); }, 200);
@@ -2629,7 +2628,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           <div ref={edRef} style={{ height: "100%", padding: "8px 18px", overflowY: "scroll", overflowX: "scroll", background: `linear-gradient(180deg,${C.void},${C.black})`, position: "relative", touchAction: "none" }}
             onTouchStart={onEditorTouchStart} onTouchMove={onEditorTouchMove} onTouchEnd={onEditorTouchEnd} onClick={onTap}>
             {/* Custom cursor handle — hidden when keyboard is open */}
-          {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW - charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", transition: "left 0.05s,top 0.05s" }}>
+          {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", transition: "left 0.05s,top 0.05s" }}>
               <div style={{ fontFamily: F.mono, fontSize: 18, color: C.cyan, lineHeight: 2, animation: "blink 1s step-end infinite", userSelect: "none" }}>█</div>
             </div>}
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
@@ -2819,7 +2818,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           {/* ── RUN + utility bar ── */}
           {(!result || !verdict?.pass) && (
             <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
-              <button ref={kbdBtnRef} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.cyan : C.dim, background: "none", border: `1px solid ${editing ? C.cyan : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
+              <button ref={kbdBtnRef} onPointerDown={e => { e.preventDefault(); e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.cyan : C.dim, background: "none", border: `1px solid ${editing ? C.cyan : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
               <button
                 onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
                 onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
@@ -3211,7 +3210,7 @@ function ReviewScreen({ onXP }) {
             {swDir === "right" && <div style={{ position: "absolute", top: 14, left: 14, fontFamily: F.mono, fontSize: 20, color: C.green, opacity: swPct, fontWeight: 700, transform: "rotate(-10deg)", border: `1px solid ${C.green}`, padding: "4px 12px" }}>+{pts}</div>}
             {swDir === "left" && <div style={{ position: "absolute", top: 14, right: 14, fontFamily: F.mono, fontSize: 20, color: C.dim, opacity: swPct, fontWeight: 700, transform: "rotate(10deg)", border: `1px solid ${C.border}`, padding: "4px 12px" }}>miss</div>}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: flipped ? C.dim : C.border }} />
-            <div style={{ fontFamily: F.mono, fontSize: 12, letterSpacing: 2.5, color: flipped ? C.cyanDim : C.dim, marginBottom: 16, textAlign: "center" }}>{flipped ? t("answer") : `[ ${card.type} · ${card.diff} ]`}</div>
+            <div style={{ fontFamily: F.mono, fontSize: 12, letterSpacing: 2.5, color: flipped ? C.cyanDim : C.dim, marginBottom: 16, textAlign: "center" }}>{flipped ? t("answer") : `[ SQL · ${card.diff} ]`}</div>
             {!flipped
               ? <div style={{ fontFamily: F.mono, fontSize: 20, color: C.white, lineHeight: 1.7, textAlign: "center" }}>{card.front}</div>
               : <div style={{ fontFamily: F.mono, fontSize: 15, color: C.text, lineHeight: 2, whiteSpace: "pre-wrap" }}>{card.back}</div>
@@ -3265,6 +3264,7 @@ function QuizScreen({ onXP }) {
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [total, setTotal] = useState(0);
+  const [correct, setCorrect] = useState(0);
   const [streak, setStreak] = useState(0);
   const [timer, setTimer] = useState(15);
   const timerRef = useRef(null);
@@ -3313,6 +3313,7 @@ function QuizScreen({ onXP }) {
       const combined = Math.min(3.0, streakMult * timeMult);
       const earned = Math.round(pts * combined);
       setScore(s => s + earned);
+      setCorrect(c => c + 1);
       setStreak(nextStreak);
       if (onXP) onXP(earned);
     } else {
@@ -3326,7 +3327,7 @@ function QuizScreen({ onXP }) {
     setIdx(i => i + 1);
   };
 
-  const resetQuiz = () => { setIdx(0); setSelected(null); setShowResult(false); setScore(0); setTotal(0); setStreak(0); };
+  const resetQuiz = () => { setIdx(0); setSelected(null); setShowResult(false); setScore(0); setTotal(0); setCorrect(0); setStreak(0); };
 
   const timerColor = timer > 10 ? C.green : timer > 5 ? C.amber : C.red;
   const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL"];
@@ -3418,7 +3419,7 @@ function QuizScreen({ onXP }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
           {[
             { l: "SCORE", v: `${score}`, c: C.dim },
-            { l: "ACC", v: total > 0 ? `${Math.round((score / (total * pts)) * 100)}%` : "—", c: C.dim },
+            { l: "ACC", v: total > 0 ? `${Math.round((correct / total) * 100)}%` : "—", c: C.dim },
             { l: "STREAK", v: `${streak}`, c: C.dim },
             { l: "Q's", v: `${total}/${questions.length}`, c: C.dim },
           ].map(s => (
@@ -3693,7 +3694,7 @@ function OnboardingScreen({ onComplete, lang }) {
   const slides = [
     { icon: ">_", title: ispt ? "BEM-VINDO AO PUNKSQL" : "WELCOME TO PUNKSQL", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.cyan },
     { icon: "◈", title: ispt ? "APRENDA" : "LEARN", body: ispt ? "A aba LEARN tem 8 módulos:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nCada módulo tem 5-6 exercícios\nque vão do fácil ao expert." : "The LEARN tab has 8 modules:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n\nEach module has 5-6 exercises\nranging from easy to expert.", color: C.green },
-    { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? "CODE: 41 desafios SQL reais.\nEscreva queries e execute-as\ndiretamente no navegador.\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s." : "CODE: 41 real SQL challenges.\nWrite queries and execute them\ndirectly in your browser.\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.", color: C.cyan },
+    { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? `CODE: ${CHALLENGES_DB.length} desafios SQL reais.\nEscreva queries e execute-as\ndiretamente no navegador.\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s.` : `CODE: ${CHALLENGES_DB.length} real SQL challenges.\nWrite queries and execute them\ndirectly in your browser.\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.`, color: C.cyan },
     { icon: "◇", title: ispt ? "CARDS + XP" : "CARDS + XP", body: ispt ? "CARDS: Flashcards com swipe.\nDireita = sabia (+pts)\nEsquerda = não sabia (-1 vida)\n3 vidas — Game Over reseta!\n\nXP: Tudo dá XP — challenges, quiz,\ncards. Suba de nível e ganhe badges!" : "CARDS: Swipeable flashcards.\nRight = knew it (+pts)\nLeft = didn't know (-1 life)\n3 lives — Game Over resets!\n\nXP: Everything earns XP — challenges,\nquiz, cards. Level up and earn badges!", color: C.amber },
     { icon: "▲", title: ispt ? "PRONTO PARA COMEÇAR?" : "READY TO START?", body: ispt ? "A tela de código tem um tutorial\nintegrado que te guia por todos\nos controles no primeiro uso.\n\nComece pelo módulo 1: first_query\nBoa sorte, dev!" : "The code screen has a built-in\ntutorial that walks you through\nall the controls on first use.\n\nStart with module 1: first_query\nGood luck, dev!", color: C.green },
   ];
@@ -3835,6 +3836,7 @@ export default function PunkSQLCLI() {
   const [badgeShow, setBadgeShow] = useState(null);
   const [xpBreakdownShow, setXpBreakdownShow] = useState(null);
   const pendingXPBreakdown = useRef(null);
+  const pendingBadge = useRef(null);
   const levelUpActive = useRef(false);
   const prevLevel = useRef(getLevel(0).level);
   const prevEarned = useRef(new Set());
@@ -3880,10 +3882,23 @@ export default function PunkSQLCLI() {
     }
   }, []);
 
+  const dismissBadge = useCallback(() => {
+    setBadgeShow(null);
+    if (pendingXPBreakdown.current) {
+      const bd = pendingXPBreakdown.current;
+      pendingXPBreakdown.current = null;
+      setTimeout(() => setXpBreakdownShow(bd), 250);
+    }
+  }, []);
+
   const dismissLevelUp = useCallback(() => {
     setLevelUpShow(null);
     levelUpActive.current = false;
-    if (pendingXPBreakdown.current) {
+    if (pendingBadge.current) {
+      const badge = pendingBadge.current;
+      pendingBadge.current = null;
+      setTimeout(() => { setBadgeShow(badge); SFX.play("badge"); }, 250);
+    } else if (pendingXPBreakdown.current) {
       const bd = pendingXPBreakdown.current;
       pendingXPBreakdown.current = null;
       setTimeout(() => setXpBreakdownShow(bd), 250);
@@ -3897,7 +3912,13 @@ export default function PunkSQLCLI() {
     const freshUnlock = newIds.find(id => !prevEarned.current.has(id));
     if (freshUnlock && solved.size > 0) {
       const badge = ACHIEVEMENTS.find(a => a.id === freshUnlock);
-      if (badge) setTimeout(() => { setBadgeShow(badge); SFX.play("badge"); }, levelUpShow ? 2800 : 500);
+      if (badge) {
+        if (levelUpActive.current) {
+          pendingBadge.current = badge;
+        } else {
+          setTimeout(() => { setBadgeShow(badge); SFX.play("badge"); }, 500);
+        }
+      }
     }
     prevEarned.current = new Set(newIds);
   }, [solved, xp]);
@@ -4030,7 +4051,7 @@ export default function PunkSQLCLI() {
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key="daily" onBack={() => setScreen("main")} challengeId={dailyChallengeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} isDaily={true} onNext={(id) => { setLastCodeId(id); setLastContext("code"); setScreen("challenge"); }} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
-      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={dismissBadge} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider></ThemeContext.Provider>
   );
@@ -4039,7 +4060,7 @@ export default function PunkSQLCLI() {
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key={lastCodeId} onBack={() => setScreen("main")} challengeId={lastCodeId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={CHALLENGES_DB} onExNav={handleCodeNav} onNext={(id) => { setLastCodeId(id); setLastContext("code"); }} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
-      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={dismissBadge} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider></ThemeContext.Provider>
   );
@@ -4048,7 +4069,7 @@ export default function PunkSQLCLI() {
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
-      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={dismissBadge} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider></ThemeContext.Provider>
   );
@@ -4073,7 +4094,7 @@ export default function PunkSQLCLI() {
       </div>
       <TabBar active={tab} onTabChange={setTab} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
-      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
+      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={dismissBadge} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
     </div></LangContext.Provider></ThemeContext.Provider>
   );
