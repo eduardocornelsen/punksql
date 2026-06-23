@@ -3,6 +3,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useProgress } from "@/hooks/useProgress";
 import useGameStore from "@/stores/useGameStore";
 import { useShallow } from "zustand/react/shallow";
+import SandboxScreen from "@/components/sandbox/SandboxScreen";
 
 // ═══════════════════════════════════════════════════════════
 //  PUNKSQL // CYBERPUNK CLI — XL MOBILE
@@ -681,6 +682,7 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
     { num: "4", id: "QUIZ",          desc: lang === "pt" ? "// múltipla escolha"           : "// multiple-choice questions", action: () => onNavigate("quiz") },
     { num: "5", id: "REVIEW_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"  : "// spaced repetition cards",  action: () => onNavigate("review") },
     { num: "6", id: "PROFILE",       desc: lang === "pt" ? "// stats e conquistas"        : "// stats & achievements",     action: () => onNavigate("profile") },
+    { num: "7", id: "FREE_EXPLORE",  desc: lang === "pt" ? "// sandbox SQL livre"         : "// free SQL sandbox",          action: () => onNavigate("explore") },
   ];
 
   const handleCmd = (e) => {
@@ -3920,6 +3922,8 @@ export default function PunkSQLCLI() {
       setScreen("lesson");
     } else if (target === "daily") {
       setScreen("daily");
+    } else if (target === "explore") {
+      setScreen("explore");
     } else {
       setTab(target);
     }
@@ -4046,6 +4050,12 @@ export default function PunkSQLCLI() {
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={() => setBadgeShow(null)} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
+    </div></LangContext.Provider></ThemeContext.Provider>
+  );
+
+  if (screen === "explore") return (
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
+      <SandboxScreen onBack={() => setScreen("main")} lang={lang} />
     </div></LangContext.Provider></ThemeContext.Provider>
   );
 
