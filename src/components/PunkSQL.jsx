@@ -523,35 +523,27 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
 }
 
 // ── Language Switcher ─────────────────────────────────────
-function TopBar({ startCollapsed = false, showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
-  const [collapsed, setCollapsed] = useState(startCollapsed);
+function TopBar({ showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
   const { theme, cycleTheme } = useContext(ThemeContext);
   const themeLabel = theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK";
 
-  // Auto-collapse when entering focus mode
-  useEffect(() => {
-    if (focusTitle) setCollapsed(true);
-  }, [focusTitle]);
-
-  // Exercise dots renderer (reused in both collapsed and expanded)
-  const ExDots = ({ compact = false }) => {
+  const ExDots = () => {
     if (!exercises) return null;
     const curIdx = exercises.findIndex(e => e.id === currentExId);
     const prev = curIdx > 0 ? exercises[curIdx - 1] : null;
     const next = curIdx < exercises.length - 1 ? exercises[curIdx + 1] : null;
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: compact ? 4 : 5, flex: 1, justifyContent: "center", minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", minWidth: 0 }}>
         <button onClick={() => prev && onExNav(prev.id)} disabled={!prev} style={{ background: "none", border: "none", cursor: prev ? "pointer" : "default", fontFamily: F.mono, fontSize: 14, color: prev ? C.cyan : C.border, padding: "2px 4px", flexShrink: 0 }}>◂</button>
-        <div style={{ display: "flex", gap: compact ? 3 : 4, alignItems: "center", overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 3, alignItems: "center", overflowX: "auto" }}>
           {exercises.map((ex, i) => {
             const isCur = ex.id === currentExId;
-            const sz = compact ? 16 : 18;
             return (
               <button key={ex.id} onClick={() => onExNav(ex.id)} style={{
-                width: sz, height: sz, minWidth: sz,
+                width: 16, height: 16, minWidth: 16,
                 background: isCur ? C.cyan : "none",
                 border: `1px solid ${isCur ? C.cyan : C.border}`,
-                cursor: "pointer", fontFamily: F.mono, fontSize: compact ? 8 : 9, fontWeight: 700,
+                cursor: "pointer", fontFamily: F.mono, fontSize: 8, fontWeight: 700,
                 color: isCur ? C.black : C.dim,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 padding: 0, flexShrink: 0,
@@ -567,50 +559,19 @@ function TopBar({ startCollapsed = false, showContinue = false, onContinue, cont
     );
   };
 
-  if (collapsed) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", padding: "6px 14px 5px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 6 }}>
-        {focusTitle ? (
-          <div style={{ flex: 1, fontFamily: F.mono, fontSize: 15, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{focusTitle}</div>
-        ) : exercises ? (
-          <ExDots compact />
-        ) : showContinue ? (
-          <button onClick={onContinue} style={{ background: "none", border: `1px solid ${C.cyan}50`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
-            <span style={{ flexShrink: 0 }}>▶</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
-          </button>
-        ) : <div style={{ flex: 1 }} />}
-        <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px", letterSpacing: 1, flexShrink: 0 }}>{themeLabel}</button>
-        <button onClick={() => setCollapsed(false)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", flexShrink: 0 }}>▼</button>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "8px 14px 7px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 8 }}>
-      {/* Left: Exercise dots or Continue button */}
-      {exercises ? (
+    <div style={{ display: "flex", alignItems: "center", padding: "6px 14px 5px", background: C.black, borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 10, gap: 6 }}>
+      {focusTitle ? (
+        <div style={{ flex: 1, fontFamily: F.mono, fontSize: 15, color: C.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{focusTitle}</div>
+      ) : exercises ? (
         <ExDots />
       ) : showContinue ? (
-        <button onClick={onContinue} style={{
-          background: "none", border: `1px solid ${C.cyan}60`, cursor: "pointer",
-          fontFamily: F.mono, fontSize: 12, color: C.cyan, fontWeight: 700,
-          padding: "7px 10px", display: "flex", alignItems: "center", gap: 6,
-          letterSpacing: 0.5,
-          overflow: "hidden", flexShrink: 1, minWidth: 0,
-        }}>
+        <button onClick={onContinue} style={{ background: "none", border: `1px solid ${C.cyan}50`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.cyan, padding: "5px 10px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", flex: 1, minWidth: 0 }}>
           <span style={{ flexShrink: 0 }}>▶</span>
-          <div style={{ textAlign: "left", overflow: "hidden", minWidth: 0 }}>
-            <div style={{ fontSize: 13, lineHeight: 1.2, whiteSpace: "nowrap" }}>{continueCtx}</div>
-            <div style={{ fontSize: 12, color: C.dim, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueLabel}</div>
-          </div>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueCtx}: {continueLabel}</span>
         </button>
       ) : <div style={{ flex: 1 }} />}
-      {/* Spacer */}
-      {!exercises && <div style={{ flex: 1 }} />}
-      {/* Right: Theme cycle + collapse */}
-      <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "5px 12px", letterSpacing: 1.5, flexShrink: 0 }}>{themeLabel}</button>
-      <button onClick={() => setCollapsed(true)} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 8px", flexShrink: 0 }}>▲</button>
+      <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 10px", letterSpacing: 1, flexShrink: 0 }}>{themeLabel}</button>
     </div>
   );
 }
@@ -675,7 +636,6 @@ function TabBar({ active, onTabChange }) {
 // ── Status Bar ────────────────────────────────────────────
 function StatusBar({ xp = 0, solved = new Set() }) {
   const [time, setTime] = useState("");
-  const { theme, cycleTheme } = useContext(ThemeContext);
   useEffect(() => { const tick = () => setTime(new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })); tick(); const id = setInterval(tick, 1000); return () => clearInterval(id); }, []);
   const lv = getLevel(xp);
   return (
@@ -691,9 +651,8 @@ function StatusBar({ xp = 0, solved = new Set() }) {
           <span style={{ color: C.muted }}> · </span>
           <span style={{ color: C.dim }}>{xp.toLocaleString()} XP</span>
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: C.dim }}>{solved.size}/{CHALLENGES_DB.length}</span>
-          <button onClick={cycleTheme} title={theme === "dark" ? "Switch to e-ink" : theme === "eink" ? "Switch to high contrast" : "Switch to dark"} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.dim, padding: "1px 5px", letterSpacing: 1, lineHeight: 1.4 }}>{theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK"}</button>
           <span style={{ color: C.dim }}>{time}</span>
         </span>
       </div>
@@ -2746,7 +2705,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         </div>
         {/* Hint bar */}
         <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {!dbReady ? "loading sql engine..." : "swipe to move cursor · tap to focus"}
+          {!dbReady ? "loading sql engine..." : "2× tap: open kbd  ·  tap: close"}
         </div>
         {/* Results — shown in BOTH modes */}
         {result && (
@@ -4092,7 +4051,7 @@ export default function PunkSQLCLI() {
 
   return (
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar startCollapsed={tab !== "home"} showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
+      <TopBar showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
