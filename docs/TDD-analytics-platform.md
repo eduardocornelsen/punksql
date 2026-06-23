@@ -155,8 +155,10 @@ the dbt VFS JSON (§3.2):
 > **Important:** `localStorage` cannot hold the DB binary (string-only, ~5 MB cap). The correct store
 > for a saved database is **IndexedDB**. localStorage stays reserved for small JSON (history, VFS).
 
-Recommended order: ship **session** first (free, instant); add a **"Save workspace" → IndexedDB**
-button so created tables/views survive a refresh; cloud sync only if cross-device demand appears.
+**Decision:** ship **session** first (free, instant), then **IndexedDB-local** as the persistence
+target — a "Save workspace" button so created tables/views survive a refresh on the same device.
+**Cloud (Supabase) sync is deferred** and only revisited if cross-device demand appears; no server
+work is in scope for persistence.
 
 ### 2.3 Two kinds of data lineage
 
@@ -514,7 +516,7 @@ materializes a model + passes tests, earning XP and unlocking the next node.
 | Sandbox execution | **In-browser, reuse `sql.js`** | Engine already exists; $0, fast, offline, no security surface |
 | Sandbox as a DB tool | **`<ObjectBrowser>` + REPL; CREATE/CTAS/VIEW; `ATTACH` for multi-DB** | DBeaver-like browse + join across everything, all client-side |
 | "Schemas" caveat | **Emulate via `ATTACH`; real schemas only with DuckDB-WASM** | SQLite has no schemas — attached DBs are the equivalent |
-| Saving objects | **Session → IndexedDB (`db.export()`) → Supabase blob** | Persist the DB *binary*; localStorage can't hold it |
+| Saving objects | **Session → IndexedDB-local (`db.export()`); Supabase deferred** | Persist the DB *binary* on-device; localStorage can't hold it |
 | Data lineage | **`<LineageGraph>` reused: dbt DAG (refs) + Free-Explore (parsed DDL)** | Two lineage views from one component; top portfolio shots |
 | dbt execution | **JS compile-accurate simulator that executes on the real WASM engine** | Real `run`/`test` + materialization, $0 server, mobile-friendly |
 | dbt scope | **`ref/source/config`, view/table/ephemeral, generic+singular tests** | Honest teaching subset; snapshots/packages/hooks out of scope |
