@@ -4,6 +4,7 @@
 **Author:** Staff Eng (architecture)
 **Date:** 2026-06-23
 **Scope:** Feature 1 — "Free Explore" Sandbox · Feature 2 — Interactive dbt Learning Module
+(execution, materialization, object browser, data lineage, tests, challenges & tutorials)
 
 ---
 
@@ -57,7 +58,7 @@ offline-capable, and already battle-tested in the challenge flow.
 actually uses. If dialect realism becomes a portfolio differentiator later, the **upgrade path is
 still client-side**: swap `sql.js` for **DuckDB-WASM**, which speaks a Postgres-flavored, window-
 function-rich, analytics-grade dialect and reads Parquet/CSV directly — all still at $0 server cost.
-We therefore **abstract the engine behind an interface now** (§2.3) so this swap is a one-file change.
+We therefore **abstract the engine behind an interface now** (§3.3) so this swap is a one-file change.
 
 ### 1.2 Feature 2 — dbt Module: Simulation vs. Client WASM (Pyodide) vs. Serverless
 
@@ -107,9 +108,100 @@ and adds the exact ops surface we're trying to avoid. Reserve as Phase 4 alt-pat
 
 ---
 
-## 2. State Management & Data Flow
+## 2. Capabilities & Scope (what users can actually do)
 
-### 2.1 Two new Zustand slices (keep the engine global, like today)
+This section answers the concrete "can I…?" questions and draws the honesty boundary. Everything
+here runs client-side on the existing engine at **$0 server cost**; the only nuances are two
+SQLite-specific caveats (schemas, and binary persistence) called out explicitly.
+
+### 2.1 Free Explore — a mini DBeaver in the browser
+
+SQLite exposes its own catalog, so a real object browser is just queries against it:
+
+| User capability | How it works on `sql.js` / SQLite | Status |
+|---|---|---|
+| See all tables anywhere | `SELECT name FROM sqlite_master WHERE type='table'` | ✅ Easy |
+| See columns & types | `PRAGMA table_info(<table>)` | ✅ |
+| See views I created | `sqlite_master WHERE type='view'` | ✅ |
+| **Create tables** (`CREATE TABLE`, `CREATE TABLE AS SELECT`) | Native SQLite DDL | ✅ |
+| **Create / save views** (`CREATE VIEW`) | Native SQLite DDL | ✅ |
+| **Join any tables together** | Single DB → just `JOIN`, no setup | ✅ Fully |
+| **Multiple databases** | `ATTACH DATABASE` → reference as `db.table` | ✅ (this is "multiple DBs") |
+| Postgres-style **schemas** | ⚠️ SQLite has none — the equivalent unit is an *attached database* | ⚠️ Emulated via ATTACH |
+| DBeaver-style **object tree** | Render the catalog queries above as a navigable tree | ✅ `<ObjectBrowser>` |
+| **Data lineage** of my objects | Parse `sqlite_master.sql` (stored DDL) → dependency graph | ✅ See §2.3 |
+
+**Caveat 1 — "schemas":** SQLite's namespacing unit is the *attached database*, not a Postgres
+schema. We give the *appearance* of multiple schemas/databases by `ATTACH`-ing several in-memory DBs
+(`ATTACH ':memory:' AS analytics`) and referencing `analytics.fct_orders`. **Cross-database joins
+work perfectly.** True `CREATE SCHEMA` fidelity is one of the things the **DuckDB-WASM** upgrade
+(§1.1) would unlock — DuckDB has real schemas — still at $0 server.
+
+So yes: the Sandbox can ship as a **left-side object explorer (databases → tables/views → columns)
++ REPL**, joins across everything, and a live view of every object you've created.
+
+### 2.2 Creating & saving objects — persistence tiers
+
+`CREATE TABLE`/`CREATE VIEW`/`CTAS` all work *today* because it's a real engine. The only design
+choice is *how long they survive*. Note this is the **database binary**, persisted separately from
+the dbt VFS JSON (§3.2):
+
+| Tier | Survives | Cost | Mechanism |
+|---|---|---|---|
+| **Session (in-memory)** | Until tab refresh | $0, already the default | `globalDB` rebuilt each load |
+| **Local persistent** | Across refresh, same device | $0 | `db.export()` → `Uint8Array` → **IndexedDB**; rehydrate on boot |
+| **Cloud (logged-in)** | Across devices | ~$0 | Store the exported blob per user in Supabase |
+
+> **Important:** `localStorage` cannot hold the DB binary (string-only, ~5 MB cap). The correct store
+> for a saved database is **IndexedDB**. localStorage stays reserved for small JSON (history, VFS).
+
+Recommended order: ship **session** first (free, instant); add a **"Save workspace" → IndexedDB**
+button so created tables/views survive a refresh; cloud sync only if cross-device demand appears.
+
+### 2.3 Two kinds of data lineage
+
+PunkSQL ends up with **two** lineage features, both buildable cheaply:
+
+1. **dbt lineage (the classic DAG)** — built from `{{ ref() }}` edges in the model graph, topologically
+   sorted (we already build this to *order* the run). Renders the iconic
+   `raw_orders → stg_orders → fct_orders` picture. One of the strongest portfolio screenshots in the
+   whole app. → `<DagView>` (§5.3).
+2. **Free-Explore lineage (bonus)** — SQLite stores each object's defining SQL in `sqlite_master.sql`.
+   We **parse those `CREATE VIEW` / `CTAS` definitions to extract upstream table/view dependencies**
+   and draw a lineage graph of the user's *own* created objects — "this view came from these two
+   tables." Works for anything *materialized*; a one-off un-saved `SELECT` has nothing persisted to
+   trace, which is the expected limit. → `<LineageView>` (§5.2).
+
+### 2.4 dbt feature matrix — what's in, what's out
+
+`dbt run` **materializes for real** (the core of the §1.2 recommendation): it issues
+`CREATE VIEW` / `CREATE TABLE AS` into the engine, so after a run your models are **real, queryable
+relations** you can `SELECT` from in the same workspace.
+
+| dbt feature | Supported | Notes |
+|---|---|---|
+| `{{ ref() }}`, `{{ source() }}` | ✅ | Drives the DAG |
+| `{{ config(materialized=...) }}` | ✅ | |
+| Materialization `view` / `table` | ✅ | Real `CREATE VIEW` / `CREATE TABLE AS` |
+| Materialization `ephemeral` | ✅ | Inlined as a CTE |
+| Materialization `incremental` | ⚠️ Partial | Teachable `is_incremental()` simulation, not full strategies |
+| Seeds (CSV → table) | ✅ | |
+| Generic tests: `not_null`, `unique`, `accepted_values`, `relationships` | ✅ | Compiled to assertion SQL → **real pass/fail + failing-row counts** |
+| Singular tests (custom `.sql`) | ✅ | Passes if the query returns 0 rows |
+| DAG / data lineage | ✅ | From `ref()` edges (§2.3) |
+| `schema.yml` docs / descriptions | ✅ | Renderable in model/column panels |
+| Jinja: `{% if %}`, `{% for %}`, `{% set %}`, `{% macro %}`, `var()` | ✅ subset | Teaching subset, **not** full Python/Jinja |
+| Snapshots, exposures, packages (`dbt deps`), hooks, full `dbt docs serve` site | ❌ Out of scope | The honesty boundary — surfaced via the `[ sim ]` "what's supported" panel |
+
+**Test results display:** every test streams into the `stdout` log dbt-style (`PASS`/`FAIL` + failing
+row count), **and** a compact `<TestResultsPanel>` shows green/red per test at a glance. Because tests
+run real SQL against materialized models, results are genuine, not mocked.
+
+---
+
+## 3. State Management & Data Flow
+
+### 3.1 Two new Zustand slices (keep the engine global, like today)
 
 The existing pattern is a single `useGameStore` (Zustand) plus a module-global `globalDB`. We extend,
 not replace. Add two slices — keep them in separate files for tree-shaking and sanity, compose if
@@ -120,7 +212,7 @@ desired:
 - `useDbtStore` — the **Virtual File System (VFS)**, active file, compiled artifacts, run/test logs,
   and DAG.
 
-### 2.2 The dbt Virtual File System (the core data structure)
+### 3.2 The dbt Virtual File System (the core data structure)
 
 Model the project as a **flat path-keyed map**, not a nested tree. Flat maps are trivial to
 serialize (localStorage / Supabase JSONB), diff, and reason about; render the tree as a derived view.
@@ -145,7 +237,7 @@ serialize (localStorage / Supabase JSONB), diff, and reason about; render the tr
 
   // Execution
   runStatus: "idle" | "running" | "success" | "error",
-  logs: [],                                // append-only stdout stream (see §3.3)
+  logs: [],                                // append-only stdout stream (see §5.3)
 
   // actions
   writeFile, deleteFile, setActive, compile, run, test, build, seed, reset
@@ -160,7 +252,7 @@ serialize (localStorage / Supabase JSONB), diff, and reason about; render the tr
 3. **Curated lesson seeds** → ship as **static JS fixtures** (same approach as the 112 challenges
    already embedded in `PunkSQL.jsx`), loaded into the VFS when a lesson starts.
 
-### 2.3 The execution data flow (the heart of Feature 2)
+### 3.3 The execution data flow (the heart of Feature 2)
 
 Introduce a small `SqlEngine` interface so both the Sandbox and dbt module depend on an abstraction,
 not on `sql.js` directly (this is the DuckDB-WASM escape hatch from §1.1):
@@ -200,7 +292,90 @@ machinery already proven in `validateSQL`.
 
 ---
 
-## 3. UI Component Updates
+## 4. dbt Learning System: Tutorials & Challenges
+
+**Yes — dbt should have its own gamified track, mirroring the existing 112-challenge SQL system.**
+This is the highest-leverage idea in this round: it reuses *three* things we already have — (a) the
+dbt simulator (§1.2/§3.3) as the grader, (b) the existing **row-comparison logic** from `validateSQL`
+as the pass/fail check, and (c) the existing **gamification spine** (`useProgress`, XP, levels, skill
+tree, achievements). A whole "Analytics Engineering" curriculum drops in with almost no new infra.
+
+### 4.1 Two complementary formats
+
+| Format | Feel | Grading | Mirrors today's |
+|---|---|---|---|
+| **dbt Tutorial** | Guided, multi-step walkthrough with narrative between steps; can pre-fill files | Light per-step checkpoints (advisory) | Flashcards / quizzes (teach first) |
+| **dbt Challenge** | A single graded task on a seeded project | Strict — run + compare, like SQL challenges | The 112 SQL challenges (prove mastery) |
+
+Tutorials **teach and let you explore your data** at low pressure; challenges **make you level up**.
+Both live in a new **"dbt" track in the skill tree** with progressive unlocking, exactly like the
+10 existing SQL modules.
+
+### 4.2 Challenge data model (mirror the existing challenge object)
+
+The current challenges are static, bilingual (`desc_en`/`desc_pt`), with `validate`/`verify`/`hint`.
+A dbt challenge extends that shape — the difference is the unit of work is a *project*, not one query:
+
+```js
+{
+  id: 201, track: "dbt", mod: 1, diff: "MED",
+  title: "stg_orders", desc_en: "Create models/staging/stg_orders.sql that selects from the
+    raw_orders source, renames id→order_id, and casts amount to a number.", desc_pt: "...",
+  hint: "{{ source('raw','orders') }} ... select id as order_id, cast(amount as real) ...",
+
+  seed:     { /* starter VFS: sources, raw seeds, partially-done files */ },
+  solution: { /* reference VFS that the grader runs to derive expected output */ },
+
+  validate: {
+    target: "stg_orders",                 // model whose SELECT * we compare to the solution's
+    mustMaterialize: { stg_orders: "view" },   // structural assertion (check sqlite_master)
+    mustUseRef:      [],                        // e.g. ["stg_orders"] for a downstream challenge
+    mustPassTests:   ["not_null_stg_orders_order_id"],
+  },
+  explanation_en: "...", explanation_pt: "...",
+}
+```
+
+### 4.3 Grading strategy (reuses what already exists)
+
+Grading a dbt challenge is the dbt simulator + the *same* comparison primitive used for SQL challenges:
+
+```
+① run the USER's project in a scratch DB     → materialize target model
+② run the SOLUTION's project in a scratch DB → materialize expected
+③ SELECT * FROM <target> in both, sort rows, compare  ← identical to validateSQL row-compare
+④ run structural assertions: materialization type (sqlite_master), required refs (parse),
+   required tests pass (run them)
+⑤ PASS only if output matches AND all assertions hold  → award XP via useProgress
+```
+
+This means a dbt challenge is graded on **real materialized output**, not string-matching the user's
+SQL — so there are many valid solutions, just like the SQL challenges today. No new grading engine.
+
+### 4.4 Challenge archetypes (the curriculum)
+
+A progression that doubles as an AE portfolio narrative:
+- **Build a staging model** (`source()` → rename/cast).
+- **Build a mart** (`ref()` two upstreams, join, aggregate) — teaches the DAG.
+- **Add tests** (`not_null`/`unique`/`relationships` in `schema.yml`) and make them pass.
+- **Fix a failing test** by cleaning data in the model (mirrors today's SAVEPOINT cleanup challenges).
+- **Fix a broken `ref()` / compilation error** (debugging skill).
+- **Refactor to a macro** (`{% macro cents_to_dollars() %}`) and DRY two models.
+- **Convert to `incremental`** with `is_incremental()` (teaching simulation).
+- **Read the lineage**: a quiz-style step where the user answers what rebuilds if `stg_orders` changes.
+
+### 4.5 Gamification integration (no new spine)
+
+- New **"dbt" / "Analytics Engineering" module(s)** in the existing skill tree, progressively unlocked.
+- **XP + levels**: reuse the existing thresholds/`useProgress` + Supabase progress table; dbt
+  challenges grant XP like SQL ones.
+- **New achievements**: *First dbt run*, *First passing test*, *Built a 3-model DAG*, *Macro author*,
+  *Green build (all tests pass)*, *dbt module complete* — same unlock-condition pattern as today's 12.
+- **Tutorials** can grant smaller XP for completion to reward exploration without gating progress.
+
+---
+
+## 5. UI Component Updates
 
 **Hard constraint:** preserve the existing cyberpunk TUI aesthetic and **do not regress the
 4,000-line `PunkSQL.jsx`**. New surfaces should be **new route-level screens / components** that
@@ -212,26 +387,34 @@ mounted as new "screens" in the existing screen-switcher rather than woven into 
 > `src/components/terminal/` so Sandbox + dbt reuse them instead of copy-pasting. Low-risk, high
 > leverage, improves the portfolio code-quality story.
 
-### 3.1 Shared / extracted primitives
+### 5.1 Shared / extracted primitives
 - **`<TerminalFrame>`** — the bordered, scanline CRT shell (extracted from current chrome).
 - **`<ResultTable>`** — render `{columns, rows}` as an ASCII/box-drawing table. Already implicitly
   exists for challenge output; extract and reuse for both REPL results and `dbt`-materialized previews.
 - **`<CustomKeyboard>`** — extend the existing keyword-button system with new **mode toggles**.
+- **`<LineageGraph>`** — one ASCII/SVG DAG renderer parameterized by an adjacency map, shared by the
+  dbt DAG and the Free-Explore object lineage (§2.3). Build once, use twice.
 
-### 3.2 Sandbox (`Free Explore`) components
+### 5.2 Sandbox (`Free Explore`) components
 - **`<ReplScreen>`** — owns the scrollback + input loop.
 - **`<ReplPrompt>`** — the `psql`-style prompt line, e.g. `punksql=#` (and `-#` continuation for
   multi-line). Mobile: reuses swipe-cursor + custom keyboard already built for the editor.
 - **`<ReplScrollback>`** — append-only list of `{prompt, command, output}` blocks; new output pushes
   to the bottom and auto-scrolls (mirror the editor's existing auto-scroll-to-cursor behavior).
+- **`<ObjectBrowser>`** — the DBeaver-style catalog tree (databases → tables/views → columns), driven
+  by `sqlite_master` + `PRAGMA table_info`. Tapping an object can insert its name or run a preview
+  `SELECT *`. This is what makes Free Explore feel like a real DB tool. (§2.1)
+- **`<LineageView>`** — wraps `<LineageGraph>` with dependencies parsed from `sqlite_master.sql` to
+  show lineage of the user's created views/CTAS. (§2.3)
 - **Meta-command parser** — intercept backslash commands *before* hitting the engine and translate
   to `sqlite_master` queries:
   - `\dt` → `SELECT name FROM sqlite_master WHERE type='table'`
+  - `\dv` → `SELECT name FROM sqlite_master WHERE type='view'`
   - `\d <table>` → `PRAGMA table_info(<table>)`
-  - `\l`, `\?`, `\h`, `\clear`, `\history` → handled in JS.
+  - `\l` (attached DBs), `\?`, `\h`, `\clear`, `\history`, `\save` (→ IndexedDB) → handled in JS.
   Everything else falls through to `engine.exec()`.
 
-### 3.3 dbt Module components
+### 5.3 dbt Module components
 - **`<DbtWorkspace>`** — three-pane-on-desktop / tabbed-on-mobile layout: file tree · editor · logs.
 - **`<VfsTree>`** — renders the flat VFS map as a collapsible tree; `[*]` dirty markers.
 - **`<JinjaEditor>`** — the existing SQL editor + a **Jinja-aware highlight layer**. Implement
@@ -249,30 +432,43 @@ mounted as new "screens" in the existing screen-switcher rather than woven into 
   - dbt-style line formatting: `HH:MM:SS  N of M OK created view model main.stg_orders ...... [OK in 0.0s]`,
     colorized PASS/WARN/ERROR, with a final `Completed successfully` / `Done. PASS=… WARN=… ERROR=…` summary.
   - Append-only buffer in `useDbtStore.logs`; never re-renders prior lines (stable, terminal-like).
-- **`<DagView>`** (stretch, high portfolio value) — ASCII or lightweight SVG DAG of the compiled
-  models. Cheap to build from `dag` adjacency and a *very* strong screenshot for the portfolio.
+- **`<DagView>`** (high portfolio value) — the dbt lineage DAG via `<LineageGraph>` over `dag`
+  adjacency. The iconic `raw → staging → mart` picture; a *very* strong portfolio screenshot. (§2.3)
+- **`<TestResultsPanel>`** — compact green/red per-test summary alongside the streaming log, so test
+  outcomes are scannable at a glance (counts of PASS/WARN/FAIL + failing rows). (§2.4)
 
-### 3.4 Navigation
-Add **two entries to the existing screen/menu system** ("FREE EXPLORE" and "dbt LAB") alongside the
-current modules — gated/labeled so they read as an "Analytics Engineering" track for the Senior/AE
-audience. No router overhaul; follow the existing screen-switch pattern.
+### 5.4 dbt Learning components (Tutorials & Challenges — §4)
+- **`<DbtChallengeScreen>`** — reuses the existing challenge chrome (prompt, hint, diff badge, XP),
+  but the workspace is `<DbtWorkspace>` and the "Run/Submit" action invokes the §4.3 grader.
+- **`<DbtTutorialScreen>`** — guided multi-step walkthrough: narrative + a current step with an
+  advisory checkpoint; "Next" advances. Mirrors the flashcard/quiz teaching flow.
+- **`<SkillTreeNode>`** (extend existing) — add the **dbt / Analytics Engineering** track nodes with
+  progressive unlocking, identical to the 10 SQL modules.
+
+### 5.5 Navigation
+Add entries to the existing screen/menu system — **"FREE EXPLORE"**, **"dbt LAB"** (free workspace),
+and the **"dbt" track in the skill tree** (tutorials + challenges) — alongside the current modules,
+labeled as an "Analytics Engineering" track for the Senior/AE audience. No router overhaul; follow
+the existing screen-switch pattern.
 
 ---
 
-## 4. Implementation Phasing (3-step roadmap)
+## 6. Implementation Phasing (roadmap)
 
 A deliberately incremental path: each phase ships something demoable, and each reuses the prior
 phase's primitives. Phase 1 de-risks the refactor and delivers the *cheapest* high-value feature.
 
 ### **Phase 1 — Extract primitives + ship the Sandbox** _(fastest ROI, lowest risk)_
-**Goal:** "Free Explore" live, and the shared terminal/engine primitives extracted.
+**Goal:** "Free Explore" live as a mini DB tool, and the shared terminal/engine primitives extracted.
 1. Extract `<TerminalFrame>`, `<ResultTable>`, color/token constants, and wrap the engine in the
    `SqlEngine` interface (`ready/exec/withScratch`) around the existing `getDB`/`runSQL`.
-2. Build `<ReplScreen>` + `<ReplPrompt>` + `<ReplScrollback>` and the `\dt`/`\d`/`\l` meta-command
-   parser. Reuse `queryHistory` infra for ↑/↓ recall.
-3. Add the "FREE EXPLORE" screen to the menu. Ship.
-**Exit criteria:** user can type `\dt`, `SELECT * FROM …`, and arbitrary SQL against the existing
-dataset in a psql-feel REPL on mobile + desktop. $0 new infra.
+2. Build `<ReplScreen>` + `<ReplPrompt>` + `<ReplScrollback>` + `<ObjectBrowser>` and the
+   `\dt`/`\dv`/`\d`/`\l` meta-command parser. Reuse `queryHistory` infra for ↑/↓ recall.
+3. Support `CREATE TABLE/VIEW/CTAS`, joins, and `ATTACH`-based multi-DB; add **"Save workspace" →
+   IndexedDB** so created objects survive refresh.
+4. Add the "FREE EXPLORE" screen to the menu. Ship.
+**Exit criteria:** user can browse the catalog, `\dt`, run arbitrary SQL, create + save tables/views,
+and join across attached DBs in a psql-feel REPL on mobile + desktop. $0 new infra.
 
 ### **Phase 2 — dbt VFS + compile/run engine (no fancy UI yet)**
 **Goal:** the simulator *works*, proven via logs, before polishing the workspace.
@@ -284,30 +480,46 @@ dataset in a psql-feel REPL on mobile + desktop. $0 new infra.
 **Exit criteria:** editing `stg_orders.sql`, hitting `run`, and seeing real models build + a `test`
 catch a `not_null` violation — all client-side.
 
-### **Phase 3 — Polish: Jinja highlighting, streaming stdout, DAG, persistence**
+### **Phase 3 — Polish: Jinja highlighting, streaming stdout, lineage, tests, persistence**
 **Goal:** make it a portfolio piece.
 1. `<JinjaEditor>` highlight overlay (Jinja delimiters + `ref/source/config`).
-2. `<StdoutLog>` with staggered sequential rendering + dbt-style colorized formatting & summary line.
-3. `<DagView>` ASCII/SVG from `dag`; Supabase "save project" for logged-in users; "what's supported"
-   credibility panel.
+2. `<StdoutLog>` with staggered sequential rendering + dbt-style colorized formatting & summary line;
+   `<TestResultsPanel>` for scannable pass/fail.
+3. `<LineageGraph>` shared by `<DagView>` (dbt DAG) **and** `<LineageView>` (Free-Explore object
+   lineage). Supabase "save project" for logged-in users; the `[ sim ]` "what's supported" panel.
 **Exit criteria:** a screen-recordable "write model → highlighted Jinja → tap `build` → watch
-streaming dbt logs → DAG renders" loop. This is the demo reel.
+streaming dbt logs → tests go green → DAG renders" loop, plus object lineage in Free Explore. Demo reel.
 
-### Phase 4 — _Optional / deferred stretch_ (only if a real need appears)
-- **DuckDB-WASM** swap behind `SqlEngine` for analytics-grade dialect (still $0 server).
+### **Phase 4 — dbt Learning Track (tutorials + challenges + gamification)** _(§4)_
+**Goal:** turn the workspace into a curriculum that levels users up.
+1. Define the dbt challenge data model + the §4.3 grader (run user vs. solution project, compare the
+   target model's output via the existing row-compare, plus structural assertions).
+2. Author the §4.4 archetype curriculum as static seeds; add `<DbtChallengeScreen>` +
+   `<DbtTutorialScreen>` reusing the existing challenge/flashcard chrome.
+3. Add the **dbt track to the skill tree**, wire XP via `useProgress`, and add the new achievements.
+**Exit criteria:** a user completes a guided tutorial, then solves a graded dbt challenge that
+materializes a model + passes tests, earning XP and unlocking the next node.
+
+### Phase 5 — _Optional / deferred stretch_ (only if a real need appears)
+- **DuckDB-WASM** swap behind `SqlEngine` for analytics-grade dialect + real schemas (still $0 server).
 - **Pyodide "real dbt" desktop lab** or **Cloud Run** path for 100% parity / premium — accept the
   cost/ops only if there's demonstrated demand.
 
 ---
 
-## 5. Summary of Recommendations
+## 7. Summary of Recommendations
 
 | Decision | Recommendation | One-line rationale |
 |---|---|---|
 | Sandbox execution | **In-browser, reuse `sql.js`** | Engine already exists; $0, fast, offline, no security surface |
-| Sandbox dialect upgrade | **Defer to DuckDB-WASM behind an interface** | Analytics-grade dialect later, still client-side |
-| dbt execution | **JS compile-accurate simulator that executes on the real WASM engine** | Real `run`/`test` behavior, $0 server, mobile-friendly, strong portfolio story |
-| Pyodide / Serverless | **Defer (Phase 4)** | Only options that cost money or break mobile; reserve for parity/premium |
+| Sandbox as a DB tool | **`<ObjectBrowser>` + REPL; CREATE/CTAS/VIEW; `ATTACH` for multi-DB** | DBeaver-like browse + join across everything, all client-side |
+| "Schemas" caveat | **Emulate via `ATTACH`; real schemas only with DuckDB-WASM** | SQLite has no schemas — attached DBs are the equivalent |
+| Saving objects | **Session → IndexedDB (`db.export()`) → Supabase blob** | Persist the DB *binary*; localStorage can't hold it |
+| Data lineage | **`<LineageGraph>` reused: dbt DAG (refs) + Free-Explore (parsed DDL)** | Two lineage views from one component; top portfolio shots |
+| dbt execution | **JS compile-accurate simulator that executes on the real WASM engine** | Real `run`/`test` + materialization, $0 server, mobile-friendly |
+| dbt scope | **`ref/source/config`, view/table/ephemeral, generic+singular tests** | Honest teaching subset; snapshots/packages/hooks out of scope |
+| dbt learning | **Tutorials + graded challenges in a new skill-tree track** | Reuses the simulator, row-compare grader, and XP/achievements spine |
+| Pyodide / Serverless | **Defer (Phase 5)** | Only options that cost money or break mobile; reserve for parity/premium |
 | VFS state | **Flat path-keyed map in a `useDbtStore` Zustand slice** | Trivial to persist (localStorage + Supabase JSONB) and diff |
 | UI strategy | **Extract shared terminal primitives; add new screens, don't touch the challenge flow** | Preserve the TUI aesthetic and de-risk the monolith |
-| Sequencing | **Sandbox first → dbt engine → dbt polish** | Cheapest value first; each phase reuses the last |
+| Sequencing | **Sandbox → dbt engine → polish → learning track** | Cheapest value first; each phase reuses the last |
