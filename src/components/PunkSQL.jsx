@@ -1550,7 +1550,7 @@ function AuxKeyboard({ onInsert, onControl, tabsRef }) {
                   border: "none",
                   borderBottom: isActive ? `2px solid ${tab.color}` : "2px solid transparent",
                   cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-                  color: isActive ? tab.color : "#555",
+                  color: isActive ? tab.color : C.dim,
                   fontWeight: isActive ? 700 : 400,
                   letterSpacing: 1, userSelect: "none",
                 }}
@@ -2705,7 +2705,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         </div>
         {/* Hint bar */}
         <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {!dbReady ? "loading sql engine..." : "2× tap: open kbd  ·  tap: close"}
+          {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: kbd  ·  tap: close"}
         </div>
         {/* Results — shown in BOTH modes */}
         {result && (
