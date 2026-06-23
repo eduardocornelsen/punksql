@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import useSandboxStore from "@/stores/useSandboxStore";
 import { getSandboxDB, execSQL, saveToIndexedDB, resetSandboxDB } from "@/lib/sqlEngine";
 
-// ── Visual tokens ─────────────────────────────────────────────
+// ── Visual tokens ──────────────────────────────────────────────
 const C = {
   void: "#000000", black: "#000000", panel: "#0D0D0D", surface: "#111111",
   border: "#222222", borderBright: "#333333",
@@ -16,7 +16,7 @@ const C = {
 };
 const F = { mono: "'JetBrains Mono', 'Fira Code', 'Share Tech Mono', 'Courier New', monospace" };
 
-// ── Dataset (same as challenge DB) ────────────────────────────
+// ── Dataset ────────────────────────────────────────────────────
 const DB_SCHEMA = `
 CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT, email TEXT, city TEXT, country TEXT, signup_date TEXT);
 CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, category TEXT, price REAL, stock INTEGER);
@@ -87,21 +87,43 @@ const DBT_TOKENS = [
   "{% for item in ... %}",
   "{% endfor %}",
   "unique_key=''",
-  "stg_",
-  "int_",
-  "fct_",
-  "dim_",
-  "mart_",
+  "stg_","int_","fct_","dim_","mart_",
 ];
 const ALL_SQL = [...SQL_KEYWORDS, ...SQL_DDL, ...SQL_FUNCS, ...SQL_TYPES, ...SQL_PRAGMA];
 
-// ── Autocomplete helpers ──────────────────────────────────────
+const DBT_PROJECT_YML = `name: punksql_project
+version: '1.0.0'
+config-version: 2
+
+model-paths: ["models"]
+seed-paths:  ["seeds"]
+
+models:
+  punksql_project:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    mart:
+      +materialized: table
+      +schema: mart`;
+
+// ── Bottom tabs ───────────────────────────────────────────────
+const BOTTOM_TABS = [
+  { id: "repl",    label: "REPL",    color: C.cyan,   icon: ">" },
+  { id: "editor",  label: "EDITOR",  color: C.amber,  icon: "≡" },
+  { id: "files",   label: "FILES",   color: C.green,  icon: "◈" },
+  { id: "lineage", label: "LINEAGE", color: C.purple, icon: "⬡" },
+];
+
+// ── Autocomplete helpers ───────────────────────────────────────
 function getWordAtCursor(text, pos) {
   const before = text.slice(0, pos);
   const m = before.match(/[\\][\w]*$|[\w]+$/);
   return m ? m[0] : "";
 }
-
 function replaceWordAtCursor(text, pos, replacement) {
   const before = text.slice(0, pos);
   const m = before.match(/[\\][\w]*$|[\w]+$/);
@@ -109,26 +131,22 @@ function replaceWordAtCursor(text, pos, replacement) {
   const wordStart = pos - m[0].length;
   return { text: text.slice(0, wordStart) + replacement + text.slice(pos), newPos: wordStart + replacement.length };
 }
-
 function computeSuggestions(word, tableNames, columnNames) {
   if (!word) return [];
   const lower = word.toLowerCase();
   const isMeta = lower.startsWith("\\");
   const pool = isMeta ? META_CMDS : [...tableNames, ...columnNames, ...ALL_SQL];
-  return pool
-    .filter((s) => s.toLowerCase().startsWith(lower) && s.toLowerCase() !== lower)
-    .slice(0, 10);
+  return pool.filter((s) => s.toLowerCase().startsWith(lower) && s.toLowerCase() !== lower).slice(0, 10);
 }
 
-// ── Lineage helpers ───────────────────────────────────────────
+// ── Lineage helpers ────────────────────────────────────────────
 const LAYER_ORDER = ["source", "staging", "intermediate", "mart"];
 const LAYER_META = {
-  source:       { label: "SOURCE",       hint: "raw tables",         color: C.dim,   badge: "SRC" },
-  staging:      { label: "STAGING",      hint: "stg_*",              color: C.cyan,  badge: "STG" },
-  intermediate: { label: "INTERMEDIATE", hint: "int_*",              color: C.amber, badge: "INT" },
-  mart:         { label: "MART",         hint: "fct_* / dim_*",      color: C.green, badge: "MRT" },
+  source:       { label: "SOURCE",       hint: "raw tables",    color: C.dim,   badge: "SRC", folder: "seeds" },
+  staging:      { label: "STAGING",      hint: "stg_*",         color: C.cyan,  badge: "STG", folder: "models/staging" },
+  intermediate: { label: "INTERMEDIATE", hint: "int_*",         color: C.amber, badge: "INT", folder: "models/intermediate" },
+  mart:         { label: "MART",         hint: "fct_* / dim_*", color: C.green, badge: "MRT", folder: "models/mart" },
 };
-
 function detectLayer(name) {
   const n = name.toLowerCase();
   if (n.startsWith("stg_") || n.startsWith("staging_")) return "staging";
@@ -136,7 +154,6 @@ function detectLayer(name) {
   if (n.startsWith("fct_") || n.startsWith("fact_") || n.startsWith("dim_") || n.startsWith("mart_")) return "mart";
   return "source";
 }
-
 function parseUpstreams(ddl) {
   if (!ddl) return [];
   const seen = new Set();
@@ -144,16 +161,15 @@ function parseUpstreams(ddl) {
   for (const m of ddl.matchAll(re)) seen.add(m[1].toLowerCase());
   return [...seen];
 }
-
 function loadObjects(db) {
   const r = execSQL(db, "SELECT name, type, sql FROM sqlite_master WHERE type IN ('table','view') ORDER BY type DESC, name ASC");
   if (!r.ok) return [];
   return r.rows.map(([name, type, ddl]) => ({
-    name, type, layer: detectLayer(name), upstreams: type === "view" ? parseUpstreams(ddl) : [],
+    name, type, layer: detectLayer(name), upstreams: type === "view" ? parseUpstreams(ddl) : [], ddl,
   }));
 }
 
-// ── Help text (expanded) ──────────────────────────────────────
+// ── Help text ─────────────────────────────────────────────────
 const HELP_TEXT = `AVAILABLE COMMANDS
 ══════════════════
 
@@ -182,8 +198,8 @@ KEYBOARD SHORTCUTS
 
 SQL KEYBOARD
   Swipe UP on chip bar   open floating SQL keyboard
-  Swipe DOWN on keyboard close it
-  [⌨] button in input   toggle keyboard
+  Swipe DOWN on handle   close keyboard
+  [⌨] button             toggle keyboard
 
 LINEAGE NAMING CONVENTIONS
   stg_*   Staging — clean raw sources
@@ -191,166 +207,83 @@ LINEAGE NAMING CONVENTIONS
   fct_*   Fact table (Mart layer)
   dim_*   Dimension table (Mart layer)
 
+TABS
+  REPL    — interactive terminal mode (this tab)
+  EDITOR  — .sql file editor, Enter=newline, Ctrl+Enter=run
+  FILES   — virtual dbt project file tree
+  LINEAGE — data lineage by layer (SRC→STG→INT→MRT)
+
 TIP: Tap [?] in the header to reopen the onboarding tour.`;
 
 // ── Onboarding ────────────────────────────────────────────────
-const ONBOARD_KEY = "punksql-sandbox-onboard-v1";
-
+const ONBOARD_KEY = "punksql-sandbox-onboard-v2";
 const ONBOARDING_STEPS = [
   {
     title: "FREE EXPLORE // SANDBOX",
-    icon: "⬡",
-    color: C.cyan,
+    icon: "⬡", color: C.cyan,
     body: "A fully in-browser SQLite REPL.\nNo server. No signup. Works offline.\n\nYour schema and data are saved in\nyour browser via IndexedDB and\npersist across refreshes.",
   },
   {
-    title: "WRITING QUERIES",
-    icon: "≡",
-    color: C.cyan,
-    body: "Type any SQL in the input box below.\n\nENTER or ▶ RUN — execute query\nSHIFT+ENTER — new line\n\nExample:\n  SELECT * FROM customers LIMIT 5;\n\n  SELECT name, SUM(total_amount)\n  FROM orders\n  GROUP BY name\n  ORDER BY 2 DESC;",
+    title: "FOUR MODES — BOTTOM TABS",
+    icon: "≡", color: C.cyan,
+    body: "Four tabs at the bottom of the screen:\n\n  >  REPL    — interactive terminal\n  ≡  EDITOR  — .sql file editor\n  ◈  FILES   — dbt project structure\n  ⬡  LINEAGE — data lineage graph\n\nSwitch freely between them.",
   },
   {
-    title: "AUTOCOMPLETE",
-    icon: "⇥",
-    color: C.cyan,
-    body: "Type a word and press TAB to complete.\nThe chip bar shows suggestions live.\n\nWorks for:\n  • SQL keywords (SELECT, FROM…)\n  • DDL (CREATE TABLE, DROP VIEW…)\n  • Functions (COUNT(), AVG()…)\n  • Your table & column names\n  • Meta-commands (\\dt, \\dv…)\n\nESC clears suggestions.",
+    title: "REPL — TERMINAL MODE",
+    icon: ">", color: C.cyan,
+    body: "Type SQL and press ENTER to run.\nShift+Enter adds a new line.\n\nExample:\n  SELECT * FROM customers LIMIT 5;\n\nMeta-commands start with backslash:\n  \\dt       list tables\n  \\d name   describe table\n  \\?        show all commands",
   },
   {
-    title: "META-COMMANDS",
-    icon: "\\",
-    color: C.amber,
-    body: "psql-style backslash commands:\n\n  \\dt            list all tables\n  \\dv            list all views\n  \\d <name>      describe a table\n  \\history       show command history\n  \\clear         clear terminal output\n  \\save          save DB to browser\n  \\reset         restore original data\n  \\?             show all commands",
+    title: "EDITOR — .SQL FILE MODE",
+    icon: "≡", color: C.amber,
+    body: "Write multi-line SQL like a .sql file.\nEnter = new line (no auto-execute).\n\nTo run:\n  Ctrl+Enter  (or Cmd+Enter)\n  ▶ RUN button\n\nResults appear below the editor.\nGreat for complex queries and CTEs.",
   },
   {
-    title: "OBJECT BROWSER",
-    icon: "obj",
-    color: C.cyan,
-    body: "Tap [obj] in the header to open\nthe Object Browser panel.\n\nShows all tables and views.\n  • Tap any object → expand columns\n  • Tap a column → insert into editor\n\nThe panel refreshes automatically\nafter you create or drop objects.",
+    title: "FILES — DBT PROJECT",
+    icon: "◈", color: C.green,
+    body: "A virtual dbt project tree showing\nyour models organized by layer:\n\n  models/\n    staging/      stg_* views\n    intermediate/ int_* views\n    mart/         fct_*/dim_*\n  seeds/          raw tables\n\nTap any file → see DDL\n\"Open in Editor\" → load into editor",
   },
   {
-    title: "DATA LINEAGE",
-    icon: "dag",
-    color: C.green,
-    body: "Tap [dag] to open the Lineage panel.\n\nObjects are grouped by naming:\n  stg_*  → STAGING (clean raw data)\n  int_*  → INTERMEDIATE (joins/aggs)\n  fct_*  → MART fact tables\n  dim_*  → MART dimension tables\n\nViews show upstream dependencies.\n\nExample pipeline:\n  stg_orders → int_revenue → fct_kpi",
+    title: "LINEAGE — DATA FLOW",
+    icon: "⬡", color: C.purple,
+    body: "The LINEAGE tab shows your data\npipeline as a layer stack:\n\n  SRC → STG → INT → MRT\n\nObjects are grouped by naming:\n  stg_*  → STAGING\n  int_*  → INTERMEDIATE\n  fct_*  → MART fact tables\n  dim_*  → MART dimensions\n\nViews show upstream deps.",
   },
   {
     title: "SQL KEYBOARD",
-    icon: "⌨",
-    color: C.purple,
-    body: "A floating SQL keyword keyboard,\nhidden by default.\n\nTo OPEN:\n  Swipe UP on the chip bar below\n  or tap [⌨] in the input area\n\nTo CLOSE:\n  Swipe DOWN on the keyboard\n  or tap [⌨] again\n\nTabs: SQL · DDL · FUNC · TABLES · COLS · {}",
+    icon: "⌨", color: C.purple,
+    body: "Swipe UP from the chip bar to open\na floating SQL keyword keyboard.\nSwipe DOWN on the handle to close it.\nOr tap [⌨] in the input area.\n\nTabs: SQL · DDL · FUNC · DBT\n      TABLES · COLS · {}",
   },
   {
     title: "SAVING YOUR WORK",
-    icon: "▪",
-    color: C.green,
-    body: "Query history auto-saves locally\n(up to 200 entries per session).\n\nTo save the database:\n  Tap [save] in the header\n  or type: \\save\n\nTo clear terminal output:\n  Tap [cls] in the header\n  (DB is NOT affected)\n\nTo restore original dataset:\n  Type: \\reset\n\nTap [?] anytime to reopen this guide.",
+    icon: "▪", color: C.green,
+    body: "Query history auto-saves locally.\n\nTo save the database:\n  Tap [save] in the header\n  or type: \\save\n\nTo restore original dataset:\n  Type: \\reset\n\nTap [?] anytime to reopen this guide.",
   },
 ];
 
 // ── Onboarding Modal ──────────────────────────────────────────
-function OnboardingModal({ onClose, lang }) {
+function OnboardingModal({ onClose }) {
   const [step, setStep] = useState(0);
-  const current = ONBOARDING_STEPS[step];
+  const cur = ONBOARDING_STEPS[step];
   const isLast = step === ONBOARDING_STEPS.length - 1;
-
   return (
-    <div style={{
-      position: "absolute", inset: 0, background: "rgba(0,0,0,0.88)",
-      zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
-      padding: "16px 12px",
-    }}>
-      <div style={{
-        background: C.panel, border: `1px solid ${current.color}40`,
-        maxWidth: 380, width: "100%", padding: "20px 18px", position: "relative",
-        boxShadow: `0 0 40px ${current.color}18`,
-      }}>
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute", top: 8, right: 10,
-            background: "none", border: "none", cursor: "pointer",
-            fontFamily: F.mono, fontSize: 14, color: C.muted, lineHeight: 1,
-          }}
-        >✕</button>
-
-        {/* Step dots */}
+    <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
+      <div style={{ background: C.panel, border: `1px solid ${cur.color}40`, maxWidth: 380, width: "100%", padding: "20px 18px", position: "relative", boxShadow: `0 0 40px ${cur.color}18` }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, lineHeight: 1 }}>✕</button>
         <div style={{ display: "flex", justifyContent: "center", gap: 5, marginBottom: 18 }}>
-          {ONBOARDING_STEPS.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => setStep(i)}
-              style={{
-                width: i === step ? 22 : 6, height: 6,
-                background: i === step ? current.color : C.border,
-                border: "none", cursor: "pointer", padding: 0,
-                transition: "width 0.2s, background 0.2s",
-                flexShrink: 0,
-              }}
-            />
+          {ONBOARDING_STEPS.map((_, i) => (
+            <button key={i} onClick={() => setStep(i)} style={{ width: i === step ? 22 : 6, height: 6, background: i === step ? cur.color : C.border, border: "none", cursor: "pointer", padding: 0, transition: "width 0.2s, background 0.2s", flexShrink: 0 }} />
           ))}
         </div>
-
-        {/* Icon */}
-        <div style={{
-          fontFamily: F.mono, fontSize: 30, color: current.color,
-          textAlign: "center", marginBottom: 6, lineHeight: 1,
-        }}>
-          {current.icon}
-        </div>
-
-        {/* Title */}
-        <div style={{
-          fontFamily: F.mono, fontSize: 11, color: current.color,
-          textAlign: "center", letterSpacing: 2.5, marginBottom: 16,
-        }}>
-          {current.title}
-        </div>
-
-        {/* Body */}
-        <pre style={{
-          fontFamily: F.mono, fontSize: 11, color: C.text,
-          margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.75,
-          textAlign: "left",
-        }}>
-          {current.body}
-        </pre>
-
-        {/* Navigation */}
+        <div style={{ fontFamily: F.mono, fontSize: 28, color: cur.color, textAlign: "center", marginBottom: 6, lineHeight: 1 }}>{cur.icon}</div>
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: cur.color, textAlign: "center", letterSpacing: 2.5, marginBottom: 16 }}>{cur.title}</div>
+        <pre style={{ fontFamily: F.mono, fontSize: 11, color: C.text, margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.75 }}>{cur.body}</pre>
         <div style={{ display: "flex", gap: 8, marginTop: 22, justifyContent: "space-between", alignItems: "center" }}>
-          <button
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0}
-            style={{
-              fontFamily: F.mono, fontSize: 11, padding: "7px 14px",
-              background: "none", border: `1px solid ${step === 0 ? C.border : C.borderBright}`,
-              color: step === 0 ? C.border : C.dim, cursor: step === 0 ? "default" : "pointer",
-            }}
-          >← prev</button>
-
-          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>
-            {step + 1} / {ONBOARDING_STEPS.length}
-          </span>
-
-          {!isLast ? (
-            <button
-              onClick={() => setStep((s) => s + 1)}
-              style={{
-                fontFamily: F.mono, fontSize: 11, padding: "7px 14px",
-                background: `${current.color}14`, border: `1px solid ${current.color}`,
-                color: current.color, cursor: "pointer",
-              }}
-            >next →</button>
-          ) : (
-            <button
-              onClick={onClose}
-              style={{
-                fontFamily: F.mono, fontSize: 11, padding: "7px 16px",
-                background: `${C.green}14`, border: `1px solid ${C.green}`,
-                color: C.green, cursor: "pointer", letterSpacing: 1,
-              }}
-            >▶ START</button>
-          )}
+          <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} style={{ fontFamily: F.mono, fontSize: 11, padding: "7px 14px", background: "none", border: `1px solid ${step === 0 ? C.border : C.borderBright}`, color: step === 0 ? C.border : C.dim, cursor: step === 0 ? "default" : "pointer" }}>← prev</button>
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>{step + 1} / {ONBOARDING_STEPS.length}</span>
+          {!isLast
+            ? <button onClick={() => setStep((s) => s + 1)} style={{ fontFamily: F.mono, fontSize: 11, padding: "7px 14px", background: `${cur.color}14`, border: `1px solid ${cur.color}`, color: cur.color, cursor: "pointer" }}>next →</button>
+            : <button onClick={onClose} style={{ fontFamily: F.mono, fontSize: 11, padding: "7px 16px", background: `${C.green}14`, border: `1px solid ${C.green}`, color: C.green, cursor: "pointer", letterSpacing: 1 }}>▶ START</button>
+          }
         </div>
       </div>
     </div>
@@ -360,9 +293,7 @@ function OnboardingModal({ onClose, lang }) {
 // ── SQL Aux Keyboard ──────────────────────────────────────────
 function SandboxAuxKeyboard({ onInsert, tableNames, columnNames, onSwipeDown }) {
   const [activeTab, setActiveTab] = useState("sql");
-  // Drag-handle swipe-down tracking
   const dragRef = useRef(null);
-  // Chip-row scroll tracking — prevents accidental tap during horizontal scroll
   const chipScrolling = useRef(false);
   const chipTouchX = useRef(0);
 
@@ -375,101 +306,51 @@ function SandboxAuxKeyboard({ onInsert, tableNames, columnNames, onSwipeDown }) 
     { id: "cols",   label: "COLS",   color: C.dim,    tokens: columnNames,  onTap: (c) => onInsert(c) },
     { id: "sym",    label: "{}",     color: C.dim,    tokens: SQL_SYMBOLS,  onTap: (s) => onInsert(s) },
   ];
-
   const active = tabDefs.find((t) => t.id === activeTab) || tabDefs[0];
 
-  // Drag handle handlers (swipe down → close)
   const onDragStart = (e) => { dragRef.current = e.touches[0].clientY; };
-  const onDragMove  = (e) => {
-    if (dragRef.current === null) return;
-    if (e.touches[0].clientY - dragRef.current > 40) { dragRef.current = null; onSwipeDown(); }
-  };
+  const onDragMove  = (e) => { if (dragRef.current !== null && e.touches[0].clientY - dragRef.current > 40) { dragRef.current = null; onSwipeDown(); } };
   const onDragEnd   = () => { dragRef.current = null; };
-
-  // Chip row handlers (track horizontal scroll to suppress accidental taps)
   const onChipsStart = (e) => { chipScrolling.current = false; chipTouchX.current = e.touches[0].clientX; };
   const onChipsMove  = (e) => { if (Math.abs(e.touches[0].clientX - chipTouchX.current) > 8) chipScrolling.current = true; };
 
   return (
     <div style={{ background: C.panel, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-      {/* ── Drag handle (full-width touch target, swipe down to close) ── */}
-      <div
-        onTouchStart={onDragStart}
-        onTouchMove={onDragMove}
-        onTouchEnd={onDragEnd}
-        style={{
-          width: "100%", padding: "6px 0 4px", display: "flex",
-          justifyContent: "center", alignItems: "center",
-          touchAction: "none", cursor: "row-resize",
-          background: C.black, borderBottom: `1px solid ${C.border}`,
-        }}
-      >
+      <div onTouchStart={onDragStart} onTouchMove={onDragMove} onTouchEnd={onDragEnd}
+        style={{ width: "100%", padding: "6px 0 4px", display: "flex", justifyContent: "center", alignItems: "center", touchAction: "none", cursor: "row-resize", background: C.black, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ width: 40, height: 3, background: C.borderBright, borderRadius: 2 }} />
       </div>
-
-      {/* ── Tab row (always visible, full-width, no overflow needed) ── */}
-      <div style={{
-        display: "flex", overflowX: "auto",
-        background: C.black, borderBottom: `1px solid ${C.border}`,
-        // prevent tab-row touch from triggering chip scroll tracking
-      }}>
+      <div style={{ display: "flex", overflowX: "auto", background: C.black, borderBottom: `1px solid ${C.border}` }}>
         {tabDefs.map((tab) => (
-          <button
-            key={tab.id}
+          <button key={tab.id}
             onMouseDown={(e) => { e.preventDefault(); setActiveTab(tab.id); }}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab(tab.id); }}
-            style={{
-              fontFamily: F.mono, fontSize: 10, padding: "8px 11px", flexShrink: 0,
-              background: activeTab === tab.id ? `${tab.color}15` : "none",
-              color: activeTab === tab.id ? tab.color : C.muted,
-              border: "none",
-              borderBottom: activeTab === tab.id ? `2px solid ${tab.color}` : "2px solid transparent",
-              cursor: "pointer", letterSpacing: 1, fontWeight: activeTab === tab.id ? "bold" : "normal",
-            }}
+            style={{ fontFamily: F.mono, fontSize: 10, padding: "8px 11px", flexShrink: 0, background: activeTab === tab.id ? `${tab.color}15` : "none", color: activeTab === tab.id ? tab.color : C.muted, border: "none", borderBottom: activeTab === tab.id ? `2px solid ${tab.color}` : "2px solid transparent", cursor: "pointer", letterSpacing: 1, fontWeight: activeTab === tab.id ? "bold" : "normal" }}
           >{tab.label}</button>
         ))}
       </div>
-
-      {/* ── Token chips (scroll-aware: suppresses tap if horizontal scroll detected) ── */}
-      <div
-        style={{ display: "flex", overflowX: "auto", padding: "6px 8px", gap: 5, minHeight: 48 }}
-        onTouchStart={onChipsStart}
-        onTouchMove={onChipsMove}
-      >
-        {active.tokens.length === 0 ? (
-          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, alignSelf: "center", padding: "0 4px" }}>
-            {activeTab === "tables" ? "no tables — try \\reset" : activeTab === "cols" ? "no columns yet" : "empty"}
-          </span>
-        ) : (
-          active.tokens.map((tok) => (
-            <button
-              key={tok}
+      <div style={{ display: "flex", overflowX: "auto", padding: "6px 8px", gap: 5, minHeight: 48 }}
+        onTouchStart={onChipsStart} onTouchMove={onChipsMove}>
+        {active.tokens.length === 0
+          ? <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, alignSelf: "center" }}>{activeTab === "tables" ? "no tables yet" : activeTab === "cols" ? "no columns yet" : "empty"}</span>
+          : active.tokens.map((tok) => (
+            <button key={tok}
               onMouseDown={(e) => { e.preventDefault(); active.onTap(tok); }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!chipScrolling.current) active.onTap(tok);
-              }}
-              style={{
-                fontFamily: F.mono, fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap",
-                background: "none", border: `1px solid ${C.border}`, color: active.color,
-                cursor: "pointer", flexShrink: 0,
-              }}
+              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); if (!chipScrolling.current) active.onTap(tok); }}
+              style={{ fontFamily: F.mono, fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap", background: "none", border: `1px solid ${C.border}`, color: active.color, cursor: "pointer", flexShrink: 0 }}
             >{tok}</button>
           ))
-        )}
+        }
       </div>
     </div>
   );
 }
 
-// ── Result Table (ASCII box-drawing) ─────────────────────────
+// ── Result Table ──────────────────────────────────────────────
 function ResultTable({ columns, rows }) {
   if (!columns.length) return null;
-  const widths = columns.map((c, i) =>
-    Math.min(40, Math.max(String(c).length, ...rows.map((r) => String(r[i] ?? "NULL").length), 4))
-  );
+  const widths = columns.map((c, i) => Math.min(36, Math.max(String(c).length, ...rows.map((r) => String(r[i] ?? "NULL").length), 4)));
   const trunc = (v, w) => { const s = String(v ?? "NULL"); return s.length > w ? s.slice(0, w - 1) + "…" : s.padEnd(w); };
   const sep = "+" + widths.map((w) => "-".repeat(w + 2)).join("+") + "+";
   const hdr = "| " + columns.map((c, i) => trunc(c, widths[i])).join(" | ") + " |";
@@ -480,9 +361,7 @@ function ResultTable({ columns, rows }) {
         {rows.map((row) => "\n| " + row.map((v, ci) => trunc(v, widths[ci])).join(" | ") + " |")}
         {"\n"}{sep}
       </pre>
-      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginTop: 2 }}>
-        {rows.length} {rows.length === 1 ? "row" : "rows"}
-      </div>
+      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginTop: 2 }}>{rows.length} {rows.length === 1 ? "row" : "rows"}</div>
     </div>
   );
 }
@@ -490,221 +369,21 @@ function ResultTable({ columns, rows }) {
 // ── Scrollback block ──────────────────────────────────────────
 function ReplBlock({ block }) {
   const { type, cmd, result, text } = block;
-  if (type === "info") return (
-    <div style={{ padding: "2px 0" }}>
-      <pre style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, margin: 0, whiteSpace: "pre-wrap" }}>{text}</pre>
-    </div>
-  );
+  if (type === "info") return <div style={{ padding: "2px 0" }}><pre style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, margin: 0, whiteSpace: "pre-wrap" }}>{text}</pre></div>;
   if (type === "error") return (
     <div style={{ padding: "4px 0" }}>
-      {cmd && <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, marginBottom: 2 }}>
-        <span style={{ color: C.green }}>punksql=#</span>{" "}<span style={{ color: C.text }}>{cmd}</span>
-      </div>}
+      {cmd && <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, marginBottom: 2 }}><span style={{ color: C.green }}>punksql=#</span>{" "}<span style={{ color: C.text }}>{cmd}</span></div>}
       <div style={{ fontFamily: F.mono, fontSize: 12, color: C.red }}>ERROR: {text}</div>
     </div>
   );
   if (type === "sql") return (
     <div style={{ padding: "4px 0", borderBottom: `1px solid ${C.border}20` }}>
-      <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, marginBottom: 4 }}>
-        <span style={{ color: C.green }}>punksql=#</span>{" "}<span style={{ color: C.text }}>{cmd}</span>
-      </div>
-      {result.ok
-        ? result.columns.length > 0
-          ? <ResultTable columns={result.columns} rows={result.rows} />
-          : <div style={{ fontFamily: F.mono, fontSize: 11, color: C.greenDim }}>OK — {result.msg}</div>
-        : <div style={{ fontFamily: F.mono, fontSize: 12, color: C.red }}>ERROR: {result.msg}</div>
-      }
+      <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim, marginBottom: 4 }}><span style={{ color: C.green }}>punksql=#</span>{" "}<span style={{ color: C.text }}>{cmd}</span></div>
+      {result.ok ? result.columns.length > 0 ? <ResultTable columns={result.columns} rows={result.rows} /> : <div style={{ fontFamily: F.mono, fontSize: 11, color: C.greenDim }}>OK — {result.msg}</div>
+        : <div style={{ fontFamily: F.mono, fontSize: 12, color: C.red }}>ERROR: {result.msg}</div>}
     </div>
   );
   return null;
-}
-
-// ── Object Browser panel ──────────────────────────────────────
-function ObjectBrowser({ db, onInsert, onRefresh, lang }) {
-  const [tables, setTables] = useState([]);
-  const [views, setViews] = useState([]);
-  const [expanded, setExpanded] = useState({});
-  const [colCache, setColCache] = useState({});
-  const ispt = lang === "pt";
-
-  const refresh = useCallback(() => {
-    if (!db) return;
-    const tr = execSQL(db, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
-    const vr = execSQL(db, "SELECT name FROM sqlite_master WHERE type='view' ORDER BY name");
-    setTables(tr.ok ? tr.rows.map((r) => r[0]) : []);
-    setViews(vr.ok ? vr.rows.map((r) => r[0]) : []);
-  }, [db]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-  useEffect(() => { if (onRefresh) onRefresh.current = refresh; }, [refresh, onRefresh]);
-
-  const toggleExpand = (name) => {
-    setExpanded((prev) => {
-      const next = { ...prev, [name]: !prev[name] };
-      if (next[name] && !colCache[name]) {
-        const r = execSQL(db, `PRAGMA table_info("${name}")`);
-        if (r.ok) setColCache((c) => ({ ...c, [name]: r.rows }));
-      }
-      return next;
-    });
-  };
-
-  const ObjRow = ({ name, type }) => {
-    const isView = type === "view";
-    const col = isView ? C.purple : C.cyan;
-    return (
-      <div>
-        <button onClick={() => toggleExpand(name)} style={{
-          display: "flex", alignItems: "center", gap: 6, width: "100%",
-          background: "none", border: "none", cursor: "pointer", padding: "3px 0",
-          fontFamily: F.mono, fontSize: 12, color: C.text, textAlign: "left",
-        }}>
-          <span style={{ color: col, minWidth: 14, fontSize: 10 }}>{expanded[name] ? "▼" : "▶"}</span>
-          <span style={{ color: col, fontSize: 10 }}>{isView ? "◻" : "▪"}</span>
-          <span style={{ color: C.text }}>{name}</span>
-          <span style={{ color: C.muted, fontSize: 9, marginLeft: "auto" }}>{isView ? "view" : "table"}</span>
-        </button>
-        {expanded[name] && colCache[name] && (
-          <div style={{ paddingLeft: 20, borderLeft: `1px solid ${C.border}`, marginLeft: 7, marginBottom: 2 }}>
-            {colCache[name].map((col) => (
-              <button key={col[1]} onClick={() => onInsert(col[1])} style={{
-                display: "flex", alignItems: "center", gap: 5, width: "100%",
-                background: "none", border: "none", cursor: "pointer",
-                padding: "2px 0", fontFamily: F.mono, fontSize: 11, color: C.dim, textAlign: "left",
-              }}>
-                <span style={{ color: C.muted }}>·</span>
-                <span style={{ color: C.text }}>{col[1]}</span>
-                <span style={{ color: C.muted, fontSize: 9 }}>{col[2]}</span>
-                {col[5] ? <span style={{ color: C.amber, fontSize: 9, marginLeft: 2 }}>PK</span> : null}
-                {col[3] ? <span style={{ color: C.red, fontSize: 9, marginLeft: 1 }}>NN</span> : null}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ padding: "8px 12px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, letterSpacing: 1.5 }}>
-          OBJECTS ({tables.length}T · {views.length}V)
-        </span>
-        <button onClick={refresh} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 10, color: C.muted }}>
-          ↻ {ispt ? "atualizar" : "refresh"}
-        </button>
-      </div>
-      {tables.length === 0 && views.length === 0 && (
-        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted }}>{ispt ? "nenhum objeto" : "no objects"}</div>
-      )}
-      {tables.map((n) => <ObjRow key={n} name={n} type="table" />)}
-      {views.length > 0 && <div style={{ height: 4 }} />}
-      {views.map((n) => <ObjRow key={n} name={n} type="view" />)}
-    </div>
-  );
-}
-
-// ── Lineage / Layer Stack panel ───────────────────────────────
-function LineageStack({ db, lang }) {
-  const [objects, setObjects] = useState([]);
-  const ispt = lang === "pt";
-
-  useEffect(() => {
-    if (!db) return;
-    setObjects(loadObjects(db));
-  }, [db]);
-
-  const byLayer = useMemo(() => {
-    const map = { source: [], staging: [], intermediate: [], mart: [] };
-    objects.forEach((o) => map[o.layer].push(o));
-    return map;
-  }, [objects]);
-
-  const hasLayers = byLayer.staging.length + byLayer.intermediate.length + byLayer.mart.length > 0;
-
-  return (
-    <div style={{ padding: "8px 12px" }}>
-      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, letterSpacing: 1.5, marginBottom: 8 }}>
-        DATA LINEAGE
-      </div>
-
-      {/* Flow legend */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10, overflowX: "auto" }}>
-        {LAYER_ORDER.map((l, i) => {
-          const m = LAYER_META[l];
-          const count = byLayer[l].length;
-          return (
-            <div key={l} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-              <div style={{
-                fontFamily: F.mono, fontSize: 10, color: count ? m.color : C.muted,
-                border: `1px solid ${count ? m.color : C.border}`,
-                padding: "2px 6px", letterSpacing: 1,
-                background: count ? `${m.color}12` : "none",
-              }}>
-                {m.badge} {count > 0 ? `(${count})` : ""}
-              </div>
-              {i < LAYER_ORDER.length - 1 && (
-                <span style={{ color: C.border, fontSize: 12 }}>→</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Layer sections */}
-      {LAYER_ORDER.map((layerKey) => {
-        const m = LAYER_META[layerKey];
-        const items = byLayer[layerKey];
-        if (!items.length && hasLayers) return null;
-        return (
-          <div key={layerKey} style={{ marginBottom: 10 }}>
-            <div style={{ fontFamily: F.mono, fontSize: 10, color: m.color, letterSpacing: 2, marginBottom: 4 }}>
-              ┤ {m.label} <span style={{ color: C.muted, letterSpacing: 0 }}>// {m.hint}</span> ├
-            </div>
-            {items.length === 0 ? (
-              <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 8 }}>
-                {layerKey === "staging" && (ispt ? "crie views com prefixo stg_" : "create views with stg_ prefix")}
-                {layerKey === "intermediate" && (ispt ? "crie views com prefixo int_" : "create views with int_ prefix")}
-                {layerKey === "mart" && (ispt ? "crie views com prefixo fct_ ou dim_" : "create views with fct_ or dim_ prefix")}
-              </div>
-            ) : (
-              items.map((obj) => (
-                <div key={obj.name} style={{ paddingLeft: 8, marginBottom: 3 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: F.mono, fontSize: 11, color: obj.type === "view" ? C.purple : m.color }}>
-                      {obj.type === "view" ? "◻" : "▪"} {obj.name}
-                    </span>
-                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>{obj.type}</span>
-                  </div>
-                  {obj.upstreams.length > 0 && (
-                    <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 10 }}>
-                      ← {obj.upstreams.join(", ")}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        );
-      })}
-
-      {!hasLayers && (
-        <div style={{
-          fontFamily: F.mono, fontSize: 10, color: C.muted,
-          borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 4, lineHeight: 1.8,
-        }}>
-          {ispt
-            ? "Crie views com prefixos de camada para ver a linhagem:\n  stg_orders → int_daily_revenue → fct_revenue"
-            : "Create views with layer prefixes to see lineage:\n  stg_orders → int_daily_revenue → fct_revenue"}
-          <pre style={{ margin: "6px 0 0", color: C.border, fontSize: 9 }}>{`CREATE VIEW stg_orders AS
-  SELECT id, customer_id,
-         CAST(total_amount AS REAL) AS amount
-  FROM orders;`}</pre>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── Meta-command handler ──────────────────────────────────────
@@ -712,15 +391,11 @@ function handleMeta(cmd, db, pushBlock, clearScrollback, replHistory) {
   const parts = cmd.trim().split(/\s+/);
   const verb = parts[0].toLowerCase();
   const arg = parts.slice(1).join(" ");
-
   if (verb === "\\clear" || verb === "\\cls") { clearScrollback(); return; }
   if (verb === "\\h" || verb === "\\?") { pushBlock({ type: "info", text: HELP_TEXT }); return; }
   if (verb === "\\history") {
-    const lines = replHistory.length
-      ? replHistory.map((h, i) => `  ${String(replHistory.length - i).padStart(3)}  ${h}`).join("\n")
-      : "  (empty)";
-    pushBlock({ type: "info", text: lines });
-    return;
+    const lines = replHistory.length ? replHistory.map((h, i) => `  ${String(replHistory.length - i).padStart(3)}  ${h}`).join("\n") : "  (empty)";
+    pushBlock({ type: "info", text: lines }); return;
   }
   if (verb === "\\dt") { pushBlock({ type: "sql", cmd, result: execSQL(db, "SELECT name, 'table' AS type FROM sqlite_master WHERE type='table' ORDER BY name") }); return; }
   if (verb === "\\dv") { pushBlock({ type: "sql", cmd, result: execSQL(db, "SELECT name, 'view' AS type FROM sqlite_master WHERE type='view' ORDER BY name") }); return; }
@@ -735,14 +410,293 @@ function handleMeta(cmd, db, pushBlock, clearScrollback, replHistory) {
   pushBlock({ type: "error", text: `unrecognized command: ${verb}  (try \\? for help)` });
 }
 
+// ── FileTree view ─────────────────────────────────────────────
+function FileTree({ db, lang, onOpenInEditor }) {
+  const [objects, setObjects] = useState([]);
+  const [expanded, setExpanded] = useState({ models: true, seeds: true, staging: false, intermediate: false, mart: false });
+  const [selected, setSelected] = useState(null);
+  const [showYml, setShowYml] = useState(false);
+  const ispt = lang === "pt";
+
+  useEffect(() => { if (db) setObjects(loadObjects(db)); }, [db]);
+
+  const byLayer = useMemo(() => {
+    const m = { source: [], staging: [], intermediate: [], mart: [] };
+    objects.forEach((o) => m[o.layer].push(o));
+    return m;
+  }, [objects]);
+
+  const toggle = (key) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
+  const select = (obj) => setSelected((s) => s?.name === obj.name ? null : obj);
+
+  const FolderRow = ({ label, expKey, color = C.dim, depth = 0, badge }) => (
+    <button onClick={() => toggle(expKey)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", cursor: "pointer", padding: `3px 0 3px ${depth * 14}px`, textAlign: "left" }}>
+      <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, width: 10 }}>{expanded[expKey] ? "▼" : "▶"}</span>
+      <span style={{ fontFamily: F.mono, fontSize: 11, color }}>📁 {label}</span>
+      {badge && <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{badge}</span>}
+    </button>
+  );
+
+  const FileRow = ({ obj, depth = 0 }) => {
+    const isSelected = selected?.name === obj.name;
+    const col = obj.type === "view" ? C.purple : LAYER_META[obj.layer].color;
+    return (
+      <div>
+        <button onClick={() => select(obj)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: isSelected ? `${col}12` : "none", border: "none", cursor: "pointer", padding: `3px 0 3px ${depth * 14}px`, textAlign: "left" }}>
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, width: 10 }}>📄</span>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: isSelected ? col : C.text }}>{obj.name}.{obj.type === "view" ? "sql" : "csv"}</span>
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{obj.type}</span>
+        </button>
+        {isSelected && (
+          <div style={{ marginLeft: depth * 14 + 16, borderLeft: `1px solid ${C.border}`, paddingLeft: 10, marginBottom: 4 }}>
+            {obj.upstreams.length > 0 && (
+              <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>
+                depends on: {obj.upstreams.join(", ")}
+              </div>
+            )}
+            {obj.ddl && (
+              <pre style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, margin: "0 0 6px", whiteSpace: "pre-wrap", overflowX: "auto" }}>{obj.ddl}</pre>
+            )}
+            {obj.type === "view" && (
+              <button
+                onClick={() => { onOpenInEditor(obj.ddl || `-- ${obj.name}\n`); }}
+                style={{ fontFamily: F.mono, fontSize: 10, color: C.amber, background: `${C.amber}12`, border: `1px solid ${C.amber}40`, cursor: "pointer", padding: "3px 10px" }}
+              >{ispt ? "Abrir no editor" : "Open in Editor"} →</button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+      {/* dbt_project.yml */}
+      <div style={{ marginBottom: 4 }}>
+        <button onClick={() => setShowYml((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "3px 0", textAlign: "left" }}>
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, width: 10 }}>📄</span>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber }}>dbt_project.yml</span>
+        </button>
+        {showYml && (
+          <pre style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginLeft: 16, padding: "6px 10px", borderLeft: `1px solid ${C.border}`, whiteSpace: "pre-wrap" }}>{DBT_PROJECT_YML}</pre>
+        )}
+      </div>
+
+      {/* models/ */}
+      <FolderRow label="models" expKey="models" color={C.cyan} />
+      {expanded.models && (
+        <>
+          <FolderRow label="staging" expKey="staging" color={C.cyan} depth={1} badge="stg_*" />
+          {expanded.staging && byLayer.staging.map((o) => <FileRow key={o.name} obj={o} depth={2} />)}
+          {expanded.staging && byLayer.staging.length === 0 && (
+            <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 42 }}>
+              {ispt ? "Crie: CREATE VIEW stg_orders AS ..." : "Create: CREATE VIEW stg_orders AS ..."}
+            </div>
+          )}
+
+          <FolderRow label="intermediate" expKey="intermediate" color={C.amber} depth={1} badge="int_*" />
+          {expanded.intermediate && byLayer.intermediate.map((o) => <FileRow key={o.name} obj={o} depth={2} />)}
+          {expanded.intermediate && byLayer.intermediate.length === 0 && (
+            <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 42 }}>
+              {ispt ? "Crie: CREATE VIEW int_revenue AS ..." : "Create: CREATE VIEW int_revenue AS ..."}
+            </div>
+          )}
+
+          <FolderRow label="mart" expKey="mart" color={C.green} depth={1} badge="fct_*/dim_*" />
+          {expanded.mart && byLayer.mart.map((o) => <FileRow key={o.name} obj={o} depth={2} />)}
+          {expanded.mart && byLayer.mart.length === 0 && (
+            <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 42 }}>
+              {ispt ? "Crie: CREATE VIEW fct_revenue AS ..." : "Create: CREATE VIEW fct_revenue AS ..."}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* seeds/ */}
+      <FolderRow label="seeds" expKey="seeds" color={C.dim} badge="raw tables" />
+      {expanded.seeds && byLayer.source.map((o) => <FileRow key={o.name} obj={o} depth={1} />)}
+
+      {/* hint */}
+      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, marginTop: 16, lineHeight: 1.8 }}>
+        {ispt ? "Crie views com prefixos de camada\npara populer a árvore de modelos:" : "Create views with layer prefixes\nto populate the model tree:"}
+        <br />{"  stg_orders → int_revenue → fct_kpi"}
+      </div>
+    </div>
+  );
+}
+
+// ── SQL Editor view ───────────────────────────────────────────
+function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNames, columnNames, onRefreshCatalog }) {
+  const [sql, setSql] = useState(initialSql || "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;");
+  const [result, setResult] = useState(null);
+  const [running, setRunning] = useState(false);
+  const taRef = useRef(null);
+  const ispt = lang === "pt";
+
+  useEffect(() => { if (initialSql !== undefined && initialSql !== sql) setSql(initialSql); }, [initialSql]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const runQuery = useCallback(() => {
+    const trimmed = sql.trim();
+    if (!db || !trimmed) return;
+    setRunning(true);
+    const r = execSQL(db, trimmed);
+    setResult(r);
+    setRunning(false);
+    if (/^\s*(CREATE|DROP|ALTER)\b/i.test(trimmed)) onRefreshCatalog();
+  }, [sql, db, onRefreshCatalog]);
+
+  const onKeyDown = (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); }
+    // Tab key: insert 2 spaces
+    if (e.key === "Tab") { e.preventDefault(); const t = taRef.current; const s = t.selectionStart; const next = sql.slice(0, s) + "  " + sql.slice(s); setSql(next); requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = s + 2; } }); }
+  };
+
+  const lineCount = sql.split("\n").length;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+      {/* Editor toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>📄</span>
+        <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, flex: 1 }}>query.sql</span>
+        <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>Ctrl+Enter</span>
+        <button onClick={runQuery} disabled={!db || !sql.trim() || running} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 14px", background: sql.trim() ? C.cyanGhost : "none", border: `1px solid ${sql.trim() ? C.cyan : C.border}`, color: sql.trim() ? C.cyan : C.dim, cursor: sql.trim() ? "pointer" : "default", letterSpacing: 1 }}>
+          {running ? "…" : "▶ RUN"}
+        </button>
+      </div>
+
+      {/* Editor + results split */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+        {/* Code editor area */}
+        <div style={{ display: "flex", flex: result ? "0 0 50%" : 1, overflow: "hidden", borderBottom: result ? `1px solid ${C.border}` : "none" }}>
+          {/* Line numbers */}
+          <div style={{ background: C.panel, padding: "10px 8px 10px 10px", textAlign: "right", userSelect: "none", flexShrink: 0, overflowY: "hidden" }}>
+            {Array.from({ length: lineCount }, (_, i) => (
+              <div key={i} style={{ fontFamily: F.mono, fontSize: 12, color: C.border, lineHeight: "1.6em" }}>{i + 1}</div>
+            ))}
+          </div>
+          {/* Textarea */}
+          <textarea
+            ref={taRef}
+            value={sql}
+            onChange={(e) => { setSql(e.target.value); if (notifySqlChange) notifySqlChange(e.target.value); }}
+            onKeyDown={onKeyDown}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder={"-- Write SQL here\n-- Ctrl+Enter to run\n\nSELECT *\nFROM customers\nLIMIT 10;"}
+            style={{ flex: 1, fontFamily: F.mono, fontSize: 12, color: C.white, background: C.surface, border: "none", outline: "none", resize: "none", padding: "10px 12px 10px 6px", lineHeight: "1.6em", caretColor: C.green, overflowY: "auto" }}
+          />
+        </div>
+
+        {/* Results panel */}
+        {result && (
+          <div style={{ flex: "0 0 50%", overflow: "auto", padding: "8px 12px", background: C.panel }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: result.ok ? C.green : C.red }}>
+                {result.ok ? `✓ ${result.msg}` : "✗ ERROR"}
+              </span>
+              <button onClick={() => setResult(null)} style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, background: "none", border: "none", cursor: "pointer", marginLeft: "auto" }}>✕ dismiss</button>
+            </div>
+            {result.ok && result.columns.length > 0 && <ResultTable columns={result.columns} rows={result.rows} />}
+            {result.ok && result.columns.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 11, color: C.greenDim }}>OK — {result.msg}</div>}
+            {!result.ok && <pre style={{ fontFamily: F.mono, fontSize: 11, color: C.red, margin: 0, whiteSpace: "pre-wrap" }}>{result.msg}</pre>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Lineage Stack view ────────────────────────────────────────
+function LineageStack({ db, lang }) {
+  const [objects, setObjects] = useState([]);
+  const ispt = lang === "pt";
+
+  useEffect(() => { if (db) setObjects(loadObjects(db)); }, [db]);
+
+  const byLayer = useMemo(() => {
+    const map = { source: [], staging: [], intermediate: [], mart: [] };
+    objects.forEach((o) => map[o.layer].push(o));
+    return map;
+  }, [objects]);
+
+  const hasLayers = byLayer.staging.length + byLayer.intermediate.length + byLayer.mart.length > 0;
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, letterSpacing: 1.5, marginBottom: 10 }}>DATA LINEAGE</div>
+
+      {/* Flow legend */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 14, overflowX: "auto" }}>
+        {LAYER_ORDER.map((l, i) => {
+          const m = LAYER_META[l]; const count = byLayer[l].length;
+          return (
+            <div key={l} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              <div style={{ fontFamily: F.mono, fontSize: 10, color: count ? m.color : C.muted, border: `1px solid ${count ? m.color : C.border}`, padding: "2px 6px", letterSpacing: 1, background: count ? `${m.color}12` : "none" }}>
+                {m.badge} {count > 0 ? `(${count})` : ""}
+              </div>
+              {i < LAYER_ORDER.length - 1 && <span style={{ color: C.border, fontSize: 12 }}>→</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Layer sections */}
+      {LAYER_ORDER.map((layerKey) => {
+        const m = LAYER_META[layerKey];
+        const items = byLayer[layerKey];
+        if (!items.length && hasLayers) return null;
+        return (
+          <div key={layerKey} style={{ marginBottom: 12 }}>
+            <div style={{ fontFamily: F.mono, fontSize: 10, color: m.color, letterSpacing: 2, marginBottom: 6 }}>
+              ┤ {m.label} <span style={{ color: C.muted, letterSpacing: 0, fontSize: 9 }}>// {m.hint} · {m.folder}</span> ├
+            </div>
+            {items.length === 0 ? (
+              <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 8 }}>
+                {layerKey === "staging" && "create views with stg_ prefix"}
+                {layerKey === "intermediate" && "create views with int_ prefix"}
+                {layerKey === "mart" && "create views with fct_ or dim_ prefix"}
+              </div>
+            ) : (
+              items.map((obj) => (
+                <div key={obj.name} style={{ paddingLeft: 8, marginBottom: 5 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: F.mono, fontSize: 11, color: obj.type === "view" ? C.purple : m.color }}>{obj.type === "view" ? "◻" : "▪"} {obj.name}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>{obj.type}</span>
+                  </div>
+                  {obj.upstreams.length > 0 && (
+                    <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: 10 }}>← {obj.upstreams.join(", ")}</div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        );
+      })}
+
+      {!hasLayers && (
+        <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 4, lineHeight: 1.8 }}>
+          {ispt ? "Crie views com prefixos de camada para ver a linhagem:" : "Create views with layer prefixes to see lineage:"}
+          {"  stg_orders → int_daily_revenue → fct_revenue"}
+          <pre style={{ margin: "6px 0 0", color: C.border, fontSize: 9 }}>{`CREATE VIEW stg_orders AS
+  SELECT id, customer_id,
+         CAST(total_amount AS REAL) AS amount
+  FROM orders;`}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SandboxScreen ─────────────────────────────────────────────
 export default function SandboxScreen({ onBack, lang = "en" }) {
   const { scrollback, replHistory, pushBlock, clearScrollback, pushHistory, navigateHistory, resetHistoryIndex } = useSandboxStore();
 
   const [db, setDb] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sql, setSql] = useState("");
-  const [panel, setPanel] = useState("none"); // "none" | "objects" | "lineage"
+  const [replSql, setReplSql] = useState("");
+  const [activeView, setActiveView] = useState("repl"); // "repl"|"editor"|"files"|"lineage"
+  const [editorInitialSql, setEditorInitialSql] = useState(undefined);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [suggestions, setSuggestions] = useState([]);
   const [tableNames, setTableNames] = useState([]);
@@ -752,11 +706,9 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
   const textareaRef = useRef(null);
   const scrollRef = useRef(null);
-  const browserRefreshRef = useRef(null);
   const chipBarSwipeRef = useRef(null);
   const ispt = lang === "pt";
 
-  // Load table + column names for autocomplete
   const refreshCatalog = useCallback((dbInst) => {
     const d = dbInst || db;
     if (!d) return;
@@ -764,15 +716,10 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     const tNames = tr.ok ? tr.rows.map((r) => r[0]) : [];
     setTableNames(tNames);
     const cols = new Set();
-    tNames.forEach((t) => {
-      const pr = execSQL(d, `PRAGMA table_info("${t}")`);
-      if (pr.ok) pr.rows.forEach((r) => cols.add(r[1]));
-    });
+    tNames.forEach((t) => { const pr = execSQL(d, `PRAGMA table_info("${t}")`); if (pr.ok) pr.rows.forEach((r) => cols.add(r[1])); });
     setColumnNames([...cols]);
-    if (browserRefreshRef.current) browserRefreshRef.current();
   }, [db]);
 
-  // Boot
   useEffect(() => {
     getSandboxDB(DB_SCHEMA)
       .then((d) => {
@@ -780,8 +727,8 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         refreshCatalog(d);
         if (scrollback.length === 0) {
           pushBlock({ type: "info", text: ispt
-            ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda. Use \\dt para listar tabelas.`
-            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help. \\dt lists tables. [?] opens the guide.`
+            ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda. Veja as abas no fundo da tela.`
+            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.  Tabs at the bottom: REPL · EDITOR · FILES · LINEAGE`
           });
         }
         if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboard(true);
@@ -790,7 +737,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       .finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [scrollback]);
@@ -803,30 +749,38 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
   const onSqlChange = useCallback((e) => {
     const v = e.target.value;
-    setSql(v);
+    setReplSql(v);
     updateSuggestions(v, e.target.selectionStart);
   }, [updateSuggestions]);
 
   const acceptSuggestion = useCallback((suggestion) => {
     if (!textareaRef.current) return;
     const pos = textareaRef.current.selectionStart;
-    const { text: newText, newPos } = replaceWordAtCursor(sql, pos, suggestion);
-    setSql(newText);
+    const { text: newText, newPos } = replaceWordAtCursor(replSql, pos, suggestion);
+    setReplSql(newText);
     setSuggestions([]);
     requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.selectionStart = newPos;
-        textareaRef.current.selectionEnd = newPos;
-        textareaRef.current.focus();
-      }
+      if (textareaRef.current) { textareaRef.current.selectionStart = newPos; textareaRef.current.selectionEnd = newPos; textareaRef.current.focus(); }
     });
-  }, [sql]);
+  }, [replSql]);
+
+  const insertAtCursor = useCallback((text) => {
+    if (!textareaRef.current) return;
+    const ta = textareaRef.current;
+    const start = ta.selectionStart;
+    const next = replSql.slice(0, start) + text + replSql.slice(ta.selectionEnd);
+    setReplSql(next);
+    setSuggestions([]);
+    requestAnimationFrame(() => {
+      if (textareaRef.current) { textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + text.length; textareaRef.current.focus(); }
+    });
+  }, [replSql]);
 
   const execute = useCallback(async () => {
-    const trimmed = sql.trim();
+    const trimmed = replSql.trim();
     if (!trimmed || !db) return;
     pushHistory(trimmed);
-    setSql("");
+    setReplSql("");
     setSuggestions([]);
     resetHistoryIndex();
 
@@ -835,7 +789,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         setSaveStatus("saving");
         const ok = await saveToIndexedDB();
         setSaveStatus(ok ? "saved" : "error");
-        pushBlock({ type: "info", text: ok ? (ispt ? "✓ Workspace salvo em IndexedDB" : "✓ Workspace saved to IndexedDB") : "✗ Save failed" });
+        pushBlock({ type: "info", text: ok ? "✓ Workspace saved to IndexedDB" : "✗ Save failed" });
         setTimeout(() => setSaveStatus("idle"), 2000);
         return;
       }
@@ -850,59 +804,22 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       handleMeta(trimmed, db, pushBlock, clearScrollback, replHistory);
       return;
     }
-
     const result = execSQL(db, trimmed);
     pushBlock({ type: "sql", cmd: trimmed, result });
     if (/^\s*(CREATE|DROP|ALTER)\b/i.test(trimmed)) refreshCatalog();
-  }, [sql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt]);
+  }, [replSql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt]);
 
   const onKeyDown = useCallback((e) => {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      if (suggestions.length > 0) acceptSuggestion(suggestions[0]);
-      return;
-    }
+    if (e.key === "Tab") { e.preventDefault(); if (suggestions.length > 0) acceptSuggestion(suggestions[0]); return; }
     if (e.key === "Escape") { setSuggestions([]); return; }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); execute(); return; }
-    if (e.key === "ArrowUp" && suggestions.length === 0) {
-      e.preventDefault();
-      const prev = navigateHistory(1);
-      if (prev !== null) { setSql(prev); setSuggestions([]); }
-      return;
-    }
-    if (e.key === "ArrowDown" && suggestions.length === 0) {
-      e.preventDefault();
-      const next = navigateHistory(-1);
-      setSql(next ?? "");
-    }
+    if (e.key === "ArrowUp" && suggestions.length === 0) { e.preventDefault(); const prev = navigateHistory(1); if (prev !== null) { setReplSql(prev); setSuggestions([]); } return; }
+    if (e.key === "ArrowDown" && suggestions.length === 0) { e.preventDefault(); const next = navigateHistory(-1); setReplSql(next ?? ""); }
   }, [suggestions, acceptSuggestion, execute, navigateHistory]);
 
-  const insertAtCursor = useCallback((text) => {
-    if (!textareaRef.current) return;
-    const ta = textareaRef.current;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const next = sql.slice(0, start) + text + sql.slice(end);
-    setSql(next);
-    setSuggestions([]);
-    requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + text.length;
-        textareaRef.current.focus();
-      }
-    });
-  }, [sql]);
+  const closeOnboard = useCallback(() => { try { localStorage.setItem(ONBOARD_KEY, "1"); } catch {} setShowOnboard(false); }, []);
 
-  const closeOnboard = useCallback(() => {
-    try { localStorage.setItem(ONBOARD_KEY, "1"); } catch {}
-    setShowOnboard(false);
-  }, []);
-
-  // Chip bar swipe-up gesture → open keyboard
-  // Track both x and y so a horizontal scroll doesn't accidentally trigger
-  const onChipBarTouchStart = (e) => {
-    chipBarSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
+  const onChipBarTouchStart = (e) => { chipBarSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
   const onChipBarTouchMove = (e) => {
     if (!chipBarSwipeRef.current) return;
     const dx = Math.abs(e.touches[0].clientX - chipBarSwipeRef.current.x);
@@ -911,230 +828,159 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   };
   const onChipBarTouchEnd = () => { chipBarSwipeRef.current = null; };
 
-  const saveBtnLabel = saveStatus === "saving" ? (ispt ? "salvando…" : "saving…")
-    : saveStatus === "saved" ? "✓ ok"
-    : saveStatus === "error" ? "✗ err"
-    : (ispt ? "save" : "save");
+  const saveBtnLabel = saveStatus === "saving" ? "saving…" : saveStatus === "saved" ? "✓ ok" : saveStatus === "error" ? "✗ err" : "save";
   const saveBtnColor = saveStatus === "saved" ? C.green : saveStatus === "error" ? C.red : C.dim;
 
-  const togglePanel = (name) => setPanel((v) => v === name ? "none" : name);
-
-  const SHORTCUTS = ["SELECT * FROM", "WHERE", "LEFT JOIN", "GROUP BY", "ORDER BY", "LIMIT 10", "\\dt", "\\d"];
+  const SHORTCUTS = ["SELECT * FROM", "WHERE", "LEFT JOIN", "GROUP BY", "ORDER BY", "LIMIT 10", "\\dt", "\\?"];
   const showSuggestions = suggestions.length > 0;
+  const showReplInput = activeView === "repl";
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", height: "100%",
-      background: C.void, fontFamily: F.mono,
-      position: "relative", // needed for OnboardingModal absolute positioning
-    }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void, fontFamily: F.mono, position: "relative" }}>
 
-      {/* ── Onboarding modal ── */}
-      {showOnboard && <OnboardingModal onClose={closeOnboard} lang={lang} />}
+      {showOnboard && <OnboardingModal onClose={closeOnboard} />}
 
       {/* ── Header ── */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 5,
-        padding: "7px 10px", borderBottom: `1px solid ${C.border}`,
-        background: C.black, flexShrink: 0,
-      }}>
-        <button onClick={onBack} style={{
-          background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
-          fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0,
-        }}>←</button>
-
+      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0 }}>←</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
         </div>
-
-        {/* Help / onboarding */}
+        <button onClick={() => setShowOnboard(true)} title="Open guide" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.amber, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>?</button>
+        <button onClick={clearScrollback} title="Clear terminal output" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>cls</button>
         <button
-          onClick={() => setShowOnboard(true)}
-          title={ispt ? "Abrir guia" : "Open guide"}
-          style={{
-            background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
-            fontFamily: F.mono, fontSize: 12, color: C.amber, padding: "4px 7px", minHeight: 28, flexShrink: 0,
-          }}
-        >?</button>
-
-        {/* Clear log button */}
-        <button onClick={clearScrollback} title="Clear terminal output" style={{
-          background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
-          fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0,
-        }}>cls</button>
-
-        {/* Objects panel toggle */}
-        <button onClick={() => togglePanel("objects")} style={{
-          background: panel === "objects" ? C.cyanGhost : "none",
-          border: `1px solid ${panel === "objects" ? C.cyan : C.border}`,
-          cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-          color: panel === "objects" ? C.cyan : C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0,
-        }}>obj</button>
-
-        {/* Lineage panel toggle */}
-        <button onClick={() => togglePanel("lineage")} style={{
-          background: panel === "lineage" ? `${C.green}15` : "none",
-          border: `1px solid ${panel === "lineage" ? C.green : C.border}`,
-          cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-          color: panel === "lineage" ? C.green : C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0,
-        }}>dag</button>
-
-        {/* Save button */}
-        <button
-          onClick={async () => {
-            setSaveStatus("saving");
-            const ok = await saveToIndexedDB();
-            setSaveStatus(ok ? "saved" : "error");
-            setTimeout(() => setSaveStatus("idle"), 2000);
-          }}
+          onClick={async () => { setSaveStatus("saving"); const ok = await saveToIndexedDB(); setSaveStatus(ok ? "saved" : "error"); setTimeout(() => setSaveStatus("idle"), 2000); }}
           disabled={!db || saveStatus === "saving"}
-          style={{
-            background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
-            fontFamily: F.mono, fontSize: 11, color: saveBtnColor, padding: "4px 7px", minHeight: 28, flexShrink: 0,
-          }}
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: saveBtnColor, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
         >{saveBtnLabel}</button>
       </div>
 
-      {/* ── Explorer panel (objects or lineage) ── */}
-      {panel !== "none" && db && (
-        <div style={{
-          borderBottom: `1px solid ${C.border}`, background: C.panel,
-          maxHeight: 240, overflowY: "auto", flexShrink: 0,
-        }}>
-          {panel === "objects" && (
-            <ObjectBrowser db={db} onInsert={insertAtCursor} onRefresh={browserRefreshRef} lang={lang} />
-          )}
-          {panel === "lineage" && (
-            <LineageStack db={db} lang={lang} />
-          )}
-        </div>
-      )}
+      {/* ── Main content area ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-      {/* ── Scrollback ── */}
-      <div ref={scrollRef} style={{
-        flex: 1, overflowY: "auto", padding: "10px 12px",
-        display: "flex", flexDirection: "column", gap: 6,
-      }}>
-        {loading && <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>{ispt ? "carregando sql.js…" : "loading sql.js…"}</div>}
-        {scrollback.map((block) => <ReplBlock key={block.id} block={block} />)}
-        {!loading && scrollback.length === 0 && (
-          <div style={{ fontFamily: F.mono, fontSize: 12, color: C.muted }}>{ispt ? "Digite SQL ou \\? para ajuda." : "Type SQL or \\? for help."}</div>
-        )}
-      </div>
-
-      {/* ── Autocomplete / shortcut chip bar ── */}
-      <div
-        onTouchStart={onChipBarTouchStart}
-        onTouchMove={onChipBarTouchMove}
-        onTouchEnd={onChipBarTouchEnd}
-        style={{
-          display: "flex", gap: 4, padding: "4px 10px", flexShrink: 0,
-          borderTop: `1px solid ${C.border}20`, overflowX: "auto",
-          background: showSuggestions ? `${C.cyan}06` : "transparent",
-          transition: "background 0.15s", touchAction: "pan-x",
-        }}
-      >
-        {/* Swipe-up hint when keyboard is closed */}
-        {!kbdOpen && !showSuggestions && (
-          <span style={{
-            fontFamily: F.mono, fontSize: 9, color: C.border,
-            alignSelf: "center", flexShrink: 0, paddingRight: 4, userSelect: "none",
-          }}>↑⌨</span>
-        )}
-
-        {showSuggestions ? (
-          <>
-            <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>
-              tab→
-            </span>
-            {suggestions.map((s, i) => (
-              <button key={s} onMouseDown={(e) => { e.preventDefault(); acceptSuggestion(s); }} style={{
-                background: i === 0 ? C.cyanGhost : "none",
-                border: `1px solid ${i === 0 ? C.cyan : C.border}`,
-                cursor: "pointer", fontFamily: F.mono, fontSize: 11,
-                color: i === 0 ? C.cyan : C.dim, padding: "3px 8px",
-                whiteSpace: "nowrap", flexShrink: 0,
-              }}>{s}</button>
-            ))}
-          </>
-        ) : (
-          SHORTCUTS.map((kw) => (
-            <button key={kw} onMouseDown={(e) => { e.preventDefault(); insertAtCursor(sql.length && !sql.endsWith(" ") ? " " + kw : kw); }} style={{
-              background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
-              fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "3px 7px",
-              whiteSpace: "nowrap", flexShrink: 0,
-            }}>{kw}</button>
-          ))
-        )}
-      </div>
-
-      {/* ── SQL Aux Keyboard (hidden by default) ── */}
-      {kbdOpen && (
-        <SandboxAuxKeyboard
-          onInsert={insertAtCursor}
-          tableNames={tableNames}
-          columnNames={columnNames}
-          onSwipeDown={() => setKbdOpen(false)}
-        />
-      )}
-
-      {/* ── Input area ── */}
-      <div style={{
-        borderTop: `1px solid ${C.border}`, background: C.panel,
-        padding: "8px 10px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 6,
-      }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 12, color: C.green, paddingTop: 6, flexShrink: 0, userSelect: "none" }}>
-            {sql.includes("\n") ? "punksql-#" : "punksql=#"}
-          </span>
-          <textarea
-            ref={textareaRef}
-            value={sql}
-            onChange={onSqlChange}
-            onKeyDown={onKeyDown}
-            onClick={(e) => updateSuggestions(sql, e.target.selectionStart)}
-            rows={Math.min(5, Math.max(1, sql.split("\n").length))}
-            placeholder={ispt ? "SQL ou \\comando  ·  Tab=autocomplete  ·  Shift+Enter=nova linha" : "SQL or \\command  ·  Tab=autocomplete  ·  Shift+Enter=new line"}
-            style={{
-              flex: 1, background: "none", border: "none", outline: "none",
-              fontFamily: F.mono, fontSize: 13, color: C.white, caretColor: C.green,
-              resize: "none", lineHeight: 1.6, paddingTop: 4,
-            }}
-            autoComplete="off"
-            spellCheck={false}
-            disabled={loading || !db}
-          />
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
-          <div style={{ display: "flex", gap: 6 }}>
-            {/* Keyboard toggle button */}
-            <button
-              onMouseDown={(e) => { e.preventDefault(); setKbdOpen((v) => !v); requestAnimationFrame(() => textareaRef.current?.focus()); }}
-              title={ispt ? "Teclado SQL" : "SQL keyboard"}
-              style={{
-                background: kbdOpen ? `${C.purple}14` : "none",
-                border: `1px solid ${kbdOpen ? C.purple : C.border}`,
-                cursor: "pointer", fontFamily: F.mono, fontSize: 13,
-                color: kbdOpen ? C.purple : C.muted, padding: "4px 10px",
-              }}
-            >⌨</button>
-
-            {/* Clear input */}
-            <button onClick={() => { setSql(""); setSuggestions([]); textareaRef.current?.focus(); }} style={{
-              background: "none", border: `1px solid ${C.border}`, cursor: "pointer",
-              fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "4px 10px",
-            }}>{ispt ? "limpar" : "clear"}</button>
+        {/* REPL view */}
+        {activeView === "repl" && (
+          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+            {loading && <div style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>loading sql.js…</div>}
+            {scrollback.map((block) => <ReplBlock key={block.id} block={block} />)}
+            {!loading && scrollback.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 12, color: C.muted }}>Type SQL or \? for help.</div>}
           </div>
+        )}
 
-          <button onClick={execute} disabled={loading || !db || !sql.trim()} style={{
-            background: sql.trim() ? C.cyanGhost : "none",
-            border: `1px solid ${sql.trim() ? C.cyan : C.border}`,
-            cursor: sql.trim() ? "pointer" : "default",
-            fontFamily: F.mono, fontSize: 12,
-            color: sql.trim() ? C.cyan : C.dim, padding: "4px 14px", letterSpacing: 1,
-          }}>▶ {ispt ? "EXECUTAR" : "RUN"}</button>
-        </div>
+        {/* EDITOR view */}
+        {activeView === "editor" && (
+          <SqlEditor
+            db={db}
+            lang={lang}
+            initialSql={editorInitialSql}
+            tableNames={tableNames}
+            columnNames={columnNames}
+            onRefreshCatalog={refreshCatalog}
+          />
+        )}
+
+        {/* FILES view */}
+        {activeView === "files" && (
+          <FileTree
+            db={db}
+            lang={lang}
+            onOpenInEditor={(sql) => { setEditorInitialSql(sql); setActiveView("editor"); }}
+          />
+        )}
+
+        {/* LINEAGE view */}
+        {activeView === "lineage" && (
+          <LineageStack db={db} lang={lang} />
+        )}
+
+        {/* ── Chip bar + keyboard + input: only for REPL tab ── */}
+        {showReplInput && (
+          <>
+            {/* Autocomplete / shortcut chip bar */}
+            <div
+              onTouchStart={onChipBarTouchStart}
+              onTouchMove={onChipBarTouchMove}
+              onTouchEnd={onChipBarTouchEnd}
+              style={{ display: "flex", gap: 4, padding: "4px 10px", flexShrink: 0, borderTop: `1px solid ${C.border}20`, overflowX: "auto", background: showSuggestions ? `${C.cyan}06` : "transparent", transition: "background 0.15s", touchAction: "pan-x" }}
+            >
+              {!kbdOpen && !showSuggestions && (
+                <span style={{ fontFamily: F.mono, fontSize: 9, color: C.border, alignSelf: "center", flexShrink: 0, paddingRight: 4, userSelect: "none" }}>↑⌨</span>
+              )}
+              {showSuggestions ? (
+                <>
+                  <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
+                  {suggestions.map((s, i) => (
+                    <button key={s} onMouseDown={(e) => { e.preventDefault(); acceptSuggestion(s); }} style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}>{s}</button>
+                  ))}
+                </>
+              ) : (
+                SHORTCUTS.map((kw) => (
+                  <button key={kw} onMouseDown={(e) => { e.preventDefault(); insertAtCursor(replSql.length && !replSql.endsWith(" ") ? " " + kw : kw); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "3px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>{kw}</button>
+                ))
+              )}
+            </div>
+
+            {/* SQL Keyboard */}
+            {kbdOpen && (
+              <SandboxAuxKeyboard
+                onInsert={insertAtCursor}
+                tableNames={tableNames}
+                columnNames={columnNames}
+                onSwipeDown={() => setKbdOpen(false)}
+              />
+            )}
+
+            {/* Input area */}
+            <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "8px 10px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ fontFamily: F.mono, fontSize: 12, color: C.green, paddingTop: 6, flexShrink: 0, userSelect: "none" }}>{replSql.includes("\n") ? "punksql-#" : "punksql=#"}</span>
+                <textarea
+                  ref={textareaRef}
+                  value={replSql}
+                  onChange={onSqlChange}
+                  onKeyDown={onKeyDown}
+                  onClick={(e) => updateSuggestions(replSql, e.target.selectionStart)}
+                  rows={Math.min(5, Math.max(1, replSql.split("\n").length))}
+                  placeholder={ispt ? "SQL ou \\comando  ·  Tab=autocomplete  ·  Shift+Enter=nova linha" : "SQL or \\command  ·  Tab=autocomplete  ·  Shift+Enter=new line"}
+                  style={{ flex: 1, background: "none", border: "none", outline: "none", fontFamily: F.mono, fontSize: 13, color: C.white, caretColor: C.green, resize: "none", lineHeight: 1.6, paddingTop: 4 }}
+                  autoComplete="off" spellCheck={false} disabled={loading || !db}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); setKbdOpen((v) => !v); requestAnimationFrame(() => textareaRef.current?.focus()); }}
+                    style={{ background: kbdOpen ? `${C.purple}14` : "none", border: `1px solid ${kbdOpen ? C.purple : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: kbdOpen ? C.purple : C.muted, padding: "4px 10px" }}
+                  >⌨</button>
+                  <button onClick={() => { setReplSql(""); setSuggestions([]); textareaRef.current?.focus(); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "4px 10px" }}>{ispt ? "limpar" : "clear"}</button>
+                </div>
+                <button onClick={execute} disabled={loading || !db || !replSql.trim()} style={{ background: replSql.trim() ? C.cyanGhost : "none", border: `1px solid ${replSql.trim() ? C.cyan : C.border}`, cursor: replSql.trim() ? "pointer" : "default", fontFamily: F.mono, fontSize: 12, color: replSql.trim() ? C.cyan : C.dim, padding: "4px 14px", letterSpacing: 1 }}>▶ {ispt ? "EXECUTAR" : "RUN"}</button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Bottom tab bar ── */}
+      <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        {BOTTOM_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveView(tab.id)}
+            style={{
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+              padding: "8px 4px 6px",
+              background: activeView === tab.id ? `${tab.color}10` : "none",
+              border: "none",
+              borderTop: activeView === tab.id ? `2px solid ${tab.color}` : "2px solid transparent",
+              cursor: "pointer",
+            }}
+          >
+            <span style={{ fontFamily: F.mono, fontSize: 13, color: activeView === tab.id ? tab.color : C.muted, lineHeight: 1 }}>{tab.icon}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 9, color: activeView === tab.id ? tab.color : C.muted, letterSpacing: 1 }}>{tab.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
