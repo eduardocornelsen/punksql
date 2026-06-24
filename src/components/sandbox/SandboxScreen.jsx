@@ -1187,7 +1187,7 @@ function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, co
 
 // ── File Manager Panel (hamburger sidebar) ────────────────────
 function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
-  const [panel, setPanel] = useState("files"); // "files" | "schema"
+  const [schemaOpen, setSchemaOpen] = useState(true);
   const [newName, setNewName] = useState("");
   const [newFolder, setNewFolder] = useState("queries");
   const [creatingFile, setCreatingFile] = useState(false);
@@ -1239,16 +1239,13 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
       <div style={{ position: "relative", zIndex: 1, width: "80%", maxWidth: 320, height: "100%", background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflowY: "auto" }}>
         {/* Panel header */}
         <div style={{ display: "flex", alignItems: "center", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
-          <button onClick={() => setPanel("files")} style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", background: "none", border: "none", borderBottom: panel === "files" ? `2px solid ${C.amber}` : "2px solid transparent", color: panel === "files" ? C.amber : C.muted, cursor: "pointer", letterSpacing: 1 }}>FILES</button>
-          <button onClick={() => setPanel("schema")} style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", background: "none", border: "none", borderBottom: panel === "schema" ? `2px solid ${C.cyan}` : "2px solid transparent", color: panel === "schema" ? C.cyan : C.muted, cursor: "pointer", letterSpacing: 1 }}>SCHEMA</button>
+          <span style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", color: C.amber, letterSpacing: 1 }}>FILES</span>
           <div style={{ flex: 1 }} />
-          {panel === "files" && (
-            <button
-              onClick={() => setCreatingFile((v) => !v)}
-              style={{ fontFamily: F.mono, fontSize: 11, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px", margin: "0 4px" }}
-              title="New file"
-            >+ new</button>
-          )}
+          <button
+            onClick={() => setCreatingFile((v) => !v)}
+            style={{ fontFamily: F.mono, fontSize: 11, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px", margin: "0 4px" }}
+            title="New file"
+          >+ new</button>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "4px 10px" }}>✕</button>
         </div>
 
@@ -1279,16 +1276,8 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
           </div>
         )}
 
-        {/* Schema panel */}
-        {panel === "schema" && (
-          <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
-            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "6px 12px 4px", letterSpacing: 1 }}>TABLES &amp; VIEWS — click to expand columns</div>
-            <SchemaExplorer db={db} />
-          </div>
-        )}
-
-        {/* File tree */}
-        {panel === "files" && <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
+        {/* File tree + inline schema */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
           {/* Root-level files (e.g. dbt_project.yml) */}
           {(byFolder["(root)"] || []).map((path) => {
             const isCurrent = path === currentFile;
@@ -1349,16 +1338,27 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
               </div>
             );
           })}
-        </div>}
 
-        {panel === "files" && (
-          <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, lineHeight: 1.8 }}>
-              Double-click filename in editor to rename.<br />
-              .sql runs against SQLite · .yaml gets YAML linting.
-            </div>
+          {/* ── Inline schema section ── */}
+          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4 }}>
+            <button
+              onClick={() => setSchemaOpen((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "7px 10px", textAlign: "left" }}
+            >
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, width: 10, flexShrink: 0, display: "inline-block", transition: "transform 0.15s", transform: schemaOpen ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.cyan, letterSpacing: 1 }}>DATABASE SCHEMA</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: 4 }}>click table to expand</span>
+            </button>
+            {schemaOpen && <SchemaExplorer db={db} />}
           </div>
-        )}
+        </div>
+
+        <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, lineHeight: 1.8 }}>
+            Double-click filename in editor to rename.<br />
+            .sql runs against SQLite · .yaml gets YAML linting.
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1594,6 +1594,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0 }}>←</button>
+        <button onClick={() => setShowFileManager(true)} title="Files &amp; Schema" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>☰</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
