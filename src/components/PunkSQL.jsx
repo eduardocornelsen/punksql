@@ -2133,7 +2133,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
 
   // Measure char width and line height from DOM (not canvas — canvas uses different font metrics)
   const [charW, setCharW] = useState(10.8);
-  const [lineH, setLineH] = useState(36);
+  const [lineH, setLineH] = useState(24);
   const measRef = useRef(null);
   useEffect(() => {
     const measure = () => {
@@ -2677,7 +2677,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
       )}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         {/* Hidden measurement span — same font/size as textarea */}
-        <span ref={measRef} style={{ position: "absolute", visibility: "hidden", fontFamily: F.mono, fontSize: 18, whiteSpace: "pre", pointerEvents: "none" }}>XXXXXXXXXXXXXXXXXXXX</span>
+        <span ref={measRef} style={{ position: "absolute", visibility: "hidden", fontFamily: F.mono, fontSize: 15, whiteSpace: "pre", pointerEvents: "none" }}>XXXXXXXXXXXXXXXXXXXX</span>
         <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
           {/* Scroll arrows — positioned over the editor, not inside scroll */}
           <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", gap: 4, zIndex: 30, pointerEvents: "auto" }}>
@@ -2688,14 +2688,14 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             onTouchStart={onEditorTouchStart} onTouchMove={onEditorTouchMove} onTouchEnd={onEditorTouchEnd} onClick={onTap}>
             {/* Custom cursor handle — hidden when keyboard is open */}
           {!editing && <div onTouchMove={onDrag} onTouchStart={e => e.stopPropagation()} style={{ position: "absolute", left: `${18 + cCol * charW}px`, top: `${14 + cRow * lineH}px`, zIndex: 10, pointerEvents: "auto", touchAction: "none", transition: "left 0.05s,top 0.05s" }}>
-              <div style={{ fontFamily: F.mono, fontSize: 18, color: C.cyan, lineHeight: 2, animation: "blink 1s step-end infinite", userSelect: "none" }}>█</div>
+              <div style={{ fontFamily: F.mono, fontSize: 15, color: C.cyan, lineHeight: 1.6, animation: "blink 1s step-end infinite", userSelect: "none" }}>█</div>
             </div>}
             {!dbReady && <div style={{ position: "absolute", top: 12, left: 18, fontFamily: F.mono, fontSize: 14, color: C.amber, animation: "blink 1s step-end infinite" }}>loading sql engine...</div>}
             {/* Syntax highlight layer — mirrors textarea content with token colors */}
             <pre aria-hidden style={{
               position: "absolute", top: 8, left: 18, right: 18,
               margin: 0, paddingTop: 6, border: "none",
-              fontFamily: F.mono, fontSize: 18, lineHeight: 2,
+              fontFamily: F.mono, fontSize: 15, lineHeight: 1.6,
               whiteSpace: "pre", wordWrap: "normal", overflowWrap: "normal", tabSize: 2,
               color: TOKEN_COLORS.text, background: "transparent",
               pointerEvents: "none", zIndex: 1, userSelect: "none",
@@ -2759,7 +2759,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
                 width: "100%",
                 minHeight: `${Math.max(200, (sql.split("\n").length + 3) * lineH)}px`,
                 background: "transparent", border: "none", color: "transparent",
-                fontFamily: F.mono, fontSize: 18, lineHeight: 2, resize: "none", tabSize: 2,
+                fontFamily: F.mono, fontSize: 15, lineHeight: 1.6, resize: "none", tabSize: 2,
                 outline: "none", caretColor: editing ? C.cyan : "transparent",
                 paddingTop: 6, cursor: "text", whiteSpace: "pre",
                 overflowX: "hidden", overflowY: "hidden",
