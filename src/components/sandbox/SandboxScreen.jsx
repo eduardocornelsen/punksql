@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import useSandboxStore from "@/stores/useSandboxStore";
 import { getSandboxDB, execSQL, saveToIndexedDB, resetSandboxDB } from "@/lib/sqlEngine";
 
@@ -1407,13 +1407,13 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
             const yaml = isYaml(path);
             const col = yaml ? C.green : C.amber;
             return (
-              <React.Fragment key={path}>
+              <Fragment key={path}>
                 <FileRow path={path} name={path} isCurrent={isCurrent} yaml={yaml} col={col}
                   indent={0} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
                   setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile}
                   isExpanded={expandedFile === path} onToggleExpand={() => toggleExpand(path)} />
                 {expandedFile === path && <FileDetailPanel path={path} files={files} dbObjects={dbObjects} indentLeft={20} />}
-              </React.Fragment>
+              </Fragment>
             );
           })}
 
@@ -1459,13 +1459,13 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
                       const yaml = isYaml(name);
                       const col = yaml ? C.green : C.amber;
                       return (
-                        <React.Fragment key={path}>
+                        <Fragment key={path}>
                           <FileRow path={path} name={name} isCurrent={isCurrent} yaml={yaml} col={col}
                             indent={isNested ? 28 : 14} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
                             setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile}
                             isExpanded={expandedFile === path} onToggleExpand={() => toggleExpand(path)} />
                           {expandedFile === path && <FileDetailPanel path={path} files={files} dbObjects={dbObjects} indentLeft={isNested ? 46 : 32} />}
-                        </React.Fragment>
+                        </Fragment>
                       );
                     })}
                   </div>
