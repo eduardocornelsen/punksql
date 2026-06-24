@@ -526,7 +526,7 @@ function FileTree({ db, lang, onOpenInEditor }) {
 }
 
 // ── SQL Editor view ───────────────────────────────────────────
-function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNames, columnNames, onRefreshCatalog, onSuggestionsChange, onLintIssuesChange, insertRef, acceptRef }) {
+function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNames, columnNames, onRefreshCatalog, onLintIssuesChange, insertRef }) {
   const [sql, setSql] = useState(initialSql || "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;");
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
@@ -549,9 +549,7 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
 
   const updateSuggestions = (text, pos) => {
     const word = getWordAtCursor(text, pos ?? text.length);
-    const s = word.length < 1 ? [] : computeSuggestions(word, tableNames, columnNames);
-    setSuggestions(s);
-    onSuggestionsChange?.(s);
+    setSuggestions(word.length < 1 ? [] : computeSuggestions(word, tableNames, columnNames));
   };
 
   const insertAtCursorEditor = (text) => {
@@ -560,8 +558,7 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
     const next = sql.slice(0, start) + text + sql.slice(end);
     setSql(next); if (notifySqlChange) notifySqlChange(next);
     const newPos2 = start + text.length;
-    const newS = computeSuggestions(getWordAtCursor(next, newPos2), tableNames, columnNames);
-    setSuggestions(newS); onSuggestionsChange?.(newS);
+    setSuggestions(computeSuggestions(getWordAtCursor(next, newPos2), tableNames, columnNames));
     requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = newPos2; taRef.current.focus(); } });
   };
 
@@ -570,13 +567,12 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
     const pos = taRef.current.selectionStart;
     const { text: newText, newPos } = replaceWordAtCursor(sql, pos, suggestion);
     setSql(newText); if (notifySqlChange) notifySqlChange(newText);
-    setSuggestions([]); onSuggestionsChange?.([]);
+    setSuggestions([]);
     requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = newPos; taRef.current.focus(); } });
   };
 
-  // Populate refs on every render so callers always have the latest closures
+  // Populate insertRef on every render so SandboxAuxKeyboard always has fresh closure
   if (insertRef) insertRef.current = insertAtCursorEditor;
-  if (acceptRef) acceptRef.current = acceptSuggestionEditor;
 
   // Smart SQL linter — debounced, runs static analysis + EXPLAIN for SELECT queries
   useEffect(() => {
@@ -610,7 +606,7 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
 
   const onKeyDown = (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); }
-    if (e.key === "Escape") { setSuggestions([]); onSuggestionsChange?.([]); }
+    if (e.key === "Escape") { setSuggestions([]); }
     if (e.key === "Tab") {
       e.preventDefault();
       if (suggestions.length > 0) { acceptSuggestionEditor(suggestions[0]); }
@@ -630,6 +626,23 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
         <button onClick={runQuery} disabled={!db || !sql.trim() || running} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 14px", background: sql.trim() ? C.cyanGhost : "none", border: `1px solid ${sql.trim() ? C.cyan : C.border}`, color: sql.trim() ? C.cyan : C.dim, cursor: sql.trim() ? "pointer" : "default", letterSpacing: 1 }}>
           {running ? "…" : "▶ RUN"}
         </button>
+      </div>
+
+      {/* Tab prediction chip bar — sits between toolbar and editor so it stays visible when keyboard opens */}
+      <div style={{ display: "flex", gap: 4, padding: "3px 8px", flexShrink: 0, borderBottom: `1px solid ${C.border}20`, background: suggestions.length > 0 ? `${C.cyan}06` : "transparent", overflowX: "auto", touchAction: "pan-x" }}>
+        {suggestions.length > 0 ? (
+          <>
+            <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
+            {suggestions.map((s, i) => (
+              <button key={s}
+                onMouseDown={(e) => { e.preventDefault(); acceptSuggestionEditor(s); }}
+                style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "2px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
+              >{s}</button>
+            ))}
+          </>
+        ) : (
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.border, alignSelf: "center", userSelect: "none", padding: "2px 0" }}>↑⌨ sql autocomplete</span>
+        )}
       </div>
 
       {/* Editor + results split */}
@@ -771,7 +784,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const [columnNames, setColumnNames] = useState([]);
   const [kbdOpen, setKbdOpen] = useState(false);
   const [showOnboard, setShowOnboard] = useState(false);
-  const [editorSuggestions, setEditorSuggestions] = useState([]);
   const [editorLintIssues, setEditorLintIssues] = useState([]);
   const [editorKbdOpen, setEditorKbdOpen] = useState(false);
 
@@ -779,7 +791,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const scrollRef = useRef(null);
   const chipBarSwipeRef = useRef(null);
   const editorInsertRef = useRef(null);
-  const editorAcceptRef = useRef(null);
   const ispt = lang === "pt";
 
   const refreshCatalog = useCallback((dbInst) => {
@@ -951,28 +962,9 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               tableNames={tableNames}
               columnNames={columnNames}
               onRefreshCatalog={refreshCatalog}
-              onSuggestionsChange={setEditorSuggestions}
               onLintIssuesChange={setEditorLintIssues}
               insertRef={editorInsertRef}
-              acceptRef={editorAcceptRef}
             />
-
-            {/* Autocomplete chip bar */}
-            <div style={{ display: "flex", gap: 4, padding: "4px 10px", flexShrink: 0, borderTop: `1px solid ${C.border}20`, background: editorSuggestions.length > 0 ? `${C.cyan}06` : "transparent", overflowX: "auto", touchAction: "pan-x", minHeight: 30 }}>
-              {editorSuggestions.length > 0 ? (
-                <>
-                  <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
-                  {editorSuggestions.map((s, i) => (
-                    <button key={s}
-                      onMouseDown={(e) => { e.preventDefault(); editorAcceptRef.current?.(s); }}
-                      style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
-                    >{s}</button>
-                  ))}
-                </>
-              ) : (
-                <span style={{ fontFamily: F.mono, fontSize: 9, color: C.border, alignSelf: "center", userSelect: "none" }}>↑⌨</span>
-              )}
-            </div>
 
             {/* Linter status bar */}
             {editorLintIssues.length > 0 && (

@@ -2754,6 +2754,23 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             />
           </div>
         </div>
+        {/* Tab prediction chip bar — above hint bar so it stays visible when native keyboard opens */}
+        {suggestions.length > 0 && (
+          <div style={{ display: "flex", gap: 4, padding: "3px 8px", background: `${C.cyan}06`, borderTop: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0, touchAction: "pan-x" }}>
+            <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
+            {suggestions.map((s, i) => (
+              <button key={s}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const { text: newSql, newPos } = chReplaceWordAtCursor(sql, cPos, s);
+                  setSql(newSql); setCPos(newPos); setSuggestions([]);
+                  requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); taRef.current.focus(); } });
+                }}
+                style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
+              >{s}</button>
+            ))}
+          </div>
+        )}
         {/* Hint bar */}
         <div ref={hintBarRef} style={{ padding: "2px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
           {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: ⌨  ·  tap: close"}
@@ -2825,23 +2842,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         )}
         {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
         <div ref={bottomAreaRef}>
-          {/* Tab prediction chip bar */}
-          {suggestions.length > 0 && (
-            <div style={{ display: "flex", gap: 4, padding: "3px 8px", background: `${C.cyan}06`, borderTop: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0, touchAction: "pan-x" }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
-              {suggestions.map((s, i) => (
-                <button key={s}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    const { text: newSql, newPos } = chReplaceWordAtCursor(sql, cPos, s);
-                    setSql(newSql); setCPos(newPos); setSuggestions([]);
-                    requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); taRef.current.focus(); } });
-                  }}
-                  style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
-                >{s}</button>
-              ))}
-            </div>
-          )}
           {!isFocusMode && <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
