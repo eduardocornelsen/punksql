@@ -707,11 +707,11 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const lv = getLevel(xp);
 
   const menuItems = [
-    { num: "1", id: "SYSTEM_STORY",  desc: lang === "pt" ? "// trilha de aprendizado SQL" : "// SQL learning campaign",    action: () => onNavigate("learn") },
-    { num: "2", id: "PRACTICE",      desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL`  : `// all ${CHALLENGES_DB.length} SQL challenges`,    action: () => onNavigate("practice") },
-    { num: "3", id: "QUIZ",          desc: lang === "pt" ? "// múltipla escolha"           : "// multiple-choice questions", action: () => onNavigate("quiz") },
-    { num: "4", id: "REVIEW_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"  : "// spaced repetition cards",  action: () => onNavigate("review") },
-    { num: "5", id: "PROFILE",       desc: lang === "pt" ? "// stats e conquistas"        : "// stats & achievements",     action: () => onNavigate("profile") },
+    { num: "1", id: "LEARN",    desc: lang === "pt" ? "// trilha de aprendizado SQL"          : "// SQL learning campaign",        action: () => onNavigate("learn") },
+    { num: "2", id: "CODE",     desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL` : `// all ${CHALLENGES_DB.length} SQL challenges`, action: () => onNavigate("practice") },
+    { num: "3", id: "QUIZ",     desc: lang === "pt" ? "// múltipla escolha"                   : "// multiple-choice questions",    action: () => onNavigate("quiz") },
+    { num: "4", id: "CARDS",    desc: lang === "pt" ? "// flashcards com repetição"            : "// spaced repetition cards",      action: () => onNavigate("review") },
+    { num: "5", id: "PROFILE",  desc: lang === "pt" ? "// stats e conquistas"                 : "// stats & achievements",         action: () => onNavigate("profile") },
   ];
 
   const handleCmd = (e) => {
@@ -749,9 +749,6 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
           <span style={{ color: C.cyan, fontSize: 14 }}>{dc.title}</span>
           <span style={{ color: C.dim, fontSize: 12, marginLeft: "auto" }}>→ ENTER</span>
         </button>
-        <div style={{ fontSize: 11, color: C.dim, marginTop: 6, paddingLeft: 18, lineHeight: 1.5 }}>
-          {lang === "pt" ? dc.desc_pt : dc.desc_en}
-        </div>
       </div>
 
       {/* Free Explore */}
