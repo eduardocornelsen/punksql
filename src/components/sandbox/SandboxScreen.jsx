@@ -110,11 +110,25 @@ models:
       +materialized: table
       +schema: mart`;
 
+// ── Shared icon ───────────────────────────────────────────────
+function FolderIcon({ size = 14, style: extraStyle }) {
+  return (
+    <svg
+      width={size} height={size}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      style={{ display: "inline-block", verticalAlign: "-2px", flexShrink: 0, ...extraStyle }}
+    >
+      <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+    </svg>
+  );
+}
+
 // ── Bottom tabs ───────────────────────────────────────────────
 const BOTTOM_TABS = [
   { id: "repl",    label: "SHELL",  color: C.cyan,   icon: ">" },
   { id: "editor",  label: "EDITOR", color: C.amber,  icon: "≡" },
-  { id: "files",   label: "VAULT",  color: C.green,  icon: "📁" },
+  { id: "files",   label: "VAULT",  color: C.green,  icon: null },
   { id: "lineage", label: "DAG",    color: C.purple, icon: "⬡" },
 ];
 
@@ -296,11 +310,11 @@ DBT LAYER NAMING
 TABS (bottom bar)
   >  SHELL   — interactive terminal (this tab)
   ≡  EDITOR  — .sql / .yaml file editor
-  📁 VAULT   — dbt project file tree + file manager
+  ▣  VAULT   — dbt project file tree + file manager
   ⬡  DAG     — data lineage (SRC→STG→INT→MRT)
 
 TIP: Tap [?] in the header to reopen the onboarding tour.
-TIP: 📁 in the header or EDITOR toolbar opens the file browser with
+TIP: the folder button (header or EDITOR toolbar) opens the file browser with
      all your .sql / .yaml files AND a full schema explorer.`;
 
 // ── Onboarding ────────────────────────────────────────────────
@@ -314,7 +328,7 @@ const ONBOARDING_STEPS = [
   {
     title: "FOUR MODES — BOTTOM TABS",
     icon: "≡", color: C.cyan,
-    body: "Four tabs at the bottom of the screen:\n\n  >  REPL    — interactive terminal\n  ≡  EDITOR  — .sql file editor\n  📁 FILES   — dbt project structure\n  ⬡  LINEAGE — data lineage graph\n\nSwitch freely between them.",
+    body: "Four tabs at the bottom of the screen:\n\n  >  REPL    — interactive terminal\n  ≡  EDITOR  — .sql file editor\n  ▣  FILES   — dbt project structure\n  ⬡  LINEAGE — data lineage graph\n\nSwitch freely between them.",
   },
   {
     title: "REPL — TERMINAL MODE",
@@ -751,8 +765,8 @@ function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChang
         <button
           onMouseDown={(e) => { e.preventDefault(); onOpenFileManager?.(); }}
           title="Files &amp; Schema"
-          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 7px", flexShrink: 0, lineHeight: 1 }}
-        >📁</button>
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 7px", flexShrink: 0, lineHeight: 1, display: "flex", alignItems: "center" }}
+        ><FolderIcon size={14} /></button>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{fileIsYaml ? "⚙" : "📄"}</span>
         {renamingFile ? (
           <input
@@ -1594,7 +1608,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0 }}>←</button>
-        <button onClick={() => setShowFileManager(true)} title="Files &amp; Schema" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>📁</button>
+        <button onClick={() => setShowFileManager(true)} title="Files &amp; Schema" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", color: C.muted, padding: "2px 8px", minHeight: 28, flexShrink: 0, display: "flex", alignItems: "center" }}><FolderIcon size={15} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
@@ -1787,7 +1801,9 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               cursor: "pointer",
             }}
           >
-            <span style={{ fontFamily: F.mono, fontSize: 13, color: activeView === tab.id ? tab.color : C.muted, lineHeight: 1 }}>{tab.icon}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 13, color: activeView === tab.id ? tab.color : C.muted, lineHeight: 1 }}>
+              {tab.icon === null ? <FolderIcon size={14} /> : tab.icon}
+            </span>
             <span style={{ fontFamily: F.mono, fontSize: 9, color: activeView === tab.id ? tab.color : C.muted, letterSpacing: 1 }}>{tab.label}</span>
           </button>
         ))}
