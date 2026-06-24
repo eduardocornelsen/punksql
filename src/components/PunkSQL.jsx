@@ -356,6 +356,38 @@ function tokenizeSQL(sql, tables = [], columns = []) {
   return out;
 }
 
+// ── Challenge-screen autocomplete helpers ──────────────────────
+function chGetWordAtCursor(text, pos) {
+  const before = text.slice(0, pos);
+  const m = before.match(/[\w]+$/);
+  return m ? m[0] : "";
+}
+function chReplaceWordAtCursor(text, pos, replacement) {
+  const before = text.slice(0, pos);
+  const m = before.match(/[\w]+$/);
+  if (!m) return { text: text.slice(0, pos) + replacement + text.slice(pos), newPos: pos + replacement.length };
+  const wordStart = pos - m[0].length;
+  return { text: text.slice(0, wordStart) + replacement + text.slice(pos), newPos: wordStart + replacement.length };
+}
+const CH_AUTOCOMPLETE_POOL = [
+  "SELECT","DISTINCT","FROM","WHERE","JOIN","ON","LEFT JOIN","RIGHT JOIN",
+  "INNER JOIN","FULL JOIN","CROSS JOIN","GROUP BY","ORDER BY","HAVING",
+  "LIMIT","OFFSET","AS","WITH","UNION","UNION ALL","EXCEPT","INTERSECT",
+  "AND","OR","NOT","IN","NOT IN","LIKE","NOT LIKE","BETWEEN","IS NULL","IS NOT NULL",
+  "EXISTS","CASE","WHEN","THEN","ELSE","END","ASC","DESC","OVER","PARTITION BY",
+  "COUNT(*)","COUNT()","SUM()","AVG()","MIN()","MAX()","ROUND()","COALESCE()",
+  "NULLIF()","CAST()","LENGTH()","UPPER()","LOWER()","SUBSTR()","TRIM()","REPLACE()",
+  "DATE()","STRFTIME()","ROW_NUMBER()","RANK()","DENSE_RANK()","LAG()","LEAD()",
+  "CREATE TABLE","CREATE VIEW","DROP TABLE","INSERT INTO","VALUES","UPDATE","SET","DELETE FROM",
+  "INTEGER","TEXT","REAL","BLOB","PRIMARY KEY","NOT NULL","UNIQUE","DEFAULT",
+];
+function chComputeSuggestions(word, tableNames, columnNames) {
+  if (!word || word.length < 2) return [];
+  const lower = word.toLowerCase();
+  const pool = [...tableNames, ...columnNames, ...CH_AUTOCOMPLETE_POOL];
+  return pool.filter(s => s.toLowerCase().startsWith(lower) && s.toLowerCase() !== lower).slice(0, 8);
+}
+
 // ── StdoutList — bash-style line-by-line reveal animation ────
 function StdoutList({ items, renderItem, delay = 15, resetKey, style: wrapStyle = {} }) {
   const [visibleCount, setVisibleCount] = useState(0);
@@ -1978,6 +2010,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   // XP tracking
   const [hadWrongRun, setHadWrongRun] = useState(false);
   const [wrongRunCount, setWrongRunCount] = useState(0);
+  const [suggestions, setSuggestions] = useState([]);
 
   const taRef = useRef(null), edRef = useRef(null);
   const kbdBtnRef = useRef(null), auxKbRef = useRef(null);
@@ -2021,6 +2054,12 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   const hlColumns = useMemo(() => ch.schema.split("\n").flatMap(l => { const p = l.split(":"); return p.length > 1 ? p.slice(1).join(":").split(",").map(c => c.trim()) : []; }).filter(Boolean), [ch.schema]);
   const hlTokens  = useMemo(() => tokenizeSQL(sql, hlTables, hlColumns), [sql, hlTables, hlColumns]);
 
+  const updateSuggestions = useCallback((text, pos) => {
+    const word = chGetWordAtCursor(text, pos ?? text.length);
+    if (word.length < 2) { setSuggestions([]); return; }
+    setSuggestions(chComputeSuggestions(word, hlTables, hlColumns));
+  }, [hlTables, hlColumns]);
+
   // Zustand store — set active challenge for keyboard token loading
   const { setActiveChallenge, pushQueryHistory, navigateHistory, resetHistoryIndex, setCursorPosition } = useGameStore(
     useShallow(s => ({
@@ -2037,6 +2076,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
     const draft = loadSQLDraft(challengeId);
     setSql(draft || defaultSql);
     setCPos(0);
+    setSuggestions([]);
     setVerdict(null);
     setResult(null);
     setShowHint(false);
@@ -2651,7 +2691,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             <textarea
               ref={taRef}
               value={sql}
-              onChange={e => { setSql(e.target.value); setCPos(e.target.selectionStart || 0); }}
+              onChange={e => { setSql(e.target.value); setCPos(e.target.selectionStart || 0); updateSuggestions(e.target.value, e.target.selectionStart); }}
               onBlur={handleBlur}
               onSelect={e => setCPos(e.target.selectionStart || 0)}
               onFocus={() => { if (!isTouch.current) setEditing(true); }}
@@ -2668,10 +2708,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
                   requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
                 } else if (e.key === "Tab") {
                   e.preventDefault();
-                  setSql(text.substring(0, pos) + "  " + text.substring(pos));
-                  const newPos = pos + 2;
-                  setCPos(newPos);
-                  requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
+                  if (suggestions.length > 0) {
+                    const { text: newSql, newPos: newP } = chReplaceWordAtCursor(text, pos, suggestions[0]);
+                    setSql(newSql); setCPos(newP); setSuggestions([]);
+                    requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newP, newP); } });
+                  } else {
+                    setSql(text.substring(0, pos) + "  " + text.substring(pos));
+                    const newPos = pos + 2;
+                    setCPos(newPos);
+                    requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); } });
+                  }
                 } else if (e.key === ")") {
                   const result = sqlSmartCloseParen(text, pos);
                   if (result) {
@@ -2775,6 +2821,23 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         )}
         {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
         <div ref={bottomAreaRef}>
+          {/* Tab prediction chip bar */}
+          {suggestions.length > 0 && (
+            <div style={{ display: "flex", gap: 4, padding: "3px 8px", background: `${C.cyan}06`, borderTop: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0, touchAction: "pan-x" }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
+              {suggestions.map((s, i) => (
+                <button key={s}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const { text: newSql, newPos } = chReplaceWordAtCursor(sql, cPos, s);
+                    setSql(newSql); setCPos(newPos); setSuggestions([]);
+                    requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); taRef.current.focus(); } });
+                  }}
+                  style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
+                >{s}</button>
+              ))}
+            </div>
+          )}
           {!isFocusMode && <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
