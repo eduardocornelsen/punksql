@@ -458,27 +458,24 @@ const ACHIEVEMENTS = [
   { id: "first_query", i: "►", n_en: "First Query", n_pt: "Primeira Query", d_en: "Solve your first challenge", d_pt: "Resolva seu primeiro desafio", c: C.cyan, check: (s) => s.size >= 1 },
   { id: "mod1_done", i: "⋈", n_en: "SQL Rookie", n_pt: "SQL Novato", d_en: "Complete module 1", d_pt: "Complete o módulo 1", c: C.green, check: (s) => CHALLENGES_DB.filter(c => c.mod === 1).every(c => s.has(c.id)) },
   { id: "ten_solved", i: "▲", n_en: "10 Down", n_pt: "10 Resolvidos", d_en: "Solve 10 challenges", d_pt: "Resolva 10 desafios", c: C.amber, check: (s) => s.size >= 10 },
-  { id: "lvl5", i: "⚡", n_en: "Level 5", n_pt: "Nível 5", d_en: "Reach level 5", d_pt: "Alcance o nível 5", c: C.red, check: (s, xp) => getLevel(xp).level >= 5 },
+  { id: "lvl5", i: "◇", n_en: "Level 5", n_pt: "Nível 5", d_en: "Reach level 5", d_pt: "Alcance o nível 5", c: C.red, check: (s, xp) => getLevel(xp).level >= 5 },
   { id: "twenty_solved", i: "◕", n_en: "Halfway", n_pt: "Metade", d_en: "Solve 20 challenges", d_pt: "Resolva 20 desafios", c: C.purple, check: (s) => s.size >= 20 },
   { id: "all_easy", i: "◆", n_en: "Easy Sweep", n_pt: "Easy Varrido", d_en: "Solve all EASY challenges", d_pt: "Resolva todos os EASY", c: C.green, check: (s) => CHALLENGES_DB.filter(c => c.diff === "EASY").every(c => s.has(c.id)) },
   { id: "mod3_done", i: "⊞", n_en: "Sorter", n_pt: "Ordenador", d_en: "Complete modules 1-3", d_pt: "Complete módulos 1-3", c: C.cyan, check: (s) => [1,2,3].every(m => CHALLENGES_DB.filter(c => c.mod === m).every(c => s.has(c.id))) },
-  { id: "lvl10", i: "★", n_en: "Level 10", n_pt: "Nível 10", d_en: "Reach level 10", d_pt: "Alcance o nível 10", c: C.amber, check: (s, xp) => getLevel(xp).level >= 10 },
   { id: "forty_solved", i: "⬡", n_en: "40 Down", n_pt: "40 Resolvidos", d_en: "Solve 40 challenges", d_pt: "Resolva 40 desafios", c: C.red, check: (s) => s.size >= 40 },
-  { id: "all_done", i: "◈", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 112 challenges", d_pt: "Resolva todos os 112 desafios", c: C.cyanHot, check: (s) => s.size >= 112 },
+  { id: "lvl10", i: "★", n_en: "Level 10", n_pt: "Nível 10", d_en: "Reach level 10", d_pt: "Alcance o nível 10", c: C.amber, check: (s, xp) => getLevel(xp).level >= 10 },
+  { id: "no_help", i: "◉", n_en: "No Help Needed", n_pt: "Sem Ajuda", d_en: "Solve 10 challenges without any hints", d_pt: "Resolva 10 desafios sem dicas", c: C.cyan, check: (s, xp, meta) => (meta?.noHintSolves || 0) >= 10 },
+  { id: "join_master", i: "⊕", n_en: "JOIN Master", n_pt: "Mestre do JOIN", d_en: "Solve all JOIN challenges (module 5)", d_pt: "Resolva todos os desafios JOIN", c: C.green, check: (s) => CHALLENGES_DB.filter(c => c.mod === 5).every(c => s.has(c.id)) },
   { id: "dml_done", i: "✎", n_en: "Data Surgeon", n_pt: "Cirurgião de Dados", d_en: "Complete the DML module", d_pt: "Complete o módulo DML", c: C.amber, check: (s) => CHALLENGES_DB.filter(c => c.mod === 9).every(c => s.has(c.id)) },
   { id: "ddl_done", i: "⬢", n_en: "Schema Architect", n_pt: "Arquiteto de Esquema", d_en: "Complete the DDL module", d_pt: "Complete o módulo DDL", c: C.purple, check: (s) => CHALLENGES_DB.filter(c => c.mod === 10).every(c => s.has(c.id)) },
-  // ── Skill badges ──
-  { id: "no_help", i: "◉", n_en: "No Help Needed", n_pt: "Sem Ajuda", d_en: "Solve 10 challenges without any hints", d_pt: "Resolva 10 desafios sem dicas", c: C.cyan, check: (s, xp, meta) => (meta?.noHintSolves || 0) >= 10 },
-  { id: "join_master", i: "⋈", n_en: "JOIN Master", n_pt: "Mestre do JOIN", d_en: "Solve all JOIN challenges (module 5)", d_pt: "Resolva todos os desafios JOIN", c: C.green, check: (s) => CHALLENGES_DB.filter(c => c.mod === 5).every(c => s.has(c.id)) },
   { id: "window_wizard_badge", i: "▦", n_en: "Window Wizard", n_pt: "Feiticeiro de Janela", d_en: "Solve all window function challenges (module 7)", d_pt: "Resolva todos os desafios de window functions", c: C.purple, check: (s) => CHALLENGES_DB.filter(c => c.mod === 7).every(c => s.has(c.id)) },
-  // ── Level badges ──
-  { id: "lvl15", i: "◆", n_en: "SQL Enforcer", n_pt: "SQL Enforcer", d_en: "Reach level 15", d_pt: "Alcance o nível 15", c: C.orange, check: (s, xp) => getLevel(xp).level >= 15 },
-  { id: "punk_god", i: "◈", n_en: "PUNK GOD", n_pt: "PUNK GOD", d_en: "Reach level 20 — the pinnacle", d_pt: "Alcance o nível 20 — o topo", c: C.cyanHot, check: (s, xp) => getLevel(xp).level >= 20 },
-  // ── Daily badges ──
-  { id: "daily_x7", i: "◈", n_en: "Daily Grinder", n_pt: "Grindador Diário", d_en: "Complete 7 daily challenges", d_pt: "Complete 7 desafios diários", c: C.amber, check: (s, xp, meta) => (meta?.dailySolves || 0) >= 7 },
-  // ── Secret badges ──
-  { id: "persistent", i: "◕", n_en: "Persistent", n_pt: "Persistente", d_en: "Fail 5 times then solve the same challenge", d_pt: "Falhe 5 vezes e então resolva o mesmo desafio", c: C.red, check: (s, xp, meta) => (meta?.persistentSolves || 0) >= 1 },
-  { id: "legend", i: "★", n_en: "Legend", n_pt: "Lenda", d_en: "Solve 80 challenges", d_pt: "Resolva 80 desafios", c: C.cyanHot, check: (s) => s.size >= 80 },
+  { id: "lvl15", i: "⬥", n_en: "SQL Enforcer", n_pt: "SQL Enforcer", d_en: "Reach level 15", d_pt: "Alcance o nível 15", c: C.orange, check: (s, xp) => getLevel(xp).level >= 15 },
+  { id: "legend", i: "✸", n_en: "Legend", n_pt: "Lenda", d_en: "Solve 80 challenges", d_pt: "Resolva 80 desafios", c: C.cyanHot, check: (s) => s.size >= 80 },
+  { id: "daily_x7", i: "↻", n_en: "Daily Grinder", n_pt: "Grindador Diário", d_en: "Complete 7 daily challenges", d_pt: "Complete 7 desafios diários", c: C.amber, check: (s, xp, meta) => (meta?.dailySolves || 0) >= 7 },
+  { id: "persistent", i: "⊗", n_en: "Persistent", n_pt: "Persistente", d_en: "Fail 5 times then solve the same challenge", d_pt: "Falhe 5 vezes e então resolva o mesmo desafio", c: C.red, check: (s, xp, meta) => (meta?.persistentSolves || 0) >= 1 },
+  { id: "punk_god", i: "Ψ", n_en: "PUNK GOD", n_pt: "PUNK GOD", d_en: "Reach level 20 — the pinnacle", d_pt: "Alcance o nível 20 — o topo", c: C.cyanHot, check: (s, xp) => getLevel(xp).level >= 20 },
+  { id: "century", i: "⍟", n_en: "Century", n_pt: "Século", d_en: "Solve 100 challenges", d_pt: "Resolva 100 desafios", c: C.cyanHot, check: (s) => s.size >= 100 },
+  { id: "all_done", i: "Ω", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 112 challenges", d_pt: "Resolva todos os 112 desafios", c: C.cyanHot, check: (s) => s.size >= 112 },
 ];
 
 function LevelUpOverlay({ level, onDone }) {
