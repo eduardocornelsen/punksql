@@ -707,7 +707,7 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const lv = getLevel(xp);
 
   const menuItems = [
-    { num: "1", id: "SQL_CAMPAIGN",  desc: lang === "pt" ? "// trilha de aprendizado SQL"          : "// SQL learning campaign",        action: () => onNavigate("learn") },
+    { num: "1", id: "QUERY_QUEST",   desc: lang === "pt" ? "// trilha de aprendizado SQL"          : "// SQL learning campaign",        action: () => onNavigate("learn") },
     { num: "2", id: "CODE_ARENA",   desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL` : `// all ${CHALLENGES_DB.length} SQL challenges`, action: () => onNavigate("practice") },
     { num: "3", id: "QUIZ_BATTLE",  desc: lang === "pt" ? "// múltipla escolha"                   : "// multiple-choice questions",    action: () => onNavigate("quiz") },
     { num: "4", id: "FLASH_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"            : "// spaced repetition cards",      action: () => onNavigate("review") },
