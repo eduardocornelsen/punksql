@@ -114,7 +114,7 @@ models:
 const BOTTOM_TABS = [
   { id: "repl",    label: "SHELL",  color: C.cyan,   icon: ">" },
   { id: "editor",  label: "EDITOR", color: C.amber,  icon: "≡" },
-  { id: "files",   label: "VAULT",  color: C.green,  icon: "◈" },
+  { id: "files",   label: "VAULT",  color: C.green,  icon: "📁" },
   { id: "lineage", label: "DAG",    color: C.purple, icon: "⬡" },
 ];
 
@@ -296,11 +296,11 @@ DBT LAYER NAMING
 TABS (bottom bar)
   >  SHELL   — interactive terminal (this tab)
   ≡  EDITOR  — .sql / .yaml file editor
-  ◈  VAULT   — dbt project file tree + ☰ file manager
+  📁 VAULT   — dbt project file tree + file manager
   ⬡  DAG     — data lineage (SRC→STG→INT→MRT)
 
 TIP: Tap [?] in the header to reopen the onboarding tour.
-TIP: ☰ in the EDITOR toolbar opens the file browser with
+TIP: 📁 in the header or EDITOR toolbar opens the file browser with
      all your .sql / .yaml files AND a full schema explorer.`;
 
 // ── Onboarding ────────────────────────────────────────────────
@@ -314,7 +314,7 @@ const ONBOARDING_STEPS = [
   {
     title: "FOUR MODES — BOTTOM TABS",
     icon: "≡", color: C.cyan,
-    body: "Four tabs at the bottom of the screen:\n\n  >  REPL    — interactive terminal\n  ≡  EDITOR  — .sql file editor\n  ◈  FILES   — dbt project structure\n  ⬡  LINEAGE — data lineage graph\n\nSwitch freely between them.",
+    body: "Four tabs at the bottom of the screen:\n\n  >  REPL    — interactive terminal\n  ≡  EDITOR  — .sql file editor\n  📁 FILES   — dbt project structure\n  ⬡  LINEAGE — data lineage graph\n\nSwitch freely between them.",
   },
   {
     title: "REPL — TERMINAL MODE",
@@ -747,12 +747,12 @@ function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChang
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
       {/* Editor toolbar */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
-        {/* Hamburger ☰ — opens file manager */}
+        {/* Folder button — opens file manager */}
         <button
           onMouseDown={(e) => { e.preventDefault(); onOpenFileManager?.(); }}
-          title="Files"
+          title="Files &amp; Schema"
           style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 7px", flexShrink: 0, lineHeight: 1 }}
-        >☰</button>
+        >📁</button>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{fileIsYaml ? "⚙" : "📄"}</span>
         {renamingFile ? (
           <input
@@ -1250,7 +1250,7 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
         </div>
 
         {/* New file form */}
-        {panel === "files" && creatingFile && (
+        {creatingFile && (
           <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
             <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>FOLDER</div>
             <select
@@ -1594,7 +1594,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0 }}>←</button>
-        <button onClick={() => setShowFileManager(true)} title="Files &amp; Schema" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>☰</button>
+        <button onClick={() => setShowFileManager(true)} title="Files &amp; Schema" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "2px 8px", minHeight: 28, flexShrink: 0 }}>📁</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
