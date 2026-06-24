@@ -555,7 +555,7 @@ function XPBreakdownOverlay({ breakdown, lang, onDone }) {
 }
 
 // ── Language Switcher ─────────────────────────────────────
-function TopBar({ showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null, onProfile = null }) {
+function TopBar({ showContinue = false, onContinue, continueLabel = "", continueCtx = "", exercises = null, currentExId = null, onExNav = null, focusTitle = null }) {
   const { theme, cycleTheme } = useContext(ThemeContext);
   const themeLabel = theme === "dark" ? "INK" : theme === "eink" ? "HC" : "DARK";
 
@@ -604,14 +604,6 @@ function TopBar({ showContinue = false, onContinue, continueLabel = "", continue
         </button>
       ) : <div style={{ flex: 1 }} />}
       <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 10px", letterSpacing: 1, flexShrink: 0 }}>{themeLabel}</button>
-      {onProfile && (
-        <button onClick={onProfile} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", color: C.dim, padding: "4px 7px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
-            <circle cx="7" cy="5" r="2.5" />
-            <path d="M1.5 13c0-3.038 2.462-5.5 5.5-5.5s5.5 2.462 5.5 5.5" />
-          </svg>
-        </button>
-      )}
     </div>
   );
 }
@@ -631,7 +623,7 @@ function ProgressBar({ progress, color = C.cyan }) {
 }
 
 // ── Tab Bar ───────────────────────────────────────────────
-function TabBar({ active, onTabChange, onExplore }) {
+function TabBar({ active, onTabChange }) {
   const { t } = useLang();
   const tabs = [
     { id: "home", label: "~", icon: "~" },
@@ -639,7 +631,7 @@ function TabBar({ active, onTabChange, onExplore }) {
     { id: "practice", label: "code", icon: "code" },
     { id: "quiz", label: "quiz", icon: "quiz" },
     { id: "review", label: "cards", icon: "cards" },
-    { id: "explore", label: "explore", icon: "explore" },
+    { id: "profile", label: "user", icon: "user" },
   ];
   return (
     <>
@@ -651,9 +643,8 @@ function TabBar({ active, onTabChange, onExplore }) {
       }}>
         {tabs.map(tab => {
           const on = active === tab.id;
-          const handleClick = tab.id === "explore" ? onExplore : () => onTabChange(tab.id);
           return (
-            <button key={tab.id} onClick={handleClick} style={{
+            <button key={tab.id} onClick={() => onTabChange(tab.id)} style={{
               flex: 1, background: "none", border: "none", borderRight: `1px solid ${C.border}`,
               cursor: "pointer", padding: "10px 4px 8px",
               display: "flex", flexDirection: "column", alignItems: "center", gap: 0,
@@ -4171,7 +4162,7 @@ export default function PunkSQLCLI() {
 
   return (
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <TopBar showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} onProfile={() => setTab("profile")} />
+      <TopBar showContinue onContinue={handleContinue} continueLabel={continueLabel} continueCtx={continueCtx} />
       <StatusBar xp={xp} solved={solved} />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         {tab === "home" && <HomeScreen onNavigate={nav} solved={solved} xp={xp} />}
@@ -4181,7 +4172,7 @@ export default function PunkSQLCLI() {
         {tab === "review" && <ReviewScreen onXP={handleXP} />}
         {tab === "profile" && <ProfileScreen xp={xp} solved={solved} syncing={syncing} />}
       </div>
-      <TabBar active={tab} onTabChange={setTab} onExplore={() => setScreen("explore")} />
+      <TabBar active={tab} onTabChange={setTab} />
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={dismissBadge} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}
