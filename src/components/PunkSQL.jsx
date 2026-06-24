@@ -604,7 +604,14 @@ function TopBar({ showContinue = false, onContinue, continueLabel = "", continue
         </button>
       ) : <div style={{ flex: 1 }} />}
       <button onClick={cycleTheme} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 10px", letterSpacing: 1, flexShrink: 0 }}>{themeLabel}</button>
-      {onProfile && <button onClick={onProfile} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "2px 8px", flexShrink: 0, lineHeight: 1 }}>U</button>}
+      {onProfile && (
+        <button onClick={onProfile} style={{ background: "none", border: `1px solid ${C.borderBright}`, cursor: "pointer", color: C.dim, padding: "4px 7px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+            <circle cx="7" cy="5" r="2.5" />
+            <path d="M1.5 13c0-3.038 2.462-5.5 5.5-5.5s5.5 2.462 5.5 5.5" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
