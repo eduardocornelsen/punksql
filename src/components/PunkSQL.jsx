@@ -2789,10 +2789,10 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             ))}
           </div>
         )}
-        {/* Hint bar — always rendered, acts as a height buffer keeping chip bar off keyboard edge */}
-        <div ref={hintBarRef} style={{ padding: "10px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+        {/* Hint bar — hidden when native keyboard is open */}
+        {!editing && <div ref={hintBarRef} style={{ padding: "10px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
           {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: ⌨  ·  tap: close"}
-        </div>
+        </div>}
         {/* Results — shown in BOTH modes */}
         {result && (
           <div style={{ background: C.black, borderTop: `2px solid ${result.ok ? (verdict?.pass ? C.green : C.cyan) : C.red}`, flexShrink: 0 }}>
@@ -2828,10 +2828,13 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
                 </p>
               </div>
             )}
-            <button onClick={() => setResOpen(!resOpen)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "8px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red, transition: "transform 0.25s", transform: resOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>
-              <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red }}>{result.ok ? `✓ ${result.msg}` : `✗ ${result.msg}`}</span>
-            </button>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <button onClick={() => setResOpen(!resOpen)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "8px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red, transition: "transform 0.25s", transform: resOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>
+                <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red }}>{result.ok ? `✓ ${result.msg}` : `✗ ${result.msg}`}</span>
+              </button>
+              {!result.ok && <button onPointerDown={e => { e.preventDefault(); e.stopPropagation(); clearResult(); }} style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 12px", fontFamily: F.mono, fontSize: 16, color: C.dim, flexShrink: 0 }}>✕</button>}
+            </div>
             {resOpen && result.ok && result.rows.length > 0 && (
               <div style={{ padding: "0 16px 10px", maxHeight: 180, overflowY: "auto", overflowX: "auto" }}>
                 <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 13 }}>
@@ -2840,7 +2843,6 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
                 </table>
               </div>
             )}
-            {resOpen && !result.ok && <div style={{ padding: "4px 16px 10px", fontFamily: F.mono, fontSize: 14, color: C.red, lineHeight: 1.8 }}>{result.msg}</div>}
             {/* Edit button to go back to coding — only shown after a correct answer */}
             {verdict?.pass && <button onClick={clearResult} style={{ width: "100%", padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, background: C.panel, border: "none", borderTop: `1px solid ${C.border}`, letterSpacing: 1 }}>✎ EDIT CODE</button>}
           </div>
@@ -2904,12 +2906,12 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           {(!result || !verdict?.pass) && (
             <div onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ padding: "4px 8px", paddingBottom: "calc(4px + env(safe-area-inset-bottom, 0px))", background: C.black, borderTop: `1px solid ${C.border}`, display: "flex", gap: 6, flexShrink: 0 }}>
               <button ref={kbdBtnRef} onPointerDown={e => { e.preventDefault(); e.stopPropagation(); toggleKeyboard(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editing ? C.cyan : C.dim, background: "none", border: `1px solid ${editing ? C.cyan : C.border}`, minHeight: 40, width: 46, flexShrink: 0 }}>{editing ? "⌨✕" : "⌨"}</button>
-              <button
+              {!editing && <button
                 onPointerDown={e => { e.preventDefault(); backspace(); bsTimerRef.current = setTimeout(() => { bsIntervalRef.current = setInterval(backspace, 80); }, 380); }}
                 onPointerUp={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
                 onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
-                style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.dim, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>
-              <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>
+                style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.dim, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>}
+              {!editing && <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>}
               <button onClick={smartEnter} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
               <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
               <button ref={runBtnRef} onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.green, background: "none", border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
@@ -3903,12 +3905,16 @@ export default function PunkSQLCLI() {
   useEffect(() => {
     const data = loadProgress();
     if (data) {
-      setXp(data.xp || 0);
-      setSolved(new Set(data.solved || []));
+      const s = new Set(data.solved || []);
+      const loadedXp = data.xp || 0;
+      setXp(loadedXp);
+      setSolved(s);
       if (data.lang) setLang(data.lang);
       if (data.lastCodeId) setLastCodeId(data.lastCodeId);
       if (data.lastLearnId) setLastLearnId(data.lastLearnId);
       if (data.lastContext) setLastContext(data.lastContext);
+      // Pre-populate so existing achievements don't fire as "new" on first render
+      prevEarned.current = new Set(ACHIEVEMENTS.filter(a => a.check(s, loadedXp)).map(a => a.id));
     }
     setStorageLoaded(true);
   }, []);
