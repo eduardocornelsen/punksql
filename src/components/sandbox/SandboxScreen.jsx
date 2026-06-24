@@ -604,7 +604,7 @@ function FileTree({ db, lang, onOpenInEditor }) {
       {expanded.seeds && byLayer.source.map((o) => <FileRow key={o.name} obj={o} depth={1} />)}
 
       {/* hint */}
-      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, marginTop: 16, lineHeight: 1.8 }}>
+      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginTop: 16, lineHeight: 1.8 }}>
         {ispt ? "Crie views com prefixos de camada\npara populer a árvore de modelos:" : "Create views with layer prefixes\nto populate the model tree:"}
         <br />{"  stg_orders → int_revenue → fct_kpi"}
       </div>
@@ -952,7 +952,7 @@ function LineageStack({ db, lang }) {
         <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 4, lineHeight: 1.8 }}>
           {ispt ? "Crie views com prefixos de camada para ver a linhagem:" : "Create views with layer prefixes to see lineage:"}
           {"  stg_orders → int_daily_revenue → fct_revenue"}
-          <pre style={{ margin: "6px 0 0", color: C.border, fontSize: 9 }}>{`CREATE VIEW stg_orders AS
+          <pre style={{ margin: "6px 0 0", color: C.muted, fontSize: 9 }}>{`CREATE VIEW stg_orders AS
   SELECT id, customer_id,
          CAST(total_amount AS REAL) AS amount
   FROM orders;`}</pre>
