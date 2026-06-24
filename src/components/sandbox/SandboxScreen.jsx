@@ -68,7 +68,7 @@ const SQL_PRAGMA = [
   "SAVEPOINT","RELEASE","ROLLBACK TO","ATTACH DATABASE","DETACH",
 ];
 const META_CMDS = [
-  "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\save","\\reset","\\resetdb","\\h","\\?",
+  "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\reset","\\resetdb","\\h","\\?",
 ];
 const SQL_SYMBOLS = [
   "(",")",",",";","*","=","!=","<",">","<=",">=","'","\"","--","/*","*/","%","_",
@@ -327,7 +327,6 @@ CTEs (WITH clause)
 WORKSPACE
   \\history         show command history (last 200)
   \\clear  (\\cls)   clear terminal output (DB unchanged)
-  \\save            persist DB to IndexedDB (survives refresh)
   \\reset           restart shell — replay welcome text + \\dt
   \\resetdb         restore original dataset (wipes all DB changes!)
 
@@ -403,7 +402,7 @@ const ONBOARDING_STEPS = [
   {
     title: "SAVING YOUR WORK",
     icon: "▪", color: C.green,
-    body: "Query history auto-saves locally.\n\nTo save the database:\n  Tap [save] in the header\n  or type: \\save\n\nTo restore original dataset:\n  Type: \\reset\n\nTap [?] anytime to reopen this guide.",
+    body: "Query history and files auto-save locally.\n\nThe database auto-saves after any INSERT,\nCREATE, DROP, UPDATE, or DELETE.\n\nTo restore original dataset:\n  Type: \\resetdb\n\nTap [?] anytime to reopen this guide.",
   },
 ];
 
@@ -1422,6 +1421,7 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
         <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
           <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, lineHeight: 1.8 }}>
             Double-click filename in editor to rename.<br />
+            Hover a file + click × to delete.<br />
             .sql runs against SQLite · .yaml gets YAML linting.
           </div>
         </div>
@@ -1454,7 +1454,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const [replSql, setReplSql] = useState("");
   const [activeView, setActiveView] = useState("repl"); // "repl"|"editor"|"files"|"lineage"
   const [editorInitialSql, setEditorInitialSql] = useState(undefined);
-  const [saveStatus, setSaveStatus] = useState("idle");
   const [suggestions, setSuggestions] = useState([]);
   const [tableNames, setTableNames] = useState([]);
   const [columnNames, setColumnNames] = useState([]);
@@ -1599,14 +1598,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     resetHistoryIndex();
 
     if (trimmed.startsWith("\\")) {
-      if (trimmed === "\\save") {
-        setSaveStatus("saving");
-        const ok = await saveToIndexedDB();
-        setSaveStatus(ok ? "saved" : "error");
-        pushBlock({ type: "info", text: ok ? "✓ DB saved to IndexedDB" : "✗ Save failed" });
-        setTimeout(() => setSaveStatus("idle"), 2000);
-        return;
-      }
       if (trimmed === "\\reset") {
         // Visual restart: replay welcome text + \dt without touching the database
         clearScrollback();
@@ -1628,6 +1619,10 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     const result = execSQL(db, trimmed);
     pushBlock({ type: "sql", cmd: trimmed, result });
     if (/^\s*(CREATE|DROP|ALTER)\b/i.test(trimmed)) refreshCatalog();
+    // Auto-save DB after any statement that can change data or schema
+    if (/^\s*(CREATE|DROP|ALTER|INSERT|UPDATE|DELETE|REPLACE|TRUNCATE)\b/i.test(trimmed)) {
+      saveToIndexedDB();
+    }
   }, [replSql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt, pushWelcome]);
 
   const onKeyDown = useCallback((e) => {
@@ -1649,8 +1644,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   };
   const onChipBarTouchEnd = () => { chipBarSwipeRef.current = null; };
 
-  const saveBtnLabel = saveStatus === "saving" ? "saving…" : saveStatus === "saved" ? "✓ ok" : saveStatus === "error" ? "✗ err" : "save";
-  const saveBtnColor = saveStatus === "saved" ? C.green : saveStatus === "error" ? C.red : C.dim;
 
   const SHORTCUTS = ["SELECT * FROM", "WHERE", "LEFT JOIN", "GROUP BY", "ORDER BY", "LIMIT 10", "\\dt", "\\?"];
   const showSuggestions = suggestions.length > 0;
@@ -1702,12 +1695,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               : `No default for ${currentFile.slice(currentFile.lastIndexOf("/") + 1)}`}
           style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: activeView === "repl" ? C.amber : DEFAULT_FILES[currentFile] !== undefined ? C.amber : C.border, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
         >reset</button>
-        <button
-          onClick={async () => { setSaveStatus("saving"); const ok = await saveToIndexedDB(); setSaveStatus(ok ? "saved" : "error"); setTimeout(() => setSaveStatus("idle"), 2000); }}
-          disabled={!db || saveStatus === "saving"}
-          title="Save SQLite database to IndexedDB (files auto-save as you type)"
-          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: saveBtnColor, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
-        >{saveStatus === "saving" ? "saving…" : saveStatus === "saved" ? "✓ ok" : saveStatus === "error" ? "✗ err" : "save db"}</button>
       </div>
 
       {/* ── Main content area ── */}
