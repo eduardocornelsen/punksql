@@ -243,6 +243,28 @@ SCHEMA / INSPECTION
   \\d <name>        describe columns of a table or view
   \\l               list attached databases
 
+USEFUL SQL PATTERNS
+  SELECT * FROM <table> LIMIT 10;
+  SELECT COUNT(*) FROM <table>;
+  PRAGMA table_info('<table>');        -- column details
+  SELECT name FROM sqlite_master
+    WHERE type='table';               -- same as \\dt
+  SELECT * FROM sqlite_master;        -- full schema dump
+
+AGGREGATIONS
+  SELECT col, COUNT(*) FROM t GROUP BY col;
+  SELECT col, SUM(val) FROM t GROUP BY col ORDER BY 2 DESC;
+  SELECT AVG(val), MIN(val), MAX(val) FROM t;
+
+JOINS
+  SELECT a.*, b.col
+  FROM table_a a
+  JOIN table_b b ON a.id = b.a_id;
+
+CTEs (WITH clause)
+  WITH cte AS (SELECT ...)
+  SELECT * FROM cte;
+
 WORKSPACE
   \\history         show command history (last 200)
   \\clear  (\\cls)   clear terminal output (DB unchanged)
@@ -264,19 +286,21 @@ SQL KEYBOARD
   Swipe DOWN on handle   close keyboard
   [⌨] button             toggle keyboard
 
-LINEAGE NAMING CONVENTIONS
+DBT LAYER NAMING
   stg_*   Staging — clean raw sources
   int_*   Intermediate — joins / aggregations
   fct_*   Fact table (Mart layer)
   dim_*   Dimension table (Mart layer)
 
-TABS
-  REPL    — interactive terminal mode (this tab)
-  EDITOR  — .sql file editor, Enter=newline, Ctrl+Enter=run
-  FILES   — virtual dbt project file tree
-  LINEAGE — data lineage by layer (SRC→STG→INT→MRT)
+TABS (bottom bar)
+  >  SHELL   — interactive terminal (this tab)
+  ≡  EDITOR  — .sql / .yaml file editor
+  ◈  VAULT   — dbt project file tree + ☰ file manager
+  ⬡  DAG     — data lineage (SRC→STG→INT→MRT)
 
-TIP: Tap [?] in the header to reopen the onboarding tour.`;
+TIP: Tap [?] in the header to reopen the onboarding tour.
+TIP: ☰ in the EDITOR toolbar opens the file browser with
+     all your .sql / .yaml files AND a full schema explorer.`;
 
 // ── Onboarding ────────────────────────────────────────────────
 const ONBOARD_KEY = "punksql-sandbox-onboard-v2";
@@ -1074,6 +1098,69 @@ function tokensToHtml(tokens) {
   }).join("");
 }
 
+// ── Schema explorer (tables + columns) for file manager ───────
+function SchemaExplorer({ db }) {
+  const [tables, setTables] = useState([]);
+  const [openTable, setOpenTable] = useState(null);
+  const [columns, setColumns] = useState({});
+
+  useEffect(() => {
+    if (!db) return;
+    const r = execSQL(db, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name");
+    if (r.ok) setTables(r.rows.map(([name, type]) => ({ name, type })));
+  }, [db]);
+
+  const loadColumns = (tableName) => {
+    if (columns[tableName]) { setOpenTable((t) => t === tableName ? null : tableName); return; }
+    const r = execSQL(db, `PRAGMA table_info("${tableName}")`);
+    if (r.ok) {
+      setColumns((prev) => ({ ...prev, [tableName]: r.rows.map((row) => ({ cid: row[0], name: row[1], type: row[2], notnull: row[3], pk: row[5] })) }));
+    }
+    setOpenTable((t) => t === tableName ? null : tableName);
+  };
+
+  if (!tables.length) return (
+    <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, padding: "6px 12px" }}>no tables yet</div>
+  );
+
+  return (
+    <div>
+      {tables.map(({ name, type }) => {
+        const isOpen = openTable === name;
+        const cols = columns[name] || [];
+        const isView = type === "view";
+        const col = isView ? C.purple : C.cyan;
+        return (
+          <div key={name}>
+            <button
+              onClick={() => loadColumns(name)}
+              style={{ display: "flex", alignItems: "center", gap: 5, width: "100%", background: isOpen ? `${col}0a` : "none", border: "none", cursor: "pointer", padding: "5px 12px" }}
+            >
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, width: 10, flexShrink: 0, display: "inline-block", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>›</span>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: isView ? C.purple : C.cyan }}>{isView ? "◻" : "▪"}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: C.text }}>{name}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 8, color: C.muted, marginLeft: "auto" }}>{type}</span>
+            </button>
+            {isOpen && (
+              <div style={{ borderLeft: `1px solid ${col}30`, marginLeft: 22, paddingLeft: 8, marginBottom: 2 }}>
+                {cols.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, padding: "2px 0" }}>loading…</div>}
+                {cols.map((c) => (
+                  <div key={c.cid} style={{ display: "flex", alignItems: "baseline", gap: 6, padding: "2px 4px" }}>
+                    <span style={{ fontFamily: F.mono, fontSize: 10, color: c.pk ? C.amber : "#AADDFF" }}>{c.name}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 8, color: C.muted }}>{c.type || "??"}</span>
+                    {c.pk ? <span style={{ fontFamily: F.mono, fontSize: 7, color: C.amber }}>PK</span> : null}
+                    {c.notnull ? <span style={{ fontFamily: F.mono, fontSize: 7, color: C.dim }}>NOT NULL</span> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Shared file row used in FileManagerPanel ──────────────────
 function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, confirmDelete, setConfirmDelete, onDeleteFile }) {
   return (
@@ -1098,7 +1185,8 @@ function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, co
 }
 
 // ── File Manager Panel (hamburger sidebar) ────────────────────
-function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile, onClose }) {
+function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
+  const [panel, setPanel] = useState("files"); // "files" | "schema"
   const [newName, setNewName] = useState("");
   const [newFolder, setNewFolder] = useState("queries");
   const [creatingFile, setCreatingFile] = useState(false);
@@ -1149,18 +1237,22 @@ function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile,
       {/* Panel */}
       <div style={{ position: "relative", zIndex: 1, width: "80%", maxWidth: 320, height: "100%", background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflowY: "auto" }}>
         {/* Panel header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, flex: 1, letterSpacing: 1 }}>FILES</span>
-          <button
-            onClick={() => setCreatingFile((v) => !v)}
-            style={{ fontFamily: F.mono, fontSize: 12, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px" }}
-            title="New file"
-          >+ new</button>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "2px 4px" }}>✕</button>
+        <div style={{ display: "flex", alignItems: "center", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+          <button onClick={() => setPanel("files")} style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", background: "none", border: "none", borderBottom: panel === "files" ? `2px solid ${C.amber}` : "2px solid transparent", color: panel === "files" ? C.amber : C.muted, cursor: "pointer", letterSpacing: 1 }}>FILES</button>
+          <button onClick={() => setPanel("schema")} style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", background: "none", border: "none", borderBottom: panel === "schema" ? `2px solid ${C.cyan}` : "2px solid transparent", color: panel === "schema" ? C.cyan : C.muted, cursor: "pointer", letterSpacing: 1 }}>SCHEMA</button>
+          <div style={{ flex: 1 }} />
+          {panel === "files" && (
+            <button
+              onClick={() => setCreatingFile((v) => !v)}
+              style={{ fontFamily: F.mono, fontSize: 11, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px", margin: "0 4px" }}
+              title="New file"
+            >+ new</button>
+          )}
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "4px 10px" }}>✕</button>
         </div>
 
         {/* New file form */}
-        {creatingFile && (
+        {panel === "files" && creatingFile && (
           <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
             <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>FOLDER</div>
             <select
@@ -1186,8 +1278,16 @@ function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile,
           </div>
         )}
 
+        {/* Schema panel */}
+        {panel === "schema" && (
+          <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
+            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "6px 12px 4px", letterSpacing: 1 }}>TABLES &amp; VIEWS — click to expand columns</div>
+            <SchemaExplorer db={db} />
+          </div>
+        )}
+
         {/* File tree */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
+        {panel === "files" && <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
           {/* Root-level files (e.g. dbt_project.yml) */}
           {(byFolder["(root)"] || []).map((path) => {
             const isCurrent = path === currentFile;
@@ -1248,15 +1348,16 @@ function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile,
               </div>
             );
           })}
-        </div>
+        </div>}
 
-        <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, lineHeight: 1.8 }}>
-            Double-click filename in editor to rename.<br />
-            .sql files run against SQLite.<br />
-            .yaml / .yml files get YAML linting.
+        {panel === "files" && (
+          <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, lineHeight: 1.8 }}>
+              Double-click filename in editor to rename.<br />
+              .sql runs against SQLite · .yaml gets YAML linting.
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -1349,9 +1450,12 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         refreshCatalog(d);
         if (scrollback.length === 0) {
           pushBlock({ type: "info", text: ispt
-            ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda. Veja as abas no fundo da tela.`
-            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.  Tabs at the bottom: REPL · EDITOR · FILES · LINEAGE`
+            ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: SHELL · EDITOR · VAULT · DAG`
+            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.  Tabs: SHELL · EDITOR · VAULT · DAG`
           });
+          // Show available tables on first open
+          const dtResult = execSQL(d, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name");
+          pushBlock({ type: "sql", cmd: "\\dt", result: dtResult });
         }
         if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboard(true);
       })
@@ -1465,6 +1569,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         <FileManagerPanel
           files={files}
           currentFile={currentFile}
+          db={db}
           onOpen={openFile}
           onNewFile={handleNewFile}
           onDeleteFile={handleDeleteFile}
@@ -1481,6 +1586,17 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         </div>
         <button onClick={() => setShowOnboard(true)} title="Open guide" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.amber, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>?</button>
         <button onClick={clearScrollback} title="Clear terminal output" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>cls</button>
+        <button
+          onClick={() => {
+            const original = DEFAULT_FILES[currentFile];
+            if (original !== undefined) {
+              setFiles((prev) => ({ ...prev, [currentFile]: original }));
+              setEditorInitialSql(original);
+            }
+          }}
+          title={`Reset ${currentFile} to original`}
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: DEFAULT_FILES[currentFile] !== undefined ? C.amber : C.border, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
+        >reset</button>
         <button
           onClick={async () => { setSaveStatus("saving"); const ok = await saveToIndexedDB(); setSaveStatus(ok ? "saved" : "error"); setTimeout(() => setSaveStatus("idle"), 2000); }}
           disabled={!db || saveStatus === "saving"}
