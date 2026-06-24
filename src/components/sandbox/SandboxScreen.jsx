@@ -354,7 +354,7 @@ DBT LAYER NAMING
 TABS (bottom bar)
   >  SHELL   — interactive terminal (this tab)
   ≡  EDITOR  — .sql / .yaml file editor
-  ▣  VAULT   — dbt project file tree + file manager
+  ⊓  VAULT   — file browser + schema explorer
   ⬡  DAG     — data lineage (SRC→STG→INT→MRT)
 
 TIP: Tap [?] in the header to reopen the onboarding tour.
@@ -372,7 +372,7 @@ const ONBOARDING_STEPS = [
   {
     title: "FOUR MODES — BOTTOM TABS",
     icon: "≡", color: C.cyan,
-    body: "Four tabs at the bottom of the screen:\n\n  >  REPL    — interactive terminal\n  ≡  EDITOR  — .sql file editor\n  ▣  FILES   — dbt project structure\n  ⬡  LINEAGE — data lineage graph\n\nSwitch freely between them.",
+    body: "Four tabs at the bottom of the screen:\n\n  >  SHELL   — interactive terminal\n  ≡  EDITOR  — .sql / .yaml file editor\n  ⊓  VAULT   — file browser + schema explorer\n  ⬡  DAG     — data lineage graph\n\nSwitch freely between them.",
   },
   {
     title: "REPL — TERMINAL MODE",
@@ -1579,8 +1579,8 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
   const pushWelcome = useCallback((dbInst) => {
     pushBlock({ type: "info", text: ispt
-      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: SHELL · EDITOR · VAULT · DAG`
-      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.  Tabs: SHELL · EDITOR · VAULT · DAG`
+      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
+      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.\nTabs: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
     });
     const d = dbInst || db;
     if (d) {
