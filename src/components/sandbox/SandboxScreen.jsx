@@ -110,16 +110,61 @@ models:
       +materialized: table
       +schema: mart`;
 
-// ── Shared icon ───────────────────────────────────────────────
+// ── Shared icons ──────────────────────────────────────────────
 function FolderIcon({ size = 14, style: extraStyle }) {
   return (
-    <svg
-      width={size} height={size}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      style={{ display: "inline-block", verticalAlign: "-2px", flexShrink: 0, ...extraStyle }}
-    >
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor"
+      style={{ display: "inline-block", verticalAlign: "-2px", flexShrink: 0, ...extraStyle }}>
       <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+    </svg>
+  );
+}
+function ChevronIcon({ open, size = 10, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0, transition: "transform 0.12s", transform: open ? "rotate(90deg)" : "rotate(0deg)" }}>
+      <path d="M5.5 3.5L10.5 8l-5 4.5" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function SqlFileIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <ellipse cx="8" cy="4" rx="5.5" ry="2" fill="#CC557A"/>
+      <path d="M2.5 4v3c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V4" fill="#CC557A" opacity="0.75"/>
+      <path d="M2.5 7v3c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V7" fill="#CC557A" opacity="0.5"/>
+    </svg>
+  );
+}
+function YamlFileIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <rect x="2" y="1" width="12" height="14" rx="1.5" fill="#7755BB"/>
+      <text x="8" y="12" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="sans-serif">!</text>
+    </svg>
+  );
+}
+function TableIcon({ size = 14, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <rect x="1" y="1" width="14" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/>
+      <line x1="1" y1="5.5" x2="15" y2="5.5" stroke={color} strokeWidth="1.2"/>
+      <line x1="6" y1="5.5" x2="6" y2="15" stroke={color} strokeWidth="1.2"/>
+    </svg>
+  );
+}
+function ViewIcon({ size = 14, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill={color} style={{ display: "inline-block", flexShrink: 0 }}>
+      <rect x="1" y="2.5" width="14" height="2" rx="1"/>
+      <rect x="1" y="7" width="14" height="2" rx="1" opacity="0.7"/>
+      <rect x="1" y="11.5" width="14" height="2" rx="1" opacity="0.45"/>
+    </svg>
+  );
+}
+function ColumnIcon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <circle cx="8" cy="8" r="3" stroke={C.border} strokeWidth="1.5"/>
     </svg>
   );
 }
@@ -1113,7 +1158,7 @@ function tokensToHtml(tokens) {
   }).join("");
 }
 
-// ── Schema explorer (tables + columns) for file manager ───────
+// ── Schema explorer (tables + columns) — VSCode SQLite Explorer style ──
 function SchemaExplorer({ db }) {
   const [tables, setTables] = useState([]);
   const [openTable, setOpenTable] = useState(null);
@@ -1125,46 +1170,49 @@ function SchemaExplorer({ db }) {
     if (r.ok) setTables(r.rows.map(([name, type]) => ({ name, type })));
   }, [db]);
 
-  const loadColumns = (tableName) => {
-    if (columns[tableName]) { setOpenTable((t) => t === tableName ? null : tableName); return; }
-    const r = execSQL(db, `PRAGMA table_info("${tableName}")`);
-    if (r.ok) {
-      setColumns((prev) => ({ ...prev, [tableName]: r.rows.map((row) => ({ cid: row[0], name: row[1], type: row[2], notnull: row[3], pk: row[5] })) }));
+  const toggleTable = (tableName) => {
+    if (!columns[tableName]) {
+      const r = execSQL(db, `PRAGMA table_info("${tableName}")`);
+      if (r.ok) setColumns((prev) => ({ ...prev, [tableName]: r.rows.map((row) => ({ cid: row[0], name: row[1], type: row[2], notnull: row[3], pk: row[5] })) }));
     }
     setOpenTable((t) => t === tableName ? null : tableName);
   };
 
   if (!tables.length) return (
-    <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, padding: "6px 12px" }}>no tables yet</div>
+    <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "6px 22px" }}>no tables yet</div>
   );
 
   return (
     <div>
       {tables.map(({ name, type }) => {
         const isOpen = openTable === name;
-        const cols = columns[name] || [];
         const isView = type === "view";
-        const col = isView ? C.purple : C.cyan;
+        const iconColor = isView ? C.purple : C.cyan;
+        const cols = columns[name] || [];
         return (
           <div key={name}>
+            {/* Table / view row */}
             <button
-              onClick={() => loadColumns(name)}
-              style={{ display: "flex", alignItems: "center", gap: 5, width: "100%", background: isOpen ? `${col}0a` : "none", border: "none", cursor: "pointer", padding: "5px 12px" }}
+              onClick={() => toggleTable(name)}
+              style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: isOpen ? `${iconColor}12` : "none", border: "none", cursor: "pointer", padding: "3px 8px 3px 12px", textAlign: "left", minHeight: 22 }}
             >
-              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, width: 10, flexShrink: 0, display: "inline-block", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>›</span>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: isView ? C.purple : C.cyan }}>{isView ? "◻" : "▪"}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 11, color: C.text }}>{name}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 8, color: C.muted, marginLeft: "auto" }}>{type}</span>
+              <ChevronIcon open={isOpen} size={10} color={C.muted} />
+              <span style={{ display: "flex", flexShrink: 0 }}>
+                {isView ? <ViewIcon size={14} color={iconColor} /> : <TableIcon size={14} color={iconColor} />}
+              </span>
+              <span style={{ fontFamily: F.mono, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto", paddingLeft: 6, flexShrink: 0 }}>{isView ? "view" : "table"}</span>
             </button>
+            {/* Columns */}
             {isOpen && (
-              <div style={{ borderLeft: `1px solid ${col}30`, marginLeft: 22, paddingLeft: 8, marginBottom: 2 }}>
-                {cols.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, padding: "2px 0" }}>loading…</div>}
+              <div style={{ paddingLeft: 26, borderLeft: `1px solid ${C.border}`, marginLeft: 18 }}>
+                {cols.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "2px 0 2px 4px" }}>loading…</div>}
                 {cols.map((c) => (
-                  <div key={c.cid} style={{ display: "flex", alignItems: "baseline", gap: 6, padding: "2px 4px" }}>
-                    <span style={{ fontFamily: F.mono, fontSize: 10, color: c.pk ? C.amber : "#AADDFF" }}>{c.name}</span>
-                    <span style={{ fontFamily: F.mono, fontSize: 8, color: C.muted }}>{c.type || "??"}</span>
-                    {c.pk ? <span style={{ fontFamily: F.mono, fontSize: 7, color: C.amber }}>PK</span> : null}
-                    {c.notnull ? <span style={{ fontFamily: F.mono, fontSize: 7, color: C.dim }}>NOT NULL</span> : null}
+                  <div key={c.cid} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 8px 2px 2px", minHeight: 20 }}>
+                    <ColumnIcon size={10} />
+                    <span style={{ fontFamily: F.mono, fontSize: 11, color: c.pk ? C.amber : C.text }}>{c.name}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{(c.type || "").toLowerCase()}</span>
+                    {c.pk && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.amber, background: `${C.amber}18`, padding: "0 3px", borderRadius: 2 }}>PK</span>}
                   </div>
                 ))}
               </div>
@@ -1176,24 +1224,35 @@ function SchemaExplorer({ db }) {
   );
 }
 
-// ── Shared file row used in FileManagerPanel ──────────────────
+// ── Shared file row — VSCode Explorer style ───────────────────
 function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, confirmDelete, setConfirmDelete, onDeleteFile }) {
+  const [hovered, setHovered] = useState(false);
   return (
-    <div style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}12` : "none", borderLeft: isCurrent ? `2px solid ${col}` : "2px solid transparent" }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}18` : hovered ? "#ffffff08" : "none" }}
+    >
+      {/* indent guide line */}
+      {indent > 0 && <div style={{ width: 1, alignSelf: "stretch", background: C.border, flexShrink: 0, marginLeft: indent - 1 }} />}
       <button
         onClick={() => { onOpen(path); if (onClose) onClose(); }}
-        style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: `4px 10px 4px ${10 + indent}px`, textAlign: "left", minWidth: 0 }}
+        style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: `3px 6px 3px ${indent > 0 ? 8 : 22}px`, textAlign: "left", minWidth: 0, minHeight: 22 }}
       >
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{yaml ? "⚙" : "📄"}</span>
-        <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? col : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
-        {yaml && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.green, marginLeft: "auto", flexShrink: 0, paddingLeft: 4 }}>yml</span>}
+        <span style={{ display: "flex", flexShrink: 0 }}>
+          {yaml ? <YamlFileIcon size={14} /> : <SqlFileIcon size={14} />}
+        </span>
+        <span style={{ fontFamily: F.mono, fontSize: 12, color: isCurrent ? col : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
       </button>
+      {/* delete: confirm mode or hover-visible × */}
       {confirmDelete === path ? (
         <button onClick={() => { onDeleteFile(path); setConfirmDelete(null); }}
-          style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}14`, border: `1px solid ${C.red}`, cursor: "pointer", padding: "2px 6px", margin: "0 8px 0 0", flexShrink: 0 }}>del?</button>
+          style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}18`, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "2px 6px", margin: "0 6px 0 0", flexShrink: 0 }}>del?</button>
       ) : (
         <button onClick={() => setConfirmDelete(path)}
-          style={{ fontFamily: F.mono, fontSize: 10, color: C.border, background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0 }}>✕</button>
+          style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0, opacity: hovered ? 0.5 : 0, transition: "opacity 0.1s" }}>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill={C.text}><path d="M4 4l8 8M12 4l-8 8" stroke={C.text} strokeWidth="2" strokeLinecap="round"/></svg>
+        </button>
       )}
     </div>
   );
@@ -1303,25 +1362,24 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
           {allFolders.map((folder) => {
             const folderFiles = (byFolder[folder] || []).sort();
             const isOpen = !collapsed[folder];
-            // folder label color by type
             const fc = folder.startsWith("models/mart") ? C.green
               : folder.startsWith("models/intermediate") ? C.amber
               : folder.startsWith("models") ? C.cyan
-              : C.dim;
+              : C.muted;
+            const label = folder.includes("/") ? folder.slice(folder.lastIndexOf("/") + 1) : folder;
+            const isNested = folder.includes("/");
             return (
               <div key={folder}>
-                {/* Folder header */}
+                {/* Folder header — VSCode style: chevron + folder icon + name */}
                 <button
                   onClick={() => toggleFolder(folder)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "5px 10px", textAlign: "left" }}
+                  style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: "none", border: "none", cursor: "pointer", padding: `3px 6px 3px ${isNested ? 18 : 6}px`, textAlign: "left", minHeight: 22 }}
                 >
-                  <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, width: 10, flexShrink: 0, transition: "transform 0.15s", display: "inline-block", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: fc }}>
-                    {folder.includes("/") ? folder.slice(folder.lastIndexOf("/") + 1) : folder}
-                    <span style={{ color: C.border }}>/</span>
-                  </span>
+                  <ChevronIcon open={isOpen} size={10} color={C.muted} />
+                  <span style={{ color: fc, display: "flex" }}><FolderIcon size={14} /></span>
+                  <span style={{ fontFamily: F.mono, fontSize: 12, color: fc }}>{label}</span>
                   {!isOpen && folderFiles.length > 0 && (
-                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.border, marginLeft: "auto" }}>{folderFiles.length}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{folderFiles.length}</span>
                   )}
                 </button>
 
@@ -1329,7 +1387,7 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
                 {isOpen && (
                   <div>
                     {folderFiles.length === 0 && (
-                      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, paddingLeft: 30, paddingBottom: 3 }}>empty</div>
+                      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, paddingLeft: isNested ? 42 : 28, paddingBottom: 2 }}>empty</div>
                     )}
                     {folderFiles.map((path) => {
                       const name = path.slice(path.lastIndexOf("/") + 1);
@@ -1338,7 +1396,7 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
                       const col = yaml ? C.green : C.amber;
                       return (
                         <FileRow key={path} path={path} name={name} isCurrent={isCurrent} yaml={yaml} col={col}
-                          indent={16} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
+                          indent={isNested ? 28 : 14} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
                           setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile} />
                       );
                     })}
@@ -1348,15 +1406,14 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
             );
           })}
 
-          {/* ── Inline schema section ── */}
+          {/* ── Inline DATABASE SCHEMA section — VSCode SQLite Explorer style ── */}
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4 }}>
             <button
               onClick={() => setSchemaOpen((v) => !v)}
-              style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "7px 10px", textAlign: "left" }}
+              style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "4px 6px", textAlign: "left", minHeight: 24 }}
             >
-              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, width: 10, flexShrink: 0, display: "inline-block", transition: "transform 0.15s", transform: schemaOpen ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.cyan, letterSpacing: 1 }}>DATABASE SCHEMA</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: 4 }}>click table to expand</span>
+              <ChevronIcon open={schemaOpen} size={10} color={C.muted} />
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.cyan, letterSpacing: 1, fontWeight: "bold" }}>DATABASE SCHEMA</span>
             </button>
             {schemaOpen && <SchemaExplorer db={db} />}
           </div>
