@@ -2027,6 +2027,18 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   useEffect(() => { editingRef.current = editing; }, [editing]);
   useEffect(() => { saveSQLDraft(challengeId, sql); }, [challengeId, sql]);
 
+  // Track exact visible height so the layout stays above the OS keyboard on any device
+  const [vpH, setVpH] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setVpH(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => { vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update); };
+  }, []);
+
   // Android back button closes the keyboard instead of navigating away
   useEffect(() => {
     if (!isTouch.current) return;
@@ -2524,7 +2536,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   }, [sql, db]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#000000", position: "relative" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: vpH > 0 ? `${vpH}px` : "100%", background: "#000000", position: "relative" }}>
 
       {/* Hamburger exercise list overlay (lesson mode) */}
       {menuOpen && exercises && (
@@ -2842,7 +2854,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         )}
         {/* AuxKeyboard + RUN bar — wrapped together for tour spotlight */}
         <div ref={bottomAreaRef}>
-          {!isFocusMode && <AuxKeyboard
+          {!isFocusMode && !editing && <AuxKeyboard
             onInsert={handleAuxInsert}
             onControl={handleAuxControl}
             tabsRef={auxTabsRef}
