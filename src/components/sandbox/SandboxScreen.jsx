@@ -269,6 +269,13 @@ const LAYER_META = {
   intermediate: { label: "INTERMEDIATE", hint: "int_*",         color: C.amber, badge: "INT", folder: "models/intermediate" },
   mart:         { label: "MART",         hint: "fct_* / dim_*", color: C.green, badge: "MRT", folder: "models/mart" },
 };
+// Maps folder path → LAYER_META entry for hints in the file explorer
+const FOLDER_HINTS = Object.fromEntries(Object.entries(LAYER_META).map(([, m]) => [m.folder, m]));
+const FOLDER_CREATE_HINTS = {
+  "models/staging":      "Create: CREATE VIEW stg_orders AS ...",
+  "models/intermediate": "Create: CREATE VIEW int_revenue AS ...",
+  "models/mart":         "Create: CREATE VIEW fct_revenue AS ...",
+};
 function detectLayer(name) {
   const n = name.toLowerCase();
   if (n.startsWith("stg_") || n.startsWith("staging_")) return "staging";
@@ -1377,6 +1384,9 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
                   <ChevronIcon open={isOpen} size={10} color={C.muted} />
                   <span style={{ color: fc, display: "flex" }}><FolderIcon size={14} /></span>
                   <span style={{ fontFamily: F.mono, fontSize: 12, color: fc }}>{label}</span>
+                  {FOLDER_HINTS[folder] && (
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.dim, marginLeft: 6, opacity: 0.7 }}>// {FOLDER_HINTS[folder].hint}</span>
+                  )}
                   {!isOpen && folderFiles.length > 0 && (
                     <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{folderFiles.length}</span>
                   )}
@@ -1386,7 +1396,9 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
                 {isOpen && (
                   <div>
                     {folderFiles.length === 0 && (
-                      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, paddingLeft: isNested ? 42 : 28, paddingBottom: 2 }}>empty</div>
+                      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, paddingLeft: isNested ? 42 : 28, paddingBottom: 4, paddingTop: 2, lineHeight: 1.7, opacity: 0.75 }}>
+                        {FOLDER_CREATE_HINTS[folder] || "empty"}
+                      </div>
                     )}
                     {folderFiles.map((path) => {
                       const name = path.slice(path.lastIndexOf("/") + 1);
