@@ -526,13 +526,12 @@ function FileTree({ db, lang, onOpenInEditor }) {
 }
 
 // ── SQL Editor view ───────────────────────────────────────────
-function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNames, columnNames, onRefreshCatalog }) {
+function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNames, columnNames, onRefreshCatalog, onSuggestionsChange, onLintIssuesChange, insertRef, acceptRef }) {
   const [sql, setSql] = useState(initialSql || "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;");
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [lintIssues, setLintIssues] = useState([]);
-  const [kbdOpen, setKbdOpen] = useState(false);
   const taRef = useRef(null);
   const ispt = lang === "pt";
 
@@ -550,25 +549,34 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
 
   const updateSuggestions = (text, pos) => {
     const word = getWordAtCursor(text, pos ?? text.length);
-    if (word.length < 1) { setSuggestions([]); return; }
-    setSuggestions(computeSuggestions(word, tableNames, columnNames));
+    const s = word.length < 1 ? [] : computeSuggestions(word, tableNames, columnNames);
+    setSuggestions(s);
+    onSuggestionsChange?.(s);
   };
 
   const insertAtCursorEditor = (text) => {
     if (!taRef.current) return;
     const start = taRef.current.selectionStart; const end = taRef.current.selectionEnd;
     const next = sql.slice(0, start) + text + sql.slice(end);
-    setSql(next); if (notifySqlChange) notifySqlChange(next); setSuggestions([]);
-    requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = start + text.length; taRef.current.focus(); } });
+    setSql(next); if (notifySqlChange) notifySqlChange(next);
+    const newPos2 = start + text.length;
+    const newS = computeSuggestions(getWordAtCursor(next, newPos2), tableNames, columnNames);
+    setSuggestions(newS); onSuggestionsChange?.(newS);
+    requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = newPos2; taRef.current.focus(); } });
   };
 
   const acceptSuggestionEditor = (suggestion) => {
     if (!taRef.current) return;
     const pos = taRef.current.selectionStart;
     const { text: newText, newPos } = replaceWordAtCursor(sql, pos, suggestion);
-    setSql(newText); if (notifySqlChange) notifySqlChange(newText); setSuggestions([]);
+    setSql(newText); if (notifySqlChange) notifySqlChange(newText);
+    setSuggestions([]); onSuggestionsChange?.([]);
     requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = newPos; taRef.current.focus(); } });
   };
+
+  // Populate refs on every render so callers always have the latest closures
+  if (insertRef) insertRef.current = insertAtCursorEditor;
+  if (acceptRef) acceptRef.current = acceptSuggestionEditor;
 
   // Smart SQL linter — debounced, runs static analysis + EXPLAIN for SELECT queries
   useEffect(() => {
@@ -595,13 +603,14 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
         }
       }
       setLintIssues(issues);
+      onLintIssuesChange?.(issues);
     }, 500);
     return () => clearTimeout(timer);
   }, [sql, db]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onKeyDown = (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); }
-    if (e.key === "Escape") { setSuggestions([]); }
+    if (e.key === "Escape") { setSuggestions([]); onSuggestionsChange?.([]); }
     if (e.key === "Tab") {
       e.preventDefault();
       if (suggestions.length > 0) { acceptSuggestionEditor(suggestions[0]); }
@@ -618,7 +627,6 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>📄</span>
         <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, flex: 1 }}>query.sql</span>
         <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>Ctrl+Enter</span>
-        <button onMouseDown={(e) => { e.preventDefault(); setKbdOpen(k => !k); }} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 9px", background: kbdOpen ? C.cyanGhost : "none", border: `1px solid ${kbdOpen ? C.cyan : C.border}`, color: kbdOpen ? C.cyan : C.dim, cursor: "pointer" }}>⌨</button>
         <button onClick={runQuery} disabled={!db || !sql.trim() || running} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 14px", background: sql.trim() ? C.cyanGhost : "none", border: `1px solid ${sql.trim() ? C.cyan : C.border}`, color: sql.trim() ? C.cyan : C.dim, cursor: sql.trim() ? "pointer" : "default", letterSpacing: 1 }}>
           {running ? "…" : "▶ RUN"}
         </button>
@@ -663,39 +671,6 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
         )}
       </div>
 
-      {/* Suggestion chip bar */}
-      {suggestions.length > 0 && (
-        <div style={{ display: "flex", gap: 4, padding: "3px 8px", borderTop: `1px solid ${C.border}`, background: `${C.cyan}06`, overflowX: "auto", flexShrink: 0, touchAction: "pan-x" }}>
-          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
-          {suggestions.map((s, i) => (
-            <button key={s}
-              onMouseDown={(e) => { e.preventDefault(); acceptSuggestionEditor(s); }}
-              style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
-            >{s}</button>
-          ))}
-        </div>
-      )}
-
-      {/* SQL linter status bar */}
-      {lintIssues.length > 0 && (
-        <div style={{ display: "flex", gap: 10, padding: "3px 10px", borderTop: `1px solid ${C.border}`, background: C.panel, overflowX: "auto", flexShrink: 0 }}>
-          {lintIssues.map((issue, i) => (
-            <span key={i} style={{ fontFamily: F.mono, fontSize: 10, color: issue.type === 'error' ? C.red : issue.type === 'warn' ? C.amber : C.dim, whiteSpace: "nowrap" }}>
-              {issue.type === 'error' ? '✗' : issue.type === 'warn' ? '⚠' : 'ℹ'} {issue.msg}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* SQL keyboard */}
-      {kbdOpen && (
-        <SandboxAuxKeyboard
-          onInsert={insertAtCursorEditor}
-          tableNames={tableNames}
-          columnNames={columnNames}
-          onSwipeDown={() => setKbdOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -796,10 +771,15 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const [columnNames, setColumnNames] = useState([]);
   const [kbdOpen, setKbdOpen] = useState(false);
   const [showOnboard, setShowOnboard] = useState(false);
+  const [editorSuggestions, setEditorSuggestions] = useState([]);
+  const [editorLintIssues, setEditorLintIssues] = useState([]);
+  const [editorKbdOpen, setEditorKbdOpen] = useState(false);
 
   const textareaRef = useRef(null);
   const scrollRef = useRef(null);
   const chipBarSwipeRef = useRef(null);
+  const editorInsertRef = useRef(null);
+  const editorAcceptRef = useRef(null);
   const ispt = lang === "pt";
 
   const refreshCatalog = useCallback((dbInst) => {
@@ -963,14 +943,66 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
         {/* EDITOR view */}
         {activeView === "editor" && (
-          <SqlEditor
-            db={db}
-            lang={lang}
-            initialSql={editorInitialSql}
-            tableNames={tableNames}
-            columnNames={columnNames}
-            onRefreshCatalog={refreshCatalog}
-          />
+          <>
+            <SqlEditor
+              db={db}
+              lang={lang}
+              initialSql={editorInitialSql}
+              tableNames={tableNames}
+              columnNames={columnNames}
+              onRefreshCatalog={refreshCatalog}
+              onSuggestionsChange={setEditorSuggestions}
+              onLintIssuesChange={setEditorLintIssues}
+              insertRef={editorInsertRef}
+              acceptRef={editorAcceptRef}
+            />
+
+            {/* Autocomplete chip bar */}
+            <div style={{ display: "flex", gap: 4, padding: "4px 10px", flexShrink: 0, borderTop: `1px solid ${C.border}20`, background: editorSuggestions.length > 0 ? `${C.cyan}06` : "transparent", overflowX: "auto", touchAction: "pan-x", minHeight: 30 }}>
+              {editorSuggestions.length > 0 ? (
+                <>
+                  <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
+                  {editorSuggestions.map((s, i) => (
+                    <button key={s}
+                      onMouseDown={(e) => { e.preventDefault(); editorAcceptRef.current?.(s); }}
+                      style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
+                    >{s}</button>
+                  ))}
+                </>
+              ) : (
+                <span style={{ fontFamily: F.mono, fontSize: 9, color: C.border, alignSelf: "center", userSelect: "none" }}>↑⌨</span>
+              )}
+            </div>
+
+            {/* Linter status bar */}
+            {editorLintIssues.length > 0 && (
+              <div style={{ display: "flex", gap: 10, padding: "3px 10px", borderTop: `1px solid ${C.border}`, background: C.panel, overflowX: "auto", flexShrink: 0 }}>
+                {editorLintIssues.map((issue, i) => (
+                  <span key={i} style={{ fontFamily: F.mono, fontSize: 10, color: issue.type === "error" ? C.red : issue.type === "warn" ? C.amber : C.dim, whiteSpace: "nowrap" }}>
+                    {issue.type === "error" ? "✗" : issue.type === "warn" ? "⚠" : "ℹ"} {issue.msg}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* SQL Keyboard */}
+            {editorKbdOpen && (
+              <SandboxAuxKeyboard
+                onInsert={(text) => editorInsertRef.current?.(text)}
+                tableNames={tableNames}
+                columnNames={columnNames}
+                onSwipeDown={() => setEditorKbdOpen(false)}
+              />
+            )}
+
+            {/* Control row */}
+            <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "6px 10px", flexShrink: 0, display: "flex", gap: 6 }}>
+              <button
+                onMouseDown={(e) => { e.preventDefault(); setEditorKbdOpen(v => !v); }}
+                style={{ background: editorKbdOpen ? `${C.purple}14` : "none", border: `1px solid ${editorKbdOpen ? C.purple : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: editorKbdOpen ? C.purple : C.muted, padding: "4px 10px" }}
+              >⌨</button>
+            </div>
+          </>
         )}
 
         {/* FILES view */}

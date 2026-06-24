@@ -2416,12 +2416,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
     // is not already whitespace / opening bracket, prepend a space
     const isWord = /^[A-Za-z_]/.test(text);
     if (isWord) {
-      const before = sqlRef.current.substring(0, cPos);
+      const before = sqlRef.current.substring(0, cPosRef.current);
       if (before.length > 0 && !/[\s(,]$/.test(before)) {
         text = " " + text;
       }
     }
+    // Compute new SQL before insert() since it uses functional state updates
+    const newSql = sqlRef.current.slice(0, cPosRef.current) + text + sqlRef.current.slice(cPosRef.current);
+    const newPos = cPosRef.current + text.length;
     insert(text);
+    updateSuggestions(newSql, newPos);
     // Keep native keyboard open if already editing
     if (editing && taRef.current) {
       const ta = taRef.current;
@@ -2430,7 +2434,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         setCPos(prev => { ta.setSelectionRange(prev, prev); return prev; });
       });
     }
-  }, [insert, editing, cPos]);
+  }, [insert, editing, updateSuggestions]);
 
   const handleAuxControl = useCallback((action) => {
     if (action === "escape") { onBack(); return; }
