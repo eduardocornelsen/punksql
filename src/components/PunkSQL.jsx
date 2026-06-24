@@ -757,7 +757,7 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
         padding: "10px 12px", border: `1px solid ${C.amber}50`,
         background: C.amberGhost, cursor: "pointer", width: "100%", textAlign: "left",
       }}>
-        <span style={{ fontFamily: F.mono, fontSize: 13, color: C.amber }}>$</span>
+        <span style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, minWidth: 28 }}>[*]</span>
         <span style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, letterSpacing: 1 }}>FREE_EXPLORE</span>
         <span style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, marginLeft: "auto" }}>{lang === "pt" ? "// sandbox SQL livre →" : "// free SQL sandbox →"}</span>
       </button>
