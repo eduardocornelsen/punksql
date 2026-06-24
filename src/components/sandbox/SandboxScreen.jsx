@@ -1181,7 +1181,7 @@ function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, co
   return (
     <div style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}12` : "none", borderLeft: isCurrent ? `2px solid ${col}` : "2px solid transparent" }}>
       <button
-        onClick={() => { onOpen(path); onClose(); }}
+        onClick={() => { onOpen(path); if (onClose) onClose(); }}
         style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: `4px 10px 4px ${10 + indent}px`, textAlign: "left", minWidth: 0 }}
       >
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{yaml ? "⚙" : "📄"}</span>
@@ -1199,8 +1199,8 @@ function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, co
   );
 }
 
-// ── File Manager Panel (hamburger sidebar) ────────────────────
-function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
+// ── File Explorer Content (shared by VAULT tab and hamburger) ─
+function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
   const [schemaOpen, setSchemaOpen] = useState(true);
   const [newName, setNewName] = useState("");
   const [newFolder, setNewFolder] = useState("queries");
@@ -1245,23 +1245,18 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
   };
 
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 150, display: "flex" }}>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
-
-      {/* Panel */}
-      <div style={{ position: "relative", zIndex: 1, width: "80%", maxWidth: 320, height: "100%", background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflowY: "auto" }}>
-        {/* Panel header */}
-        <div style={{ display: "flex", alignItems: "center", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", color: C.amber, letterSpacing: 1 }}>FILES</span>
-          <div style={{ flex: 1 }} />
-          <button
-            onClick={() => setCreatingFile((v) => !v)}
-            style={{ fontFamily: F.mono, fontSize: 11, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px", margin: "0 4px" }}
-            title="New file"
-          >+ new</button>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "4px 10px" }}>✕</button>
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.panel }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        <span style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", color: C.amber, letterSpacing: 1 }}>FILES</span>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setCreatingFile((v) => !v)}
+          style={{ fontFamily: F.mono, fontSize: 11, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px", margin: "0 4px" }}
+          title="New file"
+        >+ new</button>
+        {onClose && <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "4px 10px" }}>✕</button>}
+      </div>
 
         {/* New file form */}
         {creatingFile && (
@@ -1373,6 +1368,21 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
             .sql runs against SQLite · .yaml gets YAML linting.
           </div>
         </div>
+      </div>
+  );
+}
+
+// ── File Manager Panel (overlay wrapper around FileExplorerContent) ──
+function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 150, display: "flex" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
+      <div style={{ position: "relative", zIndex: 1, width: "80%", maxWidth: 320, height: "100%", display: "flex", flexDirection: "column" }}>
+        <FileExplorerContent
+          files={files} currentFile={currentFile} db={db}
+          onOpen={onOpen} onNewFile={onNewFile} onDeleteFile={onDeleteFile}
+          onClose={onClose}
+        />
       </div>
     </div>
   );
@@ -1704,12 +1714,16 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
           </>
         )}
 
-        {/* FILES view */}
+        {/* FILES / VAULT view */}
         {activeView === "files" && (
-          <FileTree
+          <FileExplorerContent
+            files={files}
+            currentFile={currentFile}
             db={db}
-            lang={lang}
-            onOpenInEditor={(sql) => { setEditorInitialSql(sql); setCurrentFile("queries/main.sql"); setActiveView("editor"); }}
+            onOpen={openFile}
+            onNewFile={handleNewFile}
+            onDeleteFile={handleDeleteFile}
+            onClose={null}
           />
         )}
 
