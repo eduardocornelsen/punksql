@@ -112,10 +112,10 @@ models:
 
 // ── Bottom tabs ───────────────────────────────────────────────
 const BOTTOM_TABS = [
-  { id: "repl",    label: "REPL",    color: C.cyan,   icon: ">" },
-  { id: "editor",  label: "EDITOR",  color: C.amber,  icon: "≡" },
-  { id: "files",   label: "FILES",   color: C.green,  icon: "◈" },
-  { id: "lineage", label: "LINEAGE", color: C.purple, icon: "⬡" },
+  { id: "repl",    label: "SHELL",  color: C.cyan,   icon: ">" },
+  { id: "editor",  label: "EDITOR", color: C.amber,  icon: "≡" },
+  { id: "files",   label: "VAULT",  color: C.green,  icon: "◈" },
+  { id: "lineage", label: "DAG",    color: C.purple, icon: "⬡" },
 ];
 
 // ── Autocomplete helpers ───────────────────────────────────────
