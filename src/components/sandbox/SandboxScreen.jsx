@@ -1185,7 +1185,14 @@ function SchemaExplorer({ db }) {
   };
 
   if (!tables.length) return (
-    <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "6px 22px" }}>no tables yet</div>
+    <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, padding: "6px 14px 10px", lineHeight: 2 }}>
+      no tables yet — try:<br />
+      <span style={{ color: C.dim, opacity: 0.75 }}>
+        CREATE TABLE orders (id INT, ...)<br />
+        INSERT INTO orders VALUES (...)<br />
+        CREATE VIEW stg_orders AS SELECT ...
+      </span>
+    </div>
   );
 
   return (
@@ -1226,12 +1233,17 @@ function SchemaExplorer({ db }) {
           </div>
         );
       })}
+      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.dim, padding: "6px 14px 8px", lineHeight: 2, borderTop: `1px solid ${C.border}`, marginTop: 4, opacity: 0.7 }}>
+        + CREATE TABLE name (col TYPE, ...)<br />
+        + INSERT INTO name VALUES (...)<br />
+        + CREATE VIEW stg_name AS SELECT ...
+      </div>
     </div>
   );
 }
 
 // ── Shared file row — VSCode Explorer style ───────────────────
-function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, confirmDelete, setConfirmDelete, onDeleteFile }) {
+function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, confirmDelete, setConfirmDelete, onDeleteFile, isExpanded, onToggleExpand }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
@@ -1241,9 +1253,16 @@ function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, co
     >
       {/* indent guide line */}
       {indent > 0 && <div style={{ width: 1, alignSelf: "stretch", background: C.border, flexShrink: 0, marginLeft: indent - 1 }} />}
+      {/* expand chevron — appears on hover or when expanded */}
+      <button
+        onClick={onToggleExpand}
+        style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 2px 2px 6px", flexShrink: 0, opacity: hovered || isExpanded ? 1 : 0, transition: "opacity 0.1s" }}
+      >
+        <ChevronIcon open={isExpanded} size={9} color={C.muted} />
+      </button>
       <button
         onClick={() => { onOpen(path); if (onClose) onClose(); }}
-        style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: `3px 6px 3px ${indent > 0 ? 8 : 22}px`, textAlign: "left", minWidth: 0, minHeight: 22 }}
+        style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: `3px 6px 3px 4px`, textAlign: "left", minWidth: 0, minHeight: 22 }}
       >
         <span style={{ display: "flex", flexShrink: 0 }}>
           {yaml ? <YamlFileIcon size={14} /> : <SqlFileIcon size={14} />}
@@ -1264,6 +1283,29 @@ function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, co
   );
 }
 
+function FileDetailPanel({ path, files, dbObjects, indentLeft }) {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  const stem = name.replace(/\.(sql|yaml|yml)$/i, "");
+  const obj = dbObjects[stem];
+  const content = files[path] || "";
+  const lines = content.split("\n");
+  const preview = lines.slice(0, 6).join("\n") + (lines.length > 6 ? "\n..." : "");
+  return (
+    <div style={{ marginLeft: indentLeft, borderLeft: `1px solid ${C.border}`, paddingLeft: 10, paddingBottom: 6, paddingTop: 3 }}>
+      {obj ? (
+        <>
+          <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 3 }}>
+            {obj.type}{obj.upstreams.length > 0 && <span style={{ color: C.dim }}> · depends on: {obj.upstreams.join(", ")}</span>}
+          </div>
+          <pre style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, margin: 0, whiteSpace: "pre-wrap", overflowX: "auto" }}>{obj.ddl}</pre>
+        </>
+      ) : (
+        <pre style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, margin: 0, whiteSpace: "pre-wrap", opacity: 0.75 }}>{preview || "-- empty file"}</pre>
+      )}
+    </div>
+  );
+}
+
 // ── File Explorer Content (shared by VAULT tab and hamburger) ─
 function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
   const [schemaOpen, setSchemaOpen] = useState(true);
@@ -1272,8 +1314,15 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
   const [creatingFile, setCreatingFile] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [collapsed, setCollapsed] = useState({});
+  const [expandedFile, setExpandedFile] = useState(null);
 
   const toggleFolder = (f) => setCollapsed((s) => ({ ...s, [f]: !s[f] }));
+  const toggleExpand = (p) => setExpandedFile((f) => f === p ? null : p);
+
+  const dbObjects = useMemo(() => {
+    if (!db) return {};
+    return Object.fromEntries(loadObjects(db).map((o) => [o.name, o]));
+  }, [db]);
 
   const folders = useMemo(() => {
     const s = new Set(Object.keys(files).map((p) => p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : ""));
@@ -1358,9 +1407,13 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
             const yaml = isYaml(path);
             const col = yaml ? C.green : C.amber;
             return (
-              <FileRow key={path} path={path} name={path} isCurrent={isCurrent} yaml={yaml} col={col}
-                indent={0} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
-                setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile} />
+              <React.Fragment key={path}>
+                <FileRow path={path} name={path} isCurrent={isCurrent} yaml={yaml} col={col}
+                  indent={0} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
+                  setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile}
+                  isExpanded={expandedFile === path} onToggleExpand={() => toggleExpand(path)} />
+                {expandedFile === path && <FileDetailPanel path={path} files={files} dbObjects={dbObjects} indentLeft={20} />}
+              </React.Fragment>
             );
           })}
 
@@ -1406,9 +1459,13 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
                       const yaml = isYaml(name);
                       const col = yaml ? C.green : C.amber;
                       return (
-                        <FileRow key={path} path={path} name={name} isCurrent={isCurrent} yaml={yaml} col={col}
-                          indent={isNested ? 28 : 14} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
-                          setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile} />
+                        <React.Fragment key={path}>
+                          <FileRow path={path} name={name} isCurrent={isCurrent} yaml={yaml} col={col}
+                            indent={isNested ? 28 : 14} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
+                            setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile}
+                            isExpanded={expandedFile === path} onToggleExpand={() => toggleExpand(path)} />
+                          {expandedFile === path && <FileDetailPanel path={path} files={files} dbObjects={dbObjects} indentLeft={isNested ? 46 : 32} />}
+                        </React.Fragment>
                       );
                     })}
                   </div>
