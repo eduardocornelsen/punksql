@@ -2754,28 +2754,26 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             />
           </div>
         </div>
-        {/* Chip / hint bar — always rendered so it acts as a spacer keeping the keyboard at bay */}
-        <div ref={hintBarRef} style={{ borderTop: `1px solid ${C.border}`, background: suggestions.length > 0 ? `${C.cyan}06` : C.black, flexShrink: 0 }}>
-          {suggestions.length > 0 ? (
-            <div style={{ display: "flex", gap: 4, padding: "6px 8px", overflowX: "auto", touchAction: "pan-x" }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
-              {suggestions.map((s, i) => (
-                <button key={s}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    const { text: newSql, newPos } = chReplaceWordAtCursor(sql, cPos, s);
-                    setSql(newSql); setCPos(newPos); setSuggestions([]);
-                    requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); taRef.current.focus(); } });
-                  }}
-                  style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0 }}
-                >{s}</button>
-              ))}
-            </div>
-          ) : (
-            <div style={{ padding: "6px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim }}>
-              {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: ⌨  ·  tap: close"}
-            </div>
-          )}
+        {/* Tab prediction chip bar — above hint bar so it stays visible when native keyboard opens */}
+        {suggestions.length > 0 && (
+          <div style={{ display: "flex", gap: 4, padding: "6px 8px", background: `${C.cyan}06`, borderTop: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0, touchAction: "pan-x" }}>
+            <span style={{ fontFamily: F.mono, fontSize: 9, color: C.cyanDim, alignSelf: "center", flexShrink: 0, paddingRight: 2 }}>tab→</span>
+            {suggestions.map((s, i) => (
+              <button key={s}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const { text: newSql, newPos } = chReplaceWordAtCursor(sql, cPos, s);
+                  setSql(newSql); setCPos(newPos); setSuggestions([]);
+                  requestAnimationFrame(() => { if (taRef.current) { taRef.current.setSelectionRange(newPos, newPos); taRef.current.focus(); } });
+                }}
+                style={{ background: i === 0 ? C.cyanGhost : "none", border: `1px solid ${i === 0 ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: i === 0 ? C.cyan : C.dim, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0 }}
+              >{s}</button>
+            ))}
+          </div>
+        )}
+        {/* Hint bar — always rendered, acts as a height buffer keeping chip bar off keyboard edge */}
+        <div ref={hintBarRef} style={{ padding: "10px 0", textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, background: C.black, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          {!dbReady ? "loading sql engine..." : "swipe: cursor  ·  2× tap: ⌨  ·  tap: close"}
         </div>
         {/* Results — shown in BOTH modes */}
         {result && (
