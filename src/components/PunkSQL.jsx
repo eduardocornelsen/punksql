@@ -627,11 +627,11 @@ function TabBar({ active, onTabChange }) {
   const { t } = useLang();
   const tabs = [
     { id: "home", label: "~", icon: "~" },
-    { id: "learn", label: "learn", icon: "learn" },
+    { id: "learn", label: "campaign", icon: "campaign" },
     { id: "practice", label: "code", icon: "code" },
     { id: "quiz", label: "quiz", icon: "quiz" },
     { id: "review", label: "cards", icon: "cards" },
-    { id: "profile", label: "stats", icon: "stats" },
+    { id: "profile", label: "player", icon: "player" },
   ];
   return (
     <>
