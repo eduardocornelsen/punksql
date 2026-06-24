@@ -118,6 +118,69 @@ const BOTTOM_TABS = [
   { id: "lineage", label: "DAG",    color: C.purple, icon: "⬡" },
 ];
 
+// ── Smart-newline helpers (SQL + YAML) ───────────────────────
+function sqlLineContext(text, pos) {
+  const before = text.slice(0, pos);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const currentLine = before.slice(lineStart);
+  const indent = (currentLine.match(/^(\s*)/) || ["", ""])[1];
+  return { before, lineStart, currentLine, indent };
+}
+function sqlSmartNewline(text, pos) {
+  const { currentLine, indent } = sqlLineContext(text, pos);
+  const endsWithParen  = /\(\s*$/.test(currentLine);
+  const isSelectClause = /^\s*SELECT\b/i.test(currentLine);
+  const isStandalone   =
+    /^\s*(WITH|FROM|WHERE|HAVING|ON|SET|VALUES)\s*$/i.test(currentLine) ||
+    /^\s*(GROUP\s+BY|ORDER\s+BY|UNION(\s+ALL)?|EXCEPT(\s+ALL)?|INTERSECT(\s+ALL)?)\s*$/i.test(currentLine) ||
+    /^\s*((LEFT|RIGHT|FULL)(\s+OUTER)?\s+JOIN|INNER\s+JOIN|CROSS\s+JOIN|JOIN)\s*$/i.test(currentLine);
+  const extra = (endsWithParen || isSelectClause || isStandalone) ? "  " : "";
+  return "\n" + indent + extra;
+}
+function yamlLint(text) {
+  const issues = [];
+  const lines = text.split("\n");
+  let prevIndent = 0;
+  lines.forEach((line, idx) => {
+    if (!line.trim() || line.trimStart().startsWith("#")) return;
+    const indent = line.match(/^( *)/)[1].length;
+    if (indent % 2 !== 0) issues.push({ type: "warn", msg: `Line ${idx + 1}: odd indentation (${indent} spaces)` });
+    if (indent - prevIndent > 2) issues.push({ type: "warn", msg: `Line ${idx + 1}: indent jumped by ${indent - prevIndent}` });
+    if (/:$/.test(line.trimEnd()) && /:\s+/.test(line)) {
+      // both key: and key: value — fine
+    }
+    prevIndent = indent;
+  });
+  const tabLine = lines.findIndex((l) => /\t/.test(l));
+  if (tabLine >= 0) issues.push({ type: "error", msg: `Line ${tabLine + 1}: tab character (use spaces in YAML)` });
+  return issues;
+}
+
+// ── File-system storage ───────────────────────────────────────
+const FILES_KEY = "punksql-sandbox-files-v1";
+const DEFAULT_FILES = {
+  "queries/main.sql": "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;",
+  "queries/analytics.sql": "-- Revenue by country\nSELECT\n  c.country,\n  COUNT(DISTINCT o.id)    AS orders,\n  ROUND(SUM(o.total_amount), 2) AS revenue\nFROM orders o\nJOIN customers c ON c.id = o.customer_id\nGROUP BY c.country\nORDER BY revenue DESC;",
+  "models/staging/stg_orders.sql": "CREATE VIEW stg_orders AS\nSELECT\n  id,\n  customer_id,\n  CAST(total_amount AS REAL) AS amount,\n  status,\n  order_date\nFROM orders;",
+  "models/mart/fct_revenue.sql": "CREATE VIEW fct_revenue AS\nSELECT\n  o.order_date,\n  c.country,\n  SUM(o.total_amount) AS revenue\nFROM stg_orders o\nJOIN customers c ON c.id = o.customer_id\nGROUP BY o.order_date, c.country;",
+  "dbt_project.yml": DBT_PROJECT_YML,
+};
+function loadFileSystem() {
+  try {
+    const raw = localStorage.getItem(FILES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { ...DEFAULT_FILES };
+}
+function saveFileSystem(fs) {
+  try { localStorage.setItem(FILES_KEY, JSON.stringify(fs)); } catch {}
+}
+function fileExt(name) {
+  const m = name.match(/\.(\w+)$/);
+  return m ? m[1].toLowerCase() : "sql";
+}
+function isYaml(name) { const e = fileExt(name); return e === "yaml" || e === "yml"; }
+
 // ── Autocomplete helpers ───────────────────────────────────────
 function getWordAtCursor(text, pos) {
   const before = text.slice(0, pos);
@@ -525,17 +588,22 @@ function FileTree({ db, lang, onOpenInEditor }) {
   );
 }
 
-// ── SQL Editor view ───────────────────────────────────────────
-function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNames, columnNames, onRefreshCatalog, onLintIssuesChange, insertRef }) {
+// ── SQL / YAML Editor view ────────────────────────────────────
+function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChange, onFileNameChange, tableNames, columnNames, onRefreshCatalog, onLintIssuesChange, insertRef }) {
   const [sql, setSql] = useState(initialSql || "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;");
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [lintIssues, setLintIssues] = useState([]);
+  const [renamingFile, setRenamingFile] = useState(false);
+  const [renameVal, setRenameVal] = useState(fileName || "query.sql");
   const taRef = useRef(null);
+  const renameRef = useRef(null);
   const ispt = lang === "pt";
+  const fileIsYaml = isYaml(fileName || "");
 
-  useEffect(() => { if (initialSql !== undefined && initialSql !== sql) setSql(initialSql); }, [initialSql]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (initialSql !== undefined && initialSql !== sql) { setSql(initialSql); setResult(null); } }, [initialSql]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRenameVal(fileName || "query.sql"); }, [fileName]);
 
   const runQuery = useCallback(() => {
     const trimmed = sql.trim();
@@ -574,43 +642,65 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
   // Populate insertRef on every render so SandboxAuxKeyboard always has fresh closure
   if (insertRef) insertRef.current = insertAtCursorEditor;
 
-  // Smart SQL linter — debounced, runs static analysis + EXPLAIN for SELECT queries
+  // Smart linter — debounced, handles SQL and YAML
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!sql.trim()) { setLintIssues([]); return; }
-      const issues = []; const trimmed = sql.trim();
-      let depth = 0, inStr = false, strCh = '';
-      for (let ci = 0; ci < trimmed.length; ci++) {
-        const c = trimmed[ci];
-        if (inStr) { if (c === strCh) inStr = false; continue; }
-        if (c === "'" || c === '"') { inStr = true; strCh = c; continue; }
-        if (c === '(') depth++;
-        else if (c === ')') depth--;
-      }
-      if (depth > 0) issues.push({ type: 'warn', msg: `${depth} unclosed paren${depth > 1 ? 's' : ''}` });
-      if (depth < 0) issues.push({ type: 'error', msg: `${-depth} extra ')'` });
-      if (/^\s*SELECT\b/i.test(trimmed) && !/\bFROM\b/i.test(trimmed) && !/^\s*SELECT\s+(\d|'|\w+\s*\()/i.test(trimmed)) {
-        issues.push({ type: 'warn', msg: 'SELECT missing FROM' });
-      }
-      if (db && issues.filter(i => i.type === 'error').length === 0) {
-        const clean = trimmed.replace(/;\s*$/, '');
-        if (/^\s*(SELECT|WITH)\b/i.test(clean) && clean.length > 6) {
-          try { const r = execSQL(db, `EXPLAIN QUERY PLAN ${clean}`); if (!r.ok) issues.push({ type: 'error', msg: r.msg.split('\n')[0].replace(/^.*?:\s*/, '') }); } catch(e) {}
+      if (!sql.trim()) { setLintIssues([]); onLintIssuesChange?.([]); return; }
+      let issues = [];
+      if (fileIsYaml) {
+        issues = yamlLint(sql);
+      } else {
+        const trimmed = sql.trim();
+        let depth = 0, inStr = false, strCh = '';
+        for (let ci = 0; ci < trimmed.length; ci++) {
+          const c = trimmed[ci];
+          if (inStr) { if (c === strCh) inStr = false; continue; }
+          if (c === "'" || c === '"') { inStr = true; strCh = c; continue; }
+          if (c === '(') depth++;
+          else if (c === ')') depth--;
+        }
+        if (depth > 0) issues.push({ type: 'warn', msg: `${depth} unclosed paren${depth > 1 ? 's' : ''}` });
+        if (depth < 0) issues.push({ type: 'error', msg: `${-depth} extra ')'` });
+        if (/^\s*SELECT\b/i.test(trimmed) && !/\bFROM\b/i.test(trimmed) && !/^\s*SELECT\s+(\d|'|\w+\s*\()/i.test(trimmed)) {
+          issues.push({ type: 'warn', msg: 'SELECT missing FROM' });
+        }
+        if (db && issues.filter(i => i.type === 'error').length === 0) {
+          const clean = trimmed.replace(/;\s*$/, '');
+          if (/^\s*(SELECT|WITH)\b/i.test(clean) && clean.length > 6) {
+            try { const r = execSQL(db, `EXPLAIN QUERY PLAN ${clean}`); if (!r.ok) issues.push({ type: 'error', msg: r.msg.split('\n')[0].replace(/^.*?:\s*/, '') }); } catch(e) {}
+          }
         }
       }
       setLintIssues(issues);
       onLintIssuesChange?.(issues);
-    }, 500);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [sql, db]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sql, db, fileIsYaml]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onKeyDown = (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); }
-    if (e.key === "Escape") { setSuggestions([]); }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); return; }
+    if (e.key === "Escape") { setSuggestions([]); return; }
     if (e.key === "Tab") {
       e.preventDefault();
       if (suggestions.length > 0) { acceptSuggestionEditor(suggestions[0]); }
       else { const t = taRef.current; const s = t.selectionStart; const next = sql.slice(0, s) + "  " + sql.slice(s); setSql(next); if (notifySqlChange) notifySqlChange(next); requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = s + 2; } }); }
+      return;
+    }
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      const ta = taRef.current;
+      if (!ta) return;
+      const pos = ta.selectionStart;
+      const ins = fileIsYaml ? (() => {
+        // YAML: match current line indent
+        const { indent } = sqlLineContext(sql, pos);
+        return "\n" + indent;
+      })() : sqlSmartNewline(sql, pos);
+      const next = sql.slice(0, pos) + ins + sql.slice(ta.selectionEnd);
+      setSql(next);
+      if (notifySqlChange) notifySqlChange(next);
+      const newPos = pos + ins.length;
+      requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = newPos; } });
     }
   };
 
@@ -619,13 +709,34 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
       {/* Editor toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>📄</span>
-        <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, flex: 1 }}>query.sql</span>
-        <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>Ctrl+Enter</span>
-        <button onClick={runQuery} disabled={!db || !sql.trim() || running} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 14px", background: sql.trim() ? C.cyanGhost : "none", border: `1px solid ${sql.trim() ? C.cyan : C.border}`, color: sql.trim() ? C.cyan : C.dim, cursor: sql.trim() ? "pointer" : "default", letterSpacing: 1 }}>
-          {running ? "…" : "▶ RUN"}
-        </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{fileIsYaml ? "⚙" : "📄"}</span>
+        {renamingFile ? (
+          <input
+            ref={renameRef}
+            value={renameVal}
+            onChange={(e) => setRenameVal(e.target.value)}
+            onBlur={() => { const v = renameVal.trim() || fileName; setRenameVal(v); onFileNameChange?.(v); setRenamingFile(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = renameVal.trim() || fileName; setRenameVal(v); onFileNameChange?.(v); setRenamingFile(false); } if (e.key === "Escape") { setRenameVal(fileName); setRenamingFile(false); } }}
+            style={{ flex: 1, fontFamily: F.mono, fontSize: 11, color: C.amber, background: `${C.amber}10`, border: `1px solid ${C.amber}`, outline: "none", padding: "1px 6px" }}
+            autoFocus
+          />
+        ) : (
+          <button
+            onDoubleClick={() => { setRenameVal(fileName || "query.sql"); setRenamingFile(true); setTimeout(() => renameRef.current?.select(), 50); }}
+            title="Double-click to rename"
+            style={{ fontFamily: F.mono, fontSize: 11, color: fileIsYaml ? C.green : C.amber, flex: 1, background: "none", border: "none", cursor: "text", textAlign: "left", padding: 0 }}
+          >{fileName || "query.sql"}</button>
+        )}
+        {fileIsYaml
+          ? <span style={{ fontFamily: F.mono, fontSize: 9, color: C.green, flexShrink: 0, letterSpacing: 1 }}>YAML</span>
+          : <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, flexShrink: 0 }}>Ctrl+↵</span>
+        }
+        {!fileIsYaml && (
+          <button onClick={runQuery} disabled={!db || !sql.trim() || running} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 12px", background: sql.trim() ? C.cyanGhost : "none", border: `1px solid ${sql.trim() ? C.cyan : C.border}`, color: sql.trim() ? C.cyan : C.dim, cursor: sql.trim() ? "pointer" : "default", letterSpacing: 1, flexShrink: 0 }}>
+            {running ? "…" : "▶ RUN"}
+          </button>
+        )}
       </div>
 
       {/* Tab prediction chip bar — sits between toolbar and editor so it stays visible when keyboard opens */}
@@ -769,6 +880,179 @@ function LineageStack({ db, lang }) {
   );
 }
 
+// ── File Manager Panel (hamburger sidebar) ────────────────────
+function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile, onClose }) {
+  const [newName, setNewName] = useState("");
+  const [newFolder, setNewFolder] = useState("queries");
+  const [creatingFile, setCreatingFile] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const folders = useMemo(() => {
+    const s = new Set(Object.keys(files).map((p) => p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : ""));
+    s.add("queries"); s.add("models/staging"); s.add("models/intermediate"); s.add("models/mart");
+    return [...s].filter(Boolean).sort();
+  }, [files]);
+
+  const byFolder = useMemo(() => {
+    const m = {};
+    Object.keys(files).forEach((path) => {
+      const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "(root)";
+      if (!m[folder]) m[folder] = [];
+      m[folder].push(path);
+    });
+    return m;
+  }, [files]);
+
+  const allFolders = useMemo(() => {
+    const s = new Set(Object.keys(byFolder));
+    ["queries", "models/staging", "models/intermediate", "models/mart"].forEach((f) => s.add(f));
+    return [...s].sort();
+  }, [byFolder]);
+
+  const handleCreate = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const hasExt = /\.(sql|yaml|yml)$/i.test(name);
+    const fullName = hasExt ? name : name + ".sql";
+    const path = newFolder ? `${newFolder}/${fullName}` : fullName;
+    onNewFile(path);
+    setNewName("");
+    setCreatingFile(false);
+  };
+
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 150, display: "flex" }}>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
+
+      {/* Panel */}
+      <div style={{ position: "relative", zIndex: 1, width: "80%", maxWidth: 320, height: "100%", background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+        {/* Panel header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, flex: 1, letterSpacing: 1 }}>FILES</span>
+          <button
+            onClick={() => setCreatingFile((v) => !v)}
+            style={{ fontFamily: F.mono, fontSize: 12, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px" }}
+            title="New file"
+          >+ new</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "2px 4px" }}>✕</button>
+        </div>
+
+        {/* New file form */}
+        {creatingFile && (
+          <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
+            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>FOLDER</div>
+            <select
+              value={newFolder}
+              onChange={(e) => setNewFolder(e.target.value)}
+              style={{ width: "100%", fontFamily: F.mono, fontSize: 11, background: C.black, color: C.text, border: `1px solid ${C.border}`, padding: "4px 6px", marginBottom: 8 }}
+            >
+              {folders.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>FILENAME (.sql or .yml)</div>
+            <input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreatingFile(false); }}
+              placeholder="my_query.sql"
+              style={{ width: "100%", fontFamily: F.mono, fontSize: 11, background: C.black, color: C.white, border: `1px solid ${C.amber}`, outline: "none", padding: "4px 6px", boxSizing: "border-box", marginBottom: 8 }}
+            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={handleCreate} style={{ fontFamily: F.mono, fontSize: 10, color: C.green, background: `${C.green}14`, border: `1px solid ${C.green}`, cursor: "pointer", padding: "4px 10px", flex: 1 }}>✓ create</button>
+              <button onClick={() => setCreatingFile(false)} style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "4px 10px" }}>cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* File tree */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+          {allFolders.map((folder) => {
+            const folderFiles = byFolder[folder] || [];
+            return (
+              <div key={folder} style={{ marginBottom: 4 }}>
+                <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "4px 12px 2px", letterSpacing: 1 }}>
+                  📁 {folder}/
+                </div>
+                {folderFiles.length === 0 && (
+                  <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, paddingLeft: 26, paddingBottom: 2 }}>empty</div>
+                )}
+                {folderFiles.sort().map((path) => {
+                  const name = path.slice(path.lastIndexOf("/") + 1);
+                  const isCurrent = path === currentFile;
+                  const yaml = isYaml(name);
+                  const col = yaml ? C.green : C.amber;
+                  return (
+                    <div key={path} style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}12` : "none", borderLeft: isCurrent ? `2px solid ${col}` : "2px solid transparent" }}>
+                      <button
+                        onClick={() => { onOpen(path); onClose(); }}
+                        style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "5px 12px 5px 10px", textAlign: "left" }}
+                      >
+                        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{yaml ? "⚙" : "📄"}</span>
+                        <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? col : C.text }}>{name}</span>
+                        {yaml && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.green, marginLeft: "auto", flexShrink: 0 }}>YAML</span>}
+                      </button>
+                      {confirmDelete === path ? (
+                        <button
+                          onClick={() => { onDeleteFile(path); setConfirmDelete(null); }}
+                          style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}14`, border: `1px solid ${C.red}`, cursor: "pointer", padding: "2px 6px", margin: "0 8px 0 0", flexShrink: 0 }}
+                        >del?</button>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(path)}
+                          style={{ fontFamily: F.mono, fontSize: 10, color: C.border, background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0 }}
+                          title="Delete file"
+                        >✕</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          {/* Root-level files */}
+          {(byFolder["(root)"] || []).map((path) => {
+            const isCurrent = path === currentFile;
+            const yaml = isYaml(path);
+            const col = yaml ? C.green : C.amber;
+            return (
+              <div key={path} style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}12` : "none", borderLeft: isCurrent ? `2px solid ${col}` : "2px solid transparent" }}>
+                <button
+                  onClick={() => { onOpen(path); onClose(); }}
+                  style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "5px 12px 5px 10px", textAlign: "left" }}
+                >
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{yaml ? "⚙" : "📄"}</span>
+                  <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? col : C.text }}>{path}</span>
+                </button>
+                {confirmDelete === path ? (
+                  <button
+                    onClick={() => { onDeleteFile(path); setConfirmDelete(null); }}
+                    style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}14`, border: `1px solid ${C.red}`, cursor: "pointer", padding: "2px 6px", margin: "0 8px 0 0", flexShrink: 0 }}
+                  >del?</button>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(path)}
+                    style={{ fontFamily: F.mono, fontSize: 10, color: C.border, background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0 }}
+                  >✕</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, lineHeight: 1.8 }}>
+            Double-click filename in editor to rename.<br />
+            .sql files run against SQLite.<br />
+            .yaml / .yml files get YAML linting.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── SandboxScreen ─────────────────────────────────────────────
 export default function SandboxScreen({ onBack, lang = "en" }) {
   const { scrollback, replHistory, pushBlock, clearScrollback, pushHistory, navigateHistory, resetHistoryIndex } = useSandboxStore();
@@ -785,13 +1069,58 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const [kbdOpen, setKbdOpen] = useState(false);
   const [showOnboard, setShowOnboard] = useState(false);
   const [editorLintIssues, setEditorLintIssues] = useState([]);
-  const [editorKbdOpen, setEditorKbdOpen] = useState(false);
+  const [editorKbdOpen, setEditorKbdOpen] = useState(true);
+  const [files, setFiles] = useState(() => loadFileSystem());
+  const [currentFile, setCurrentFile] = useState("queries/main.sql");
+  const [showFileManager, setShowFileManager] = useState(false);
 
   const textareaRef = useRef(null);
   const scrollRef = useRef(null);
   const chipBarSwipeRef = useRef(null);
   const editorInsertRef = useRef(null);
   const ispt = lang === "pt";
+
+  // Persist files whenever they change
+  useEffect(() => { saveFileSystem(files); }, [files]);
+
+  const openFile = useCallback((path) => {
+    setCurrentFile(path);
+    setEditorInitialSql(files[path] ?? "");
+    setActiveView("editor");
+  }, [files]);
+
+  const handleFileSave = useCallback((path, content) => {
+    setFiles((prev) => ({ ...prev, [path]: content }));
+  }, []);
+
+  const handleFileNameChange = useCallback((newPath) => {
+    if (!newPath || newPath === currentFile) return;
+    setFiles((prev) => {
+      const next = { ...prev };
+      next[newPath] = next[currentFile] ?? "";
+      delete next[currentFile];
+      return next;
+    });
+    setCurrentFile(newPath);
+  }, [currentFile]);
+
+  const handleNewFile = useCallback((path) => {
+    const defaultContent = isYaml(path) ? "# YAML configuration\n" : "-- New query\nSELECT 1;";
+    setFiles((prev) => ({ ...prev, [path]: prev[path] ?? defaultContent }));
+    setCurrentFile(path);
+    setEditorInitialSql(undefined);
+    setActiveView("editor");
+  }, []);
+
+  const handleDeleteFile = useCallback((path) => {
+    setFiles((prev) => { const next = { ...prev }; delete next[path]; return next; });
+    if (path === currentFile) {
+      const remaining = Object.keys(files).filter((p) => p !== path);
+      const next = remaining[0] || "queries/main.sql";
+      setCurrentFile(next);
+      setEditorInitialSql(files[next] ?? "");
+    }
+  }, [currentFile, files]);
 
   const refreshCatalog = useCallback((dbInst) => {
     const d = dbInst || db;
@@ -923,10 +1252,25 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void, fontFamily: F.mono, position: "relative" }}>
 
       {showOnboard && <OnboardingModal onClose={closeOnboard} />}
+      {showFileManager && (
+        <FileManagerPanel
+          files={files}
+          currentFile={currentFile}
+          onOpen={openFile}
+          onNewFile={handleNewFile}
+          onDeleteFile={handleDeleteFile}
+          onClose={() => setShowFileManager(false)}
+        />
+      )}
 
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0 }}>←</button>
+        <button
+          onClick={() => setShowFileManager((v) => !v)}
+          title="File manager"
+          style={{ background: showFileManager ? `${C.amber}14` : "none", border: `1px solid ${showFileManager ? C.amber : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: showFileManager ? C.amber : C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0, lineHeight: 1 }}
+        >☰</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
@@ -958,10 +1302,13 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
             <SqlEditor
               db={db}
               lang={lang}
-              initialSql={editorInitialSql}
+              initialSql={editorInitialSql ?? files[currentFile]}
+              fileName={currentFile}
+              onFileNameChange={handleFileNameChange}
               tableNames={tableNames}
               columnNames={columnNames}
               onRefreshCatalog={refreshCatalog}
+              onSqlChange={(content) => handleFileSave(currentFile, content)}
               onLintIssuesChange={setEditorLintIssues}
               insertRef={editorInsertRef}
             />
@@ -977,7 +1324,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               </div>
             )}
 
-            {/* SQL Keyboard */}
+            {/* SQL Keyboard — always starts expanded */}
             {editorKbdOpen && (
               <SandboxAuxKeyboard
                 onInsert={(text) => editorInsertRef.current?.(text)}
@@ -1002,7 +1349,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
           <FileTree
             db={db}
             lang={lang}
-            onOpenInEditor={(sql) => { setEditorInitialSql(sql); setActiveView("editor"); }}
+            onOpenInEditor={(sql) => { setEditorInitialSql(sql); setCurrentFile("queries/main.sql"); setActiveView("editor"); }}
           />
         )}
 
