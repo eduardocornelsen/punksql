@@ -812,13 +812,7 @@ function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChang
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
       {/* Editor toolbar */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
-        {/* Folder button — opens file manager */}
-        <button
-          onMouseDown={(e) => { e.preventDefault(); onOpenFileManager?.(); }}
-          title="Files &amp; Schema"
-          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 7px", flexShrink: 0, lineHeight: 1, display: "flex", alignItems: "center" }}
-        ><FolderIcon size={14} /></button>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{fileIsYaml ? "⚙" : "📄"}</span>
+        <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{fileIsYaml ? <YamlFileIcon size={14} /> : <SqlFileIcon size={14} />}</span>
         {renamingFile ? (
           <input
             ref={renameRef}
