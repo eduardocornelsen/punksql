@@ -849,7 +849,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}>
         <Prompt path="/learn" /><span style={{ color: C.text }}> ls -la modules/</span>
       </div>
-      <div style={{ fontSize: 11, color: C.dim, marginBottom: 14 }}>
+      <div style={{ fontSize: 11, color: C.dim, marginBottom: 10 }}>
         {t("learn_title")} {t("learn_sub")}
       </div>
       <StdoutList
@@ -865,20 +865,20 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
               onClick={clickable ? () => onNavigate("lesson", m.id) : undefined}
               disabled={lock}
               style={{
-                display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
+                display: "flex", alignItems: "flex-start", gap: 7, padding: "6px 12px",
                 background: act ? C.panel : "none", border: `1px solid ${act ? C.border : "transparent"}`,
                 cursor: clickable ? "pointer" : "default",
                 textAlign: "left", width: "100%",
                 opacity: lock ? 0.35 : 1,
               }}
             >
-              <span style={{ color: nc, fontSize: 13, minWidth: 20, lineHeight: 1.6 }}>
+              <span style={{ color: nc, fontSize: 12, minWidth: 20, lineHeight: 1.4 }}>
                 {done ? "✓" : act ? "▶" : "·"}
               </span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.dim }}>mod_{String(m.id).padStart(2,"0")}/</span>
-                  <span style={{ fontSize: 13, color: nc }}>{m.n}</span>
+                  <span style={{ fontSize: 11, color: C.dim }}>mod_{String(m.id).padStart(2,"0")}/</span>
+                  <span style={{ fontSize: 12, color: nc }}>{m.n}</span>
                   {done && <span style={{ fontSize: 11, color: C.green, marginLeft: "auto" }}>+{m.xp}xp</span>}
                   {lock && <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>[LOCKED]</span>}
                 </div>
@@ -3017,14 +3017,14 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
           return (
             <button onClick={() => onNavigate("challenge", ch.id)} style={{
               background: "none", border: `1px solid ${isSolved ? `${C.green}25` : "transparent"}`,
-              cursor: "pointer", textAlign: "left", width: "100%", padding: "8px 10px",
-              display: "flex", alignItems: "center", gap: 10,
+              cursor: "pointer", textAlign: "left", width: "100%", padding: "4px 10px",
+              display: "flex", alignItems: "center", gap: 8,
             }}>
               <span style={{ color: isSolved ? C.green : C.muted, fontSize: 11, width: 14, flexShrink: 0 }}>
                 {isSolved ? "✓" : "·"}
               </span>
               <span style={{ color: dc, fontSize: 10, minWidth: 32, flexShrink: 0 }}>{ch.diff}</span>
-              <span style={{ fontSize: 13, color: isSolved ? C.dim : C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12, color: isSolved ? C.dim : C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {ch.title}
               </span>
               {tm && (
