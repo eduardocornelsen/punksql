@@ -2912,9 +2912,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
                 onPointerLeave={() => { clearTimeout(bsTimerRef.current); clearInterval(bsIntervalRef.current); }}
                 style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 16, color: C.dim, minHeight: 40, width: 42, flexShrink: 0, fontWeight: 700 }}>⌫</button>}
               {!editing && <button onClick={() => insert(" ")} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 18, color: C.dim, minHeight: 40, flex: 1, flexShrink: 0 }}>⎵</button>}
-              <button onClick={smartEnter} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
-              <button onClick={resetSQL} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
-              <button ref={runBtnRef} onClick={handleRun} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.green, background: "none", border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
+              <button onPointerDown={e => { e.preventDefault(); smartEnter(); }} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "8px 0", fontFamily: F.mono, fontSize: 15, color: C.dim, minHeight: 40, width: 42, flexShrink: 0 }}>↵</button>
+              <button onPointerDown={e => { e.preventDefault(); resetSQL(); }} style={{ padding: "8px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 15, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 40, width: 38, flexShrink: 0 }}>↺</button>
+              <button ref={runBtnRef} onPointerDown={e => { e.preventDefault(); if (dbReady) handleRun(); }} disabled={!dbReady} style={{ flex: 1, padding: "8px 0", cursor: dbReady ? "pointer" : "not-allowed", fontFamily: F.mono, fontSize: 14, letterSpacing: 1, fontWeight: 700, color: C.green, background: "none", border: `1px solid ${C.green}`, minHeight: 40, opacity: dbReady ? 1 : 0.5 }}>▶ RUN</button>
             </div>
           )}
         </div>
