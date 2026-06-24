@@ -589,7 +589,7 @@ function FileTree({ db, lang, onOpenInEditor }) {
 }
 
 // ── SQL / YAML Editor view ────────────────────────────────────
-function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChange, onFileNameChange, tableNames, columnNames, onRefreshCatalog, onLintIssuesChange, insertRef }) {
+function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChange, onFileNameChange, onOpenFileManager, tableNames, columnNames, onRefreshCatalog, onLintIssuesChange, insertRef }) {
   const [sql, setSql] = useState(initialSql || "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;");
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
@@ -598,9 +598,21 @@ function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChang
   const [renamingFile, setRenamingFile] = useState(false);
   const [renameVal, setRenameVal] = useState(fileName || "query.sql");
   const taRef = useRef(null);
+  const hlRef = useRef(null);
   const renameRef = useRef(null);
   const ispt = lang === "pt";
   const fileIsYaml = isYaml(fileName || "");
+
+  const tableSet = useMemo(() => new Set(tableNames.map((t) => t.toLowerCase())), [tableNames]);
+  const colSet   = useMemo(() => new Set(columnNames.map((c) => c.toLowerCase())), [columnNames]);
+
+  // Keep highlight layer scrolled in sync with textarea
+  const syncScroll = useCallback(() => {
+    if (taRef.current && hlRef.current) {
+      hlRef.current.scrollTop  = taRef.current.scrollTop;
+      hlRef.current.scrollLeft = taRef.current.scrollLeft;
+    }
+  }, []);
 
   useEffect(() => { if (initialSql !== undefined && initialSql !== sql) { setSql(initialSql); setResult(null); } }, [initialSql]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRenameVal(fileName || "query.sql"); }, [fileName]);
@@ -710,6 +722,12 @@ function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChang
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
       {/* Editor toolbar */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        {/* Hamburger ☰ — opens file manager */}
+        <button
+          onMouseDown={(e) => { e.preventDefault(); onOpenFileManager?.(); }}
+          title="Files"
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 7px", flexShrink: 0, lineHeight: 1 }}
+        >☰</button>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{fileIsYaml ? "⚙" : "📄"}</span>
         {renamingFile ? (
           <input
@@ -725,7 +743,7 @@ function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChang
           <button
             onDoubleClick={() => { setRenameVal(fileName || "query.sql"); setRenamingFile(true); setTimeout(() => renameRef.current?.select(), 50); }}
             title="Double-click to rename"
-            style={{ fontFamily: F.mono, fontSize: 11, color: fileIsYaml ? C.green : C.amber, flex: 1, background: "none", border: "none", cursor: "text", textAlign: "left", padding: 0 }}
+            style={{ fontFamily: F.mono, fontSize: 11, color: fileIsYaml ? C.green : C.amber, flex: 1, background: "none", border: "none", cursor: "text", textAlign: "left", padding: 0, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
           >{fileName || "query.sql"}</button>
         )}
         {fileIsYaml
@@ -766,17 +784,57 @@ function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChang
               <div key={i} style={{ fontFamily: F.mono, fontSize: 12, color: C.border, lineHeight: "1.6em" }}>{i + 1}</div>
             ))}
           </div>
-          {/* Textarea */}
-          <textarea
-            ref={taRef}
-            value={sql}
-            onChange={(e) => { setSql(e.target.value); if (notifySqlChange) notifySqlChange(e.target.value); updateSuggestions(e.target.value, e.target.selectionStart); }}
-            onKeyDown={onKeyDown}
-            spellCheck={false}
-            autoComplete="off"
-            placeholder={"-- Write SQL here\n-- Ctrl+Enter to run\n\nSELECT *\nFROM customers\nLIMIT 10;"}
-            style={{ flex: 1, fontFamily: F.mono, fontSize: 12, color: C.white, background: C.surface, border: "none", outline: "none", resize: "none", padding: "10px 12px 10px 6px", lineHeight: "1.6em", caretColor: C.green, overflowY: "auto" }}
-          />
+          {/* Highlight overlay + textarea stack */}
+          <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
+            {/* Highlight layer — rendered HTML behind the textarea */}
+            <pre
+              ref={hlRef}
+              aria-hidden="true"
+              style={{
+                position: "absolute", inset: 0,
+                fontFamily: F.mono, fontSize: 12, lineHeight: "1.6em",
+                padding: "10px 12px 10px 6px",
+                margin: 0,
+                whiteSpace: "pre-wrap", wordBreak: "break-word",
+                overflowY: "auto", overflowX: "hidden",
+                pointerEvents: "none",
+                background: C.surface,
+                color: "transparent",
+              }}
+              dangerouslySetInnerHTML={{ __html:
+                tokensToHtml(
+                  fileIsYaml ? tokenizeYAML(sql || "") : tokenizeSQL(sql || "", tableSet, colSet)
+                ) + "<br/>"
+              }}
+            />
+            {/* Transparent textarea on top — caret + selection only */}
+            <textarea
+              ref={taRef}
+              value={sql}
+              onChange={(e) => {
+                setSql(e.target.value);
+                if (notifySqlChange) notifySqlChange(e.target.value);
+                updateSuggestions(e.target.value, e.target.selectionStart);
+              }}
+              onKeyDown={onKeyDown}
+              onScroll={syncScroll}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder={fileIsYaml ? "# YAML config\n" : "-- Write SQL here\n-- Ctrl+Enter to run\n\nSELECT *\nFROM customers\nLIMIT 10;"}
+              style={{
+                position: "absolute", inset: 0,
+                fontFamily: F.mono, fontSize: 12, lineHeight: "1.6em",
+                padding: "10px 12px 10px 6px",
+                margin: 0,
+                color: "transparent",
+                caretColor: C.green,
+                background: "transparent",
+                border: "none", outline: "none", resize: "none",
+                overflowY: "auto", overflowX: "hidden",
+                whiteSpace: "pre-wrap", wordBreak: "break-word",
+              }}
+            />
+          </div>
         </div>
 
         {/* Results panel */}
@@ -880,12 +938,174 @@ function LineageStack({ db, lang }) {
   );
 }
 
+// ── Syntax tokenizers ─────────────────────────────────────────
+const SQL_KW_SET = new Set([
+  "SELECT","DISTINCT","FROM","WHERE","JOIN","ON","LEFT","RIGHT","INNER","FULL","CROSS",
+  "GROUP","ORDER","HAVING","LIMIT","OFFSET","AS","WITH","UNION","ALL","EXCEPT","INTERSECT",
+  "AND","OR","NOT","IN","LIKE","ILIKE","BETWEEN","IS","NULL","EXISTS","CASE","WHEN","THEN",
+  "ELSE","END","ASC","DESC","PARTITION","OVER","ROWS","PRECEDING","CURRENT","ROW","BY",
+  "CREATE","DROP","ALTER","INSERT","INTO","VALUES","UPDATE","SET","DELETE","TABLE","VIEW",
+  "INDEX","UNIQUE","IF","ADD","COLUMN","RENAME","PRIMARY","KEY","REFERENCES","DEFAULT",
+  "AUTOINCREMENT","SAVEPOINT","RELEASE","ROLLBACK","ATTACH","DETACH","PRAGMA",
+  "OUTER","NATURAL","USING","RETURNING","EXPLAIN","QUERY","PLAN",
+]);
+const SQL_FUNC_SET = new Set([
+  "COUNT","SUM","AVG","MIN","MAX","ROUND","COALESCE","NULLIF","CAST","TYPEOF",
+  "LENGTH","UPPER","LOWER","SUBSTR","TRIM","REPLACE","INSTR","DATE","STRFTIME",
+  "JULIANDAY","ROW_NUMBER","RANK","DENSE_RANK","LAG","LEAD","FIRST_VALUE",
+  "LAST_VALUE","NTILE","PERCENT_RANK","ABS","RANDOM","IFNULL","PRINTF","IIF",
+]);
+const SQL_TYPE_SET = new Set(["INTEGER","TEXT","REAL","BLOB","NUMERIC","BOOLEAN"]);
+
+function tokenizeSQL(code, tableSet, colSet) {
+  const tokens = [];
+  let i = 0;
+  while (i < code.length) {
+    // line comment
+    if (code[i] === "-" && code[i+1] === "-") {
+      let j = i; while (j < code.length && code[j] !== "\n") j++;
+      tokens.push({ color: "#3d5a45", text: code.slice(i, j) }); // dim green
+      i = j; continue;
+    }
+    // block comment
+    if (code[i] === "/" && code[i+1] === "*") {
+      let j = i + 2; while (j < code.length - 1 && !(code[j] === "*" && code[j+1] === "/")) j++;
+      tokens.push({ color: "#3d5a45", text: code.slice(i, j + 2) });
+      i = j + 2; continue;
+    }
+    // string literal
+    if (code[i] === "'" || code[i] === '"') {
+      const q = code[i]; let j = i + 1;
+      while (j < code.length && code[j] !== q) { if (code[j] === "\\") j++; j++; }
+      tokens.push({ color: "#b5946a", text: code.slice(i, j + 1) }); // amber-ish
+      i = j + 1; continue;
+    }
+    // number
+    if (/[0-9]/.test(code[i])) {
+      let j = i; while (j < code.length && /[0-9.]/.test(code[j])) j++;
+      tokens.push({ color: "#7ec8a0", text: code.slice(i, j) }); // soft green
+      i = j; continue;
+    }
+    // word
+    if (/[A-Za-z_]/.test(code[i])) {
+      let j = i; while (j < code.length && /[A-Za-z0-9_]/.test(code[j])) j++;
+      const word = code.slice(i, j);
+      const up = word.toUpperCase();
+      let color = C.text;
+      if (SQL_KW_SET.has(up))              color = "#00FFFF"; // cyan
+      else if (SQL_FUNC_SET.has(up))       color = "#CC88FF"; // purple
+      else if (SQL_TYPE_SET.has(up))       color = "#FF9944"; // orange
+      else if (tableSet.has(word.toLowerCase())) color = "#00FF88"; // green
+      else if (colSet.has(word.toLowerCase()))   color = "#AADDFF"; // light blue
+      tokens.push({ color, text: word });
+      i = j; continue;
+    }
+    // punctuation: (, ), ,, ;
+    if ("(),;".includes(code[i])) {
+      tokens.push({ color: "#777777", text: code[i] }); i++; continue;
+    }
+    // operators
+    if ("=<>!".includes(code[i])) {
+      let j = i; while (j < code.length && "=<>!".includes(code[j])) j++;
+      tokens.push({ color: "#88BBDD", text: code.slice(i, j) }); // pale blue
+      i = j; continue;
+    }
+    // everything else (whitespace, symbols)
+    tokens.push({ color: C.dim, text: code[i] }); i++;
+  }
+  return tokens;
+}
+
+function tokenizeYAML(code) {
+  const tokens = [];
+  for (const rawLine of code.split("\n")) {
+    const line = rawLine;
+    // comment
+    if (/^\s*#/.test(line)) {
+      tokens.push({ color: "#3d5a45", text: line }); tokens.push({ color: C.dim, text: "\n" }); continue;
+    }
+    // key: value
+    const kv = line.match(/^(\s*)([\w-]+)(\s*:\s*)(.*)$/);
+    if (kv) {
+      const [, indent, key, colon, val] = kv;
+      tokens.push({ color: C.dim, text: indent });
+      tokens.push({ color: "#00FFFF", text: key });     // key = cyan
+      tokens.push({ color: "#555555", text: colon });   // colon = dim
+      // value
+      if (/^["']/.test(val.trim())) {
+        tokens.push({ color: "#b5946a", text: val });   // string = amber
+      } else if (/^(true|false|null|~)$/i.test(val.trim())) {
+        tokens.push({ color: "#CC88FF", text: val });   // special = purple
+      } else if (/^-?\d/.test(val.trim())) {
+        tokens.push({ color: "#7ec8a0", text: val });   // number = green
+      } else {
+        tokens.push({ color: C.text, text: val });
+      }
+      tokens.push({ color: C.dim, text: "\n" }); continue;
+    }
+    // list item
+    const li = line.match(/^(\s*-\s+)(.*)$/);
+    if (li) {
+      tokens.push({ color: "#555555", text: li[1] });
+      tokens.push({ color: C.text, text: li[2] });
+      tokens.push({ color: C.dim, text: "\n" }); continue;
+    }
+    // section header (word ending with :)
+    if (/^\s*[\w-]+:\s*$/.test(line)) {
+      const m = line.match(/^(\s*)([\w-]+)(:\s*)$/);
+      if (m) {
+        tokens.push({ color: C.dim, text: m[1] });
+        tokens.push({ color: "#FFBB00", text: m[2] }); // amber for section keys
+        tokens.push({ color: "#555555", text: m[3] });
+        tokens.push({ color: C.dim, text: "\n" }); continue;
+      }
+    }
+    tokens.push({ color: C.text, text: line });
+    tokens.push({ color: C.dim, text: "\n" });
+  }
+  return tokens;
+}
+
+// Build HTML string from token array for use as innerHTML
+function tokensToHtml(tokens) {
+  return tokens.map(({ color, text }) => {
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return `<span style="color:${color}">${escaped}</span>`;
+  }).join("");
+}
+
+// ── Shared file row used in FileManagerPanel ──────────────────
+function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, confirmDelete, setConfirmDelete, onDeleteFile }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}12` : "none", borderLeft: isCurrent ? `2px solid ${col}` : "2px solid transparent" }}>
+      <button
+        onClick={() => { onOpen(path); onClose(); }}
+        style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: `4px 10px 4px ${10 + indent}px`, textAlign: "left", minWidth: 0 }}
+      >
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{yaml ? "⚙" : "📄"}</span>
+        <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? col : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+        {yaml && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.green, marginLeft: "auto", flexShrink: 0, paddingLeft: 4 }}>yml</span>}
+      </button>
+      {confirmDelete === path ? (
+        <button onClick={() => { onDeleteFile(path); setConfirmDelete(null); }}
+          style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}14`, border: `1px solid ${C.red}`, cursor: "pointer", padding: "2px 6px", margin: "0 8px 0 0", flexShrink: 0 }}>del?</button>
+      ) : (
+        <button onClick={() => setConfirmDelete(path)}
+          style={{ fontFamily: F.mono, fontSize: 10, color: C.border, background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0 }}>✕</button>
+      )}
+    </div>
+  );
+}
+
 // ── File Manager Panel (hamburger sidebar) ────────────────────
 function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile, onClose }) {
   const [newName, setNewName] = useState("");
   const [newFolder, setNewFolder] = useState("queries");
   const [creatingFile, setCreatingFile] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [collapsed, setCollapsed] = useState({});
+
+  const toggleFolder = (f) => setCollapsed((s) => ({ ...s, [f]: !s[f] }));
 
   const folders = useMemo(() => {
     const s = new Set(Object.keys(files).map((p) => p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : ""));
@@ -903,6 +1123,7 @@ function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile,
     return m;
   }, [files]);
 
+  // Build top-level tree: group subfolders under their parent
   const allFolders = useMemo(() => {
     const s = new Set(Object.keys(byFolder));
     ["queries", "models/staging", "models/intermediate", "models/mart"].forEach((f) => s.add(f));
@@ -966,75 +1187,63 @@ function FileManagerPanel({ files, currentFile, onOpen, onNewFile, onDeleteFile,
         )}
 
         {/* File tree */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-          {allFolders.map((folder) => {
-            const folderFiles = byFolder[folder] || [];
-            return (
-              <div key={folder} style={{ marginBottom: 4 }}>
-                <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "4px 12px 2px", letterSpacing: 1 }}>
-                  📁 {folder}/
-                </div>
-                {folderFiles.length === 0 && (
-                  <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, paddingLeft: 26, paddingBottom: 2 }}>empty</div>
-                )}
-                {folderFiles.sort().map((path) => {
-                  const name = path.slice(path.lastIndexOf("/") + 1);
-                  const isCurrent = path === currentFile;
-                  const yaml = isYaml(name);
-                  const col = yaml ? C.green : C.amber;
-                  return (
-                    <div key={path} style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}12` : "none", borderLeft: isCurrent ? `2px solid ${col}` : "2px solid transparent" }}>
-                      <button
-                        onClick={() => { onOpen(path); onClose(); }}
-                        style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "5px 12px 5px 10px", textAlign: "left" }}
-                      >
-                        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{yaml ? "⚙" : "📄"}</span>
-                        <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? col : C.text }}>{name}</span>
-                        {yaml && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.green, marginLeft: "auto", flexShrink: 0 }}>YAML</span>}
-                      </button>
-                      {confirmDelete === path ? (
-                        <button
-                          onClick={() => { onDeleteFile(path); setConfirmDelete(null); }}
-                          style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}14`, border: `1px solid ${C.red}`, cursor: "pointer", padding: "2px 6px", margin: "0 8px 0 0", flexShrink: 0 }}
-                        >del?</button>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDelete(path)}
-                          style={{ fontFamily: F.mono, fontSize: 10, color: C.border, background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0 }}
-                          title="Delete file"
-                        >✕</button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-
-          {/* Root-level files */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
+          {/* Root-level files (e.g. dbt_project.yml) */}
           {(byFolder["(root)"] || []).map((path) => {
             const isCurrent = path === currentFile;
             const yaml = isYaml(path);
             const col = yaml ? C.green : C.amber;
             return (
-              <div key={path} style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}12` : "none", borderLeft: isCurrent ? `2px solid ${col}` : "2px solid transparent" }}>
+              <FileRow key={path} path={path} name={path} isCurrent={isCurrent} yaml={yaml} col={col}
+                indent={0} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
+                setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile} />
+            );
+          })}
+
+          {/* Folders */}
+          {allFolders.map((folder) => {
+            const folderFiles = (byFolder[folder] || []).sort();
+            const isOpen = !collapsed[folder];
+            // folder label color by type
+            const fc = folder.startsWith("models/mart") ? C.green
+              : folder.startsWith("models/intermediate") ? C.amber
+              : folder.startsWith("models") ? C.cyan
+              : C.dim;
+            return (
+              <div key={folder}>
+                {/* Folder header */}
                 <button
-                  onClick={() => { onOpen(path); onClose(); }}
-                  style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "5px 12px 5px 10px", textAlign: "left" }}
+                  onClick={() => toggleFolder(folder)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "5px 10px", textAlign: "left" }}
                 >
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{yaml ? "⚙" : "📄"}</span>
-                  <span style={{ fontFamily: F.mono, fontSize: 11, color: isCurrent ? col : C.text }}>{path}</span>
+                  <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, width: 10, flexShrink: 0, transition: "transform 0.15s", display: "inline-block", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: fc }}>
+                    {folder.includes("/") ? folder.slice(folder.lastIndexOf("/") + 1) : folder}
+                    <span style={{ color: C.border }}>/</span>
+                  </span>
+                  {!isOpen && folderFiles.length > 0 && (
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.border, marginLeft: "auto" }}>{folderFiles.length}</span>
+                  )}
                 </button>
-                {confirmDelete === path ? (
-                  <button
-                    onClick={() => { onDeleteFile(path); setConfirmDelete(null); }}
-                    style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}14`, border: `1px solid ${C.red}`, cursor: "pointer", padding: "2px 6px", margin: "0 8px 0 0", flexShrink: 0 }}
-                  >del?</button>
-                ) : (
-                  <button
-                    onClick={() => setConfirmDelete(path)}
-                    style={{ fontFamily: F.mono, fontSize: 10, color: C.border, background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0 }}
-                  >✕</button>
+
+                {/* Files inside folder */}
+                {isOpen && (
+                  <div>
+                    {folderFiles.length === 0 && (
+                      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, paddingLeft: 30, paddingBottom: 3 }}>empty</div>
+                    )}
+                    {folderFiles.map((path) => {
+                      const name = path.slice(path.lastIndexOf("/") + 1);
+                      const isCurrent = path === currentFile;
+                      const yaml = isYaml(name);
+                      const col = yaml ? C.green : C.amber;
+                      return (
+                        <FileRow key={path} path={path} name={name} isCurrent={isCurrent} yaml={yaml} col={col}
+                          indent={16} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
+                          setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile} />
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             );
@@ -1266,11 +1475,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0 }}>←</button>
-        <button
-          onClick={() => setShowFileManager((v) => !v)}
-          title="File manager"
-          style={{ background: showFileManager ? `${C.amber}14` : "none", border: `1px solid ${showFileManager ? C.amber : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: showFileManager ? C.amber : C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0, lineHeight: 1 }}
-        >☰</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
@@ -1305,6 +1509,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               initialSql={editorInitialSql ?? files[currentFile]}
               fileName={currentFile}
               onFileNameChange={handleFileNameChange}
+              onOpenFileManager={() => setShowFileManager(true)}
               tableNames={tableNames}
               columnNames={columnNames}
               onRefreshCatalog={refreshCatalog}
