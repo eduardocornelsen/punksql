@@ -1402,6 +1402,8 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
   const handleFileSave = useCallback((path, content) => {
     setFiles((prev) => ({ ...prev, [path]: content }));
+    // Clear so the reset button can always re-trigger the editor's initialSql effect
+    setEditorInitialSql(undefined);
   }, []);
 
   const handleFileNameChange = useCallback((newPath) => {
@@ -1545,7 +1547,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     const result = execSQL(db, trimmed);
     pushBlock({ type: "sql", cmd: trimmed, result });
     if (/^\s*(CREATE|DROP|ALTER)\b/i.test(trimmed)) refreshCatalog();
-  }, [replSql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt]);
+  }, [replSql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt, pushWelcome]);
 
   const onKeyDown = useCallback((e) => {
     if (e.key === "Tab") { e.preventDefault(); if (suggestions.length > 0) acceptSuggestion(suggestions[0]); return; }
@@ -1600,16 +1602,23 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         <button onClick={clearScrollback} title="Clear shell output (does not affect DB or files)" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>cls</button>
         <button
           onClick={() => {
-            const original = DEFAULT_FILES[currentFile];
-            if (original !== undefined) {
-              setFiles((prev) => ({ ...prev, [currentFile]: original }));
-              setEditorInitialSql(original);
+            if (activeView === "repl") {
+              clearScrollback();
+              pushWelcome();
+            } else {
+              const original = DEFAULT_FILES[currentFile];
+              if (original !== undefined) {
+                setFiles((prev) => ({ ...prev, [currentFile]: original }));
+                setEditorInitialSql(original);
+              }
             }
           }}
-          title={DEFAULT_FILES[currentFile] !== undefined
-            ? `Reset ${currentFile.slice(currentFile.lastIndexOf("/") + 1)} to its original content`
-            : `No default for ${currentFile.slice(currentFile.lastIndexOf("/") + 1)}`}
-          style={{ background: "none", border: `1px solid ${C.border}`, cursor: DEFAULT_FILES[currentFile] !== undefined ? "pointer" : "default", fontFamily: F.mono, fontSize: 11, color: DEFAULT_FILES[currentFile] !== undefined ? C.amber : C.border, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
+          title={activeView === "repl"
+            ? "Replay shell startup text and \\dt"
+            : DEFAULT_FILES[currentFile] !== undefined
+              ? `Reset ${currentFile.slice(currentFile.lastIndexOf("/") + 1)} to its original content`
+              : `No default for ${currentFile.slice(currentFile.lastIndexOf("/") + 1)}`}
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: activeView === "repl" ? C.amber : DEFAULT_FILES[currentFile] !== undefined ? C.amber : C.border, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
         >reset</button>
         <button
           onClick={async () => { setSaveStatus("saving"); const ok = await saveToIndexedDB(); setSaveStatus(ok ? "saved" : "error"); setTimeout(() => setSaveStatus("idle"), 2000); }}
