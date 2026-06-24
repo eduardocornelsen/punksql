@@ -68,7 +68,7 @@ const SQL_PRAGMA = [
   "SAVEPOINT","RELEASE","ROLLBACK TO","ATTACH DATABASE","DETACH",
 ];
 const META_CMDS = [
-  "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\save","\\reset","\\h","\\?",
+  "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\save","\\reset","\\resetdb","\\h","\\?",
 ];
 const SQL_SYMBOLS = [
   "(",")",",",";","*","=","!=","<",">","<=",">=","'","\"","--","/*","*/","%","_",
@@ -269,7 +269,8 @@ WORKSPACE
   \\history         show command history (last 200)
   \\clear  (\\cls)   clear terminal output (DB unchanged)
   \\save            persist DB to IndexedDB (survives refresh)
-  \\reset           restore original dataset (clears DB)
+  \\reset           restart shell — replay welcome text + \\dt
+  \\resetdb         restore original dataset (wipes all DB changes!)
 
 HELP
   \\h, \\?           show this help
@@ -1448,15 +1449,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       .then((d) => {
         setDb(d);
         refreshCatalog(d);
-        if (scrollback.length === 0) {
-          pushBlock({ type: "info", text: ispt
-            ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: SHELL · EDITOR · VAULT · DAG`
-            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.  Tabs: SHELL · EDITOR · VAULT · DAG`
-          });
-          // Show available tables on first open
-          const dtResult = execSQL(d, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name");
-          pushBlock({ type: "sql", cmd: "\\dt", result: dtResult });
-        }
+        if (scrollback.length === 0) pushWelcome(d);
         if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboard(true);
       })
       .catch(() => pushBlock({ type: "error", text: "Failed to load sql.js engine" }))
@@ -1502,6 +1495,18 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     });
   }, [replSql]);
 
+  const pushWelcome = useCallback((dbInst) => {
+    pushBlock({ type: "info", text: ispt
+      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: SHELL · EDITOR · VAULT · DAG`
+      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.  Tabs: SHELL · EDITOR · VAULT · DAG`
+    });
+    const d = dbInst || db;
+    if (d) {
+      const dtResult = execSQL(d, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name");
+      pushBlock({ type: "sql", cmd: "\\dt", result: dtResult });
+    }
+  }, [db, ispt, pushBlock]);
+
   const execute = useCallback(async () => {
     const trimmed = replSql.trim();
     if (!trimmed || !db) return;
@@ -1515,16 +1520,23 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         setSaveStatus("saving");
         const ok = await saveToIndexedDB();
         setSaveStatus(ok ? "saved" : "error");
-        pushBlock({ type: "info", text: ok ? "✓ Workspace saved to IndexedDB" : "✗ Save failed" });
+        pushBlock({ type: "info", text: ok ? "✓ DB saved to IndexedDB" : "✗ Save failed" });
         setTimeout(() => setSaveStatus("idle"), 2000);
         return;
       }
       if (trimmed === "\\reset") {
+        // Visual restart: replay welcome text + \dt without touching the database
+        clearScrollback();
+        pushWelcome();
+        return;
+      }
+      if (trimmed === "\\resetdb") {
         const freshDb = await resetSandboxDB(DB_SCHEMA);
         setDb(freshDb);
         refreshCatalog(freshDb);
         clearScrollback();
-        pushBlock({ type: "info", text: ispt ? "Banco reiniciado com dados originais" : "Database reset to initial dataset" });
+        pushWelcome(freshDb);
+        pushBlock({ type: "info", text: ispt ? "⚠ Banco reiniciado com dados originais" : "⚠ Database wiped and restored to original dataset" });
         return;
       }
       handleMeta(trimmed, db, pushBlock, clearScrollback, replHistory);
@@ -1585,7 +1597,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
         </div>
         <button onClick={() => setShowOnboard(true)} title="Open guide" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.amber, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>?</button>
-        <button onClick={clearScrollback} title="Clear terminal output" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>cls</button>
+        <button onClick={clearScrollback} title="Clear shell output (does not affect DB or files)" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>cls</button>
         <button
           onClick={() => {
             const original = DEFAULT_FILES[currentFile];
@@ -1594,14 +1606,17 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               setEditorInitialSql(original);
             }
           }}
-          title={`Reset ${currentFile} to original`}
-          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: DEFAULT_FILES[currentFile] !== undefined ? C.amber : C.border, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
+          title={DEFAULT_FILES[currentFile] !== undefined
+            ? `Reset ${currentFile.slice(currentFile.lastIndexOf("/") + 1)} to its original content`
+            : `No default for ${currentFile.slice(currentFile.lastIndexOf("/") + 1)}`}
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: DEFAULT_FILES[currentFile] !== undefined ? "pointer" : "default", fontFamily: F.mono, fontSize: 11, color: DEFAULT_FILES[currentFile] !== undefined ? C.amber : C.border, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
         >reset</button>
         <button
           onClick={async () => { setSaveStatus("saving"); const ok = await saveToIndexedDB(); setSaveStatus(ok ? "saved" : "error"); setTimeout(() => setSaveStatus("idle"), 2000); }}
           disabled={!db || saveStatus === "saving"}
+          title="Save SQLite database to IndexedDB (files auto-save as you type)"
           style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: saveBtnColor, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
-        >{saveBtnLabel}</button>
+        >{saveStatus === "saving" ? "saving…" : saveStatus === "saved" ? "✓ ok" : saveStatus === "error" ? "✗ err" : "save db"}</button>
       </div>
 
       {/* ── Main content area ── */}
