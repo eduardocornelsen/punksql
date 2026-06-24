@@ -68,7 +68,7 @@ const SQL_PRAGMA = [
   "SAVEPOINT","RELEASE","ROLLBACK TO","ATTACH DATABASE","DETACH",
 ];
 const META_CMDS = [
-  "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\save","\\reset","\\h","\\?",
+  "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\reset","\\resetdb","\\h","\\?",
 ];
 const SQL_SYMBOLS = [
   "(",")",",",";","*","=","!=","<",">","<=",">=","'","\"","--","/*","*/","%","_",
@@ -110,13 +110,135 @@ models:
       +materialized: table
       +schema: mart`;
 
+// ── Shared icons ──────────────────────────────────────────────
+function FolderIcon({ size = 14, style: extraStyle }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor"
+      style={{ display: "inline-block", verticalAlign: "-2px", flexShrink: 0, ...extraStyle }}>
+      <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+    </svg>
+  );
+}
+function ChevronIcon({ open, size = 10, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0, transition: "transform 0.12s", transform: open ? "rotate(90deg)" : "rotate(0deg)" }}>
+      <path d="M5.5 3.5L10.5 8l-5 4.5" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function SqlFileIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <ellipse cx="8" cy="4" rx="5.5" ry="2" fill="#CC557A"/>
+      <path d="M2.5 4v3c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V4" fill="#CC557A" opacity="0.75"/>
+      <path d="M2.5 7v3c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V7" fill="#CC557A" opacity="0.5"/>
+    </svg>
+  );
+}
+function YamlFileIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <rect x="2" y="1" width="12" height="14" rx="1.5" fill="#7755BB"/>
+      <text x="8" y="12" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="sans-serif">!</text>
+    </svg>
+  );
+}
+function TableIcon({ size = 14, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <rect x="1" y="1" width="14" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/>
+      <line x1="1" y1="5.5" x2="15" y2="5.5" stroke={color} strokeWidth="1.2"/>
+      <line x1="6" y1="5.5" x2="6" y2="15" stroke={color} strokeWidth="1.2"/>
+    </svg>
+  );
+}
+function ViewIcon({ size = 14, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill={color} style={{ display: "inline-block", flexShrink: 0 }}>
+      <rect x="1" y="2.5" width="14" height="2" rx="1"/>
+      <rect x="1" y="7" width="14" height="2" rx="1" opacity="0.7"/>
+      <rect x="1" y="11.5" width="14" height="2" rx="1" opacity="0.45"/>
+    </svg>
+  );
+}
+function ColumnIcon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", flexShrink: 0 }}>
+      <circle cx="8" cy="8" r="3" stroke={C.border} strokeWidth="1.5"/>
+    </svg>
+  );
+}
+
 // ── Bottom tabs ───────────────────────────────────────────────
 const BOTTOM_TABS = [
   { id: "repl",    label: "SHELL",  color: C.cyan,   icon: ">" },
   { id: "editor",  label: "EDITOR", color: C.amber,  icon: "≡" },
-  { id: "files",   label: "VAULT",  color: C.green,  icon: "◈" },
+  { id: "files",   label: "VAULT",  color: C.green,  icon: null },
   { id: "lineage", label: "DAG",    color: C.purple, icon: "⬡" },
 ];
+
+// ── Smart-newline helpers (SQL + YAML) ───────────────────────
+function sqlLineContext(text, pos) {
+  const before = text.slice(0, pos);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const currentLine = before.slice(lineStart);
+  const indent = (currentLine.match(/^(\s*)/) || ["", ""])[1];
+  return { before, lineStart, currentLine, indent };
+}
+function sqlSmartNewline(text, pos) {
+  const { currentLine, indent } = sqlLineContext(text, pos);
+  const endsWithParen  = /\(\s*$/.test(currentLine);
+  const isSelectClause = /^\s*SELECT\b/i.test(currentLine);
+  const isStandalone   =
+    /^\s*(WITH|FROM|WHERE|HAVING|ON|SET|VALUES)\s*$/i.test(currentLine) ||
+    /^\s*(GROUP\s+BY|ORDER\s+BY|UNION(\s+ALL)?|EXCEPT(\s+ALL)?|INTERSECT(\s+ALL)?)\s*$/i.test(currentLine) ||
+    /^\s*((LEFT|RIGHT|FULL)(\s+OUTER)?\s+JOIN|INNER\s+JOIN|CROSS\s+JOIN|JOIN)\s*$/i.test(currentLine);
+  const extra = (endsWithParen || isSelectClause || isStandalone) ? "  " : "";
+  return "\n" + indent + extra;
+}
+function yamlLint(text) {
+  const issues = [];
+  const lines = text.split("\n");
+  let prevIndent = 0;
+  lines.forEach((line, idx) => {
+    if (!line.trim() || line.trimStart().startsWith("#")) return;
+    const indent = line.match(/^( *)/)[1].length;
+    if (indent % 2 !== 0) issues.push({ type: "warn", msg: `Line ${idx + 1}: odd indentation (${indent} spaces)` });
+    if (indent - prevIndent > 2) issues.push({ type: "warn", msg: `Line ${idx + 1}: indent jumped by ${indent - prevIndent}` });
+    if (/:$/.test(line.trimEnd()) && /:\s+/.test(line)) {
+      // both key: and key: value — fine
+    }
+    prevIndent = indent;
+  });
+  const tabLine = lines.findIndex((l) => /\t/.test(l));
+  if (tabLine >= 0) issues.push({ type: "error", msg: `Line ${tabLine + 1}: tab character (use spaces in YAML)` });
+  return issues;
+}
+
+// ── File-system storage ───────────────────────────────────────
+const FILES_KEY = "punksql-sandbox-files-v1";
+const DEFAULT_FILES = {
+  "queries/main.sql": "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;",
+  "queries/analytics.sql": "-- Revenue by country\nSELECT\n  c.country,\n  COUNT(DISTINCT o.id)    AS orders,\n  ROUND(SUM(o.total_amount), 2) AS revenue\nFROM orders o\nJOIN customers c ON c.id = o.customer_id\nGROUP BY c.country\nORDER BY revenue DESC;",
+  "models/staging/stg_orders.sql": "CREATE VIEW stg_orders AS\nSELECT\n  id,\n  customer_id,\n  CAST(total_amount AS REAL) AS amount,\n  status,\n  order_date\nFROM orders;",
+  "models/mart/fct_revenue.sql": "CREATE VIEW fct_revenue AS\nSELECT\n  o.order_date,\n  c.country,\n  SUM(o.total_amount) AS revenue\nFROM stg_orders o\nJOIN customers c ON c.id = o.customer_id\nGROUP BY o.order_date, c.country;",
+  "dbt_project.yml": DBT_PROJECT_YML,
+};
+function loadFileSystem() {
+  try {
+    const raw = localStorage.getItem(FILES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { ...DEFAULT_FILES };
+}
+function saveFileSystem(fs) {
+  try { localStorage.setItem(FILES_KEY, JSON.stringify(fs)); } catch {}
+}
+function fileExt(name) {
+  const m = name.match(/\.(\w+)$/);
+  return m ? m[1].toLowerCase() : "sql";
+}
+function isYaml(name) { const e = fileExt(name); return e === "yaml" || e === "yml"; }
 
 // ── Autocomplete helpers ───────────────────────────────────────
 function getWordAtCursor(text, pos) {
@@ -180,11 +302,33 @@ SCHEMA / INSPECTION
   \\d <name>        describe columns of a table or view
   \\l               list attached databases
 
+USEFUL SQL PATTERNS
+  SELECT * FROM <table> LIMIT 10;
+  SELECT COUNT(*) FROM <table>;
+  PRAGMA table_info('<table>');        -- column details
+  SELECT name FROM sqlite_master
+    WHERE type='table';               -- same as \\dt
+  SELECT * FROM sqlite_master;        -- full schema dump
+
+AGGREGATIONS
+  SELECT col, COUNT(*) FROM t GROUP BY col;
+  SELECT col, SUM(val) FROM t GROUP BY col ORDER BY 2 DESC;
+  SELECT AVG(val), MIN(val), MAX(val) FROM t;
+
+JOINS
+  SELECT a.*, b.col
+  FROM table_a a
+  JOIN table_b b ON a.id = b.a_id;
+
+CTEs (WITH clause)
+  WITH cte AS (SELECT ...)
+  SELECT * FROM cte;
+
 WORKSPACE
   \\history         show command history (last 200)
   \\clear  (\\cls)   clear terminal output (DB unchanged)
-  \\save            persist DB to IndexedDB (survives refresh)
-  \\reset           restore original dataset (clears DB)
+  \\reset           restart shell — replay welcome text + \\dt
+  \\resetdb         restore original dataset (wipes all DB changes!)
 
 HELP
   \\h, \\?           show this help
@@ -201,19 +345,21 @@ SQL KEYBOARD
   Swipe DOWN on handle   close keyboard
   [⌨] button             toggle keyboard
 
-LINEAGE NAMING CONVENTIONS
+DBT LAYER NAMING
   stg_*   Staging — clean raw sources
   int_*   Intermediate — joins / aggregations
   fct_*   Fact table (Mart layer)
   dim_*   Dimension table (Mart layer)
 
-TABS
-  REPL    — interactive terminal mode (this tab)
-  EDITOR  — .sql file editor, Enter=newline, Ctrl+Enter=run
-  FILES   — virtual dbt project file tree
-  LINEAGE — data lineage by layer (SRC→STG→INT→MRT)
+TABS (bottom bar)
+  >  SHELL   — interactive terminal (this tab)
+  ≡  EDITOR  — .sql / .yaml file editor
+  ⊓  VAULT   — file browser + schema explorer
+  ⬡  DAG     — data lineage (SRC→STG→INT→MRT)
 
-TIP: Tap [?] in the header to reopen the onboarding tour.`;
+TIP: Tap [?] in the header to reopen the onboarding tour.
+TIP: the folder button (header or EDITOR toolbar) opens the file browser with
+     all your .sql / .yaml files AND a full schema explorer.`;
 
 // ── Onboarding ────────────────────────────────────────────────
 const ONBOARD_KEY = "punksql-sandbox-onboard-v2";
@@ -226,7 +372,7 @@ const ONBOARDING_STEPS = [
   {
     title: "FOUR MODES — BOTTOM TABS",
     icon: "≡", color: C.cyan,
-    body: "Four tabs at the bottom of the screen:\n\n  >  REPL    — interactive terminal\n  ≡  EDITOR  — .sql file editor\n  ◈  FILES   — dbt project structure\n  ⬡  LINEAGE — data lineage graph\n\nSwitch freely between them.",
+    body: "Four tabs at the bottom of the screen:\n\n  >  SHELL   — interactive terminal\n  ≡  EDITOR  — .sql / .yaml file editor\n  ⊓  VAULT   — file browser + schema explorer\n  ⬡  DAG     — data lineage graph\n\nSwitch freely between them.",
   },
   {
     title: "REPL — TERMINAL MODE",
@@ -256,7 +402,7 @@ const ONBOARDING_STEPS = [
   {
     title: "SAVING YOUR WORK",
     icon: "▪", color: C.green,
-    body: "Query history auto-saves locally.\n\nTo save the database:\n  Tap [save] in the header\n  or type: \\save\n\nTo restore original dataset:\n  Type: \\reset\n\nTap [?] anytime to reopen this guide.",
+    body: "Query history and files auto-save locally.\n\nThe database auto-saves after any INSERT,\nCREATE, DROP, UPDATE, or DELETE.\n\nTo restore original dataset:\n  Type: \\resetdb\n\nTap [?] anytime to reopen this guide.",
   },
 ];
 
@@ -517,7 +663,7 @@ function FileTree({ db, lang, onOpenInEditor }) {
       {expanded.seeds && byLayer.source.map((o) => <FileRow key={o.name} obj={o} depth={1} />)}
 
       {/* hint */}
-      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.border, marginTop: 16, lineHeight: 1.8 }}>
+      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginTop: 16, lineHeight: 1.8 }}>
         {ispt ? "Crie views com prefixos de camada\npara populer a árvore de modelos:" : "Create views with layer prefixes\nto populate the model tree:"}
         <br />{"  stg_orders → int_revenue → fct_kpi"}
       </div>
@@ -525,17 +671,34 @@ function FileTree({ db, lang, onOpenInEditor }) {
   );
 }
 
-// ── SQL Editor view ───────────────────────────────────────────
-function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNames, columnNames, onRefreshCatalog, onLintIssuesChange, insertRef }) {
+// ── SQL / YAML Editor view ────────────────────────────────────
+function SqlEditor({ db, lang, initialSql, fileName, onSqlChange: notifySqlChange, onFileNameChange, onOpenFileManager, tableNames, columnNames, onRefreshCatalog, onLintIssuesChange, insertRef }) {
   const [sql, setSql] = useState(initialSql || "-- Write your SQL here\nSELECT *\nFROM customers\nLIMIT 10;");
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [lintIssues, setLintIssues] = useState([]);
+  const [renamingFile, setRenamingFile] = useState(false);
+  const [renameVal, setRenameVal] = useState(fileName || "query.sql");
   const taRef = useRef(null);
+  const hlRef = useRef(null);
+  const renameRef = useRef(null);
   const ispt = lang === "pt";
+  const fileIsYaml = isYaml(fileName || "");
 
-  useEffect(() => { if (initialSql !== undefined && initialSql !== sql) setSql(initialSql); }, [initialSql]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tableSet = useMemo(() => new Set(tableNames.map((t) => t.toLowerCase())), [tableNames]);
+  const colSet   = useMemo(() => new Set(columnNames.map((c) => c.toLowerCase())), [columnNames]);
+
+  // Keep highlight layer scrolled in sync with textarea
+  const syncScroll = useCallback(() => {
+    if (taRef.current && hlRef.current) {
+      hlRef.current.scrollTop  = taRef.current.scrollTop;
+      hlRef.current.scrollLeft = taRef.current.scrollLeft;
+    }
+  }, []);
+
+  useEffect(() => { if (initialSql !== undefined && initialSql !== sql) { setSql(initialSql); setResult(null); } }, [initialSql]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRenameVal(fileName || "query.sql"); }, [fileName]);
 
   const runQuery = useCallback(() => {
     const trimmed = sql.trim();
@@ -574,43 +737,65 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
   // Populate insertRef on every render so SandboxAuxKeyboard always has fresh closure
   if (insertRef) insertRef.current = insertAtCursorEditor;
 
-  // Smart SQL linter — debounced, runs static analysis + EXPLAIN for SELECT queries
+  // Smart linter — debounced, handles SQL and YAML
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!sql.trim()) { setLintIssues([]); return; }
-      const issues = []; const trimmed = sql.trim();
-      let depth = 0, inStr = false, strCh = '';
-      for (let ci = 0; ci < trimmed.length; ci++) {
-        const c = trimmed[ci];
-        if (inStr) { if (c === strCh) inStr = false; continue; }
-        if (c === "'" || c === '"') { inStr = true; strCh = c; continue; }
-        if (c === '(') depth++;
-        else if (c === ')') depth--;
-      }
-      if (depth > 0) issues.push({ type: 'warn', msg: `${depth} unclosed paren${depth > 1 ? 's' : ''}` });
-      if (depth < 0) issues.push({ type: 'error', msg: `${-depth} extra ')'` });
-      if (/^\s*SELECT\b/i.test(trimmed) && !/\bFROM\b/i.test(trimmed) && !/^\s*SELECT\s+(\d|'|\w+\s*\()/i.test(trimmed)) {
-        issues.push({ type: 'warn', msg: 'SELECT missing FROM' });
-      }
-      if (db && issues.filter(i => i.type === 'error').length === 0) {
-        const clean = trimmed.replace(/;\s*$/, '');
-        if (/^\s*(SELECT|WITH)\b/i.test(clean) && clean.length > 6) {
-          try { const r = execSQL(db, `EXPLAIN QUERY PLAN ${clean}`); if (!r.ok) issues.push({ type: 'error', msg: r.msg.split('\n')[0].replace(/^.*?:\s*/, '') }); } catch(e) {}
+      if (!sql.trim()) { setLintIssues([]); onLintIssuesChange?.([]); return; }
+      let issues = [];
+      if (fileIsYaml) {
+        issues = yamlLint(sql);
+      } else {
+        const trimmed = sql.trim();
+        let depth = 0, inStr = false, strCh = '';
+        for (let ci = 0; ci < trimmed.length; ci++) {
+          const c = trimmed[ci];
+          if (inStr) { if (c === strCh) inStr = false; continue; }
+          if (c === "'" || c === '"') { inStr = true; strCh = c; continue; }
+          if (c === '(') depth++;
+          else if (c === ')') depth--;
+        }
+        if (depth > 0) issues.push({ type: 'warn', msg: `${depth} unclosed paren${depth > 1 ? 's' : ''}` });
+        if (depth < 0) issues.push({ type: 'error', msg: `${-depth} extra ')'` });
+        if (/^\s*SELECT\b/i.test(trimmed) && !/\bFROM\b/i.test(trimmed) && !/^\s*SELECT\s+(\d|'|\w+\s*\()/i.test(trimmed)) {
+          issues.push({ type: 'warn', msg: 'SELECT missing FROM' });
+        }
+        if (db && issues.filter(i => i.type === 'error').length === 0) {
+          const clean = trimmed.replace(/;\s*$/, '');
+          if (/^\s*(SELECT|WITH)\b/i.test(clean) && clean.length > 6) {
+            try { const r = execSQL(db, `EXPLAIN QUERY PLAN ${clean}`); if (!r.ok) issues.push({ type: 'error', msg: r.msg.split('\n')[0].replace(/^.*?:\s*/, '') }); } catch(e) {}
+          }
         }
       }
       setLintIssues(issues);
       onLintIssuesChange?.(issues);
-    }, 500);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [sql, db]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sql, db, fileIsYaml]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onKeyDown = (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); }
-    if (e.key === "Escape") { setSuggestions([]); }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); return; }
+    if (e.key === "Escape") { setSuggestions([]); return; }
     if (e.key === "Tab") {
       e.preventDefault();
       if (suggestions.length > 0) { acceptSuggestionEditor(suggestions[0]); }
       else { const t = taRef.current; const s = t.selectionStart; const next = sql.slice(0, s) + "  " + sql.slice(s); setSql(next); if (notifySqlChange) notifySqlChange(next); requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = s + 2; } }); }
+      return;
+    }
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      const ta = taRef.current;
+      if (!ta) return;
+      const pos = ta.selectionStart;
+      const ins = fileIsYaml ? (() => {
+        // YAML: match current line indent
+        const { indent } = sqlLineContext(sql, pos);
+        return "\n" + indent;
+      })() : sqlSmartNewline(sql, pos);
+      const next = sql.slice(0, pos) + ins + sql.slice(ta.selectionEnd);
+      setSql(next);
+      if (notifySqlChange) notifySqlChange(next);
+      const newPos = pos + ins.length;
+      requestAnimationFrame(() => { if (taRef.current) { taRef.current.selectionStart = taRef.current.selectionEnd = newPos; } });
     }
   };
 
@@ -619,13 +804,40 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
       {/* Editor toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>📄</span>
-        <span style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, flex: 1 }}>query.sql</span>
-        <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted }}>Ctrl+Enter</span>
-        <button onClick={runQuery} disabled={!db || !sql.trim() || running} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 14px", background: sql.trim() ? C.cyanGhost : "none", border: `1px solid ${sql.trim() ? C.cyan : C.border}`, color: sql.trim() ? C.cyan : C.dim, cursor: sql.trim() ? "pointer" : "default", letterSpacing: 1 }}>
-          {running ? "…" : "▶ RUN"}
-        </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        {/* Folder button — opens file manager */}
+        <button
+          onMouseDown={(e) => { e.preventDefault(); onOpenFileManager?.(); }}
+          title="Files &amp; Schema"
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, padding: "3px 7px", flexShrink: 0, lineHeight: 1, display: "flex", alignItems: "center" }}
+        ><FolderIcon size={14} /></button>
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, flexShrink: 0 }}>{fileIsYaml ? "⚙" : "📄"}</span>
+        {renamingFile ? (
+          <input
+            ref={renameRef}
+            value={renameVal}
+            onChange={(e) => setRenameVal(e.target.value)}
+            onBlur={() => { const v = renameVal.trim() || fileName; setRenameVal(v); onFileNameChange?.(v); setRenamingFile(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = renameVal.trim() || fileName; setRenameVal(v); onFileNameChange?.(v); setRenamingFile(false); } if (e.key === "Escape") { setRenameVal(fileName); setRenamingFile(false); } }}
+            style={{ flex: 1, fontFamily: F.mono, fontSize: 11, color: C.amber, background: `${C.amber}10`, border: `1px solid ${C.amber}`, outline: "none", padding: "1px 6px" }}
+            autoFocus
+          />
+        ) : (
+          <button
+            onDoubleClick={() => { setRenameVal(fileName || "query.sql"); setRenamingFile(true); setTimeout(() => renameRef.current?.select(), 50); }}
+            title="Double-click to rename"
+            style={{ fontFamily: F.mono, fontSize: 11, color: fileIsYaml ? C.green : C.amber, flex: 1, background: "none", border: "none", cursor: "text", textAlign: "left", padding: 0, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          >{fileName || "query.sql"}</button>
+        )}
+        {fileIsYaml
+          ? <span style={{ fontFamily: F.mono, fontSize: 9, color: C.green, flexShrink: 0, letterSpacing: 1 }}>YAML</span>
+          : <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, flexShrink: 0 }}>Ctrl+↵</span>
+        }
+        {!fileIsYaml && (
+          <button onClick={runQuery} disabled={!db || !sql.trim() || running} style={{ fontFamily: F.mono, fontSize: 11, padding: "4px 12px", background: sql.trim() ? C.cyanGhost : "none", border: `1px solid ${sql.trim() ? C.cyan : C.border}`, color: sql.trim() ? C.cyan : C.dim, cursor: sql.trim() ? "pointer" : "default", letterSpacing: 1, flexShrink: 0 }}>
+            {running ? "…" : "▶ RUN"}
+          </button>
+        )}
       </div>
 
       {/* Tab prediction chip bar — sits between toolbar and editor so it stays visible when keyboard opens */}
@@ -655,17 +867,57 @@ function SqlEditor({ db, lang, initialSql, onSqlChange: notifySqlChange, tableNa
               <div key={i} style={{ fontFamily: F.mono, fontSize: 12, color: C.border, lineHeight: "1.6em" }}>{i + 1}</div>
             ))}
           </div>
-          {/* Textarea */}
-          <textarea
-            ref={taRef}
-            value={sql}
-            onChange={(e) => { setSql(e.target.value); if (notifySqlChange) notifySqlChange(e.target.value); updateSuggestions(e.target.value, e.target.selectionStart); }}
-            onKeyDown={onKeyDown}
-            spellCheck={false}
-            autoComplete="off"
-            placeholder={"-- Write SQL here\n-- Ctrl+Enter to run\n\nSELECT *\nFROM customers\nLIMIT 10;"}
-            style={{ flex: 1, fontFamily: F.mono, fontSize: 12, color: C.white, background: C.surface, border: "none", outline: "none", resize: "none", padding: "10px 12px 10px 6px", lineHeight: "1.6em", caretColor: C.green, overflowY: "auto" }}
-          />
+          {/* Highlight overlay + textarea stack */}
+          <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
+            {/* Highlight layer — rendered HTML behind the textarea */}
+            <pre
+              ref={hlRef}
+              aria-hidden="true"
+              style={{
+                position: "absolute", inset: 0,
+                fontFamily: F.mono, fontSize: 12, lineHeight: "1.6em",
+                padding: "10px 12px 10px 6px",
+                margin: 0,
+                whiteSpace: "pre-wrap", wordBreak: "break-word",
+                overflowY: "auto", overflowX: "hidden",
+                pointerEvents: "none",
+                background: C.surface,
+                color: "transparent",
+              }}
+              dangerouslySetInnerHTML={{ __html:
+                tokensToHtml(
+                  fileIsYaml ? tokenizeYAML(sql || "") : tokenizeSQL(sql || "", tableSet, colSet)
+                ) + "<br/>"
+              }}
+            />
+            {/* Transparent textarea on top — caret + selection only */}
+            <textarea
+              ref={taRef}
+              value={sql}
+              onChange={(e) => {
+                setSql(e.target.value);
+                if (notifySqlChange) notifySqlChange(e.target.value);
+                updateSuggestions(e.target.value, e.target.selectionStart);
+              }}
+              onKeyDown={onKeyDown}
+              onScroll={syncScroll}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder={fileIsYaml ? "# YAML config\n" : "-- Write SQL here\n-- Ctrl+Enter to run\n\nSELECT *\nFROM customers\nLIMIT 10;"}
+              style={{
+                position: "absolute", inset: 0,
+                fontFamily: F.mono, fontSize: 12, lineHeight: "1.6em",
+                padding: "10px 12px 10px 6px",
+                margin: 0,
+                color: "transparent",
+                caretColor: C.green,
+                background: "transparent",
+                border: "none", outline: "none", resize: "none",
+                overflowY: "auto", overflowX: "hidden",
+                whiteSpace: "pre-wrap", wordBreak: "break-word",
+              }}
+            />
+          </div>
         </div>
 
         {/* Results panel */}
@@ -759,12 +1011,436 @@ function LineageStack({ db, lang }) {
         <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 4, lineHeight: 1.8 }}>
           {ispt ? "Crie views com prefixos de camada para ver a linhagem:" : "Create views with layer prefixes to see lineage:"}
           {"  stg_orders → int_daily_revenue → fct_revenue"}
-          <pre style={{ margin: "6px 0 0", color: C.border, fontSize: 9 }}>{`CREATE VIEW stg_orders AS
+          <pre style={{ margin: "6px 0 0", color: C.muted, fontSize: 9 }}>{`CREATE VIEW stg_orders AS
   SELECT id, customer_id,
          CAST(total_amount AS REAL) AS amount
   FROM orders;`}</pre>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Syntax tokenizers ─────────────────────────────────────────
+const SQL_KW_SET = new Set([
+  "SELECT","DISTINCT","FROM","WHERE","JOIN","ON","LEFT","RIGHT","INNER","FULL","CROSS",
+  "GROUP","ORDER","HAVING","LIMIT","OFFSET","AS","WITH","UNION","ALL","EXCEPT","INTERSECT",
+  "AND","OR","NOT","IN","LIKE","ILIKE","BETWEEN","IS","NULL","EXISTS","CASE","WHEN","THEN",
+  "ELSE","END","ASC","DESC","PARTITION","OVER","ROWS","PRECEDING","CURRENT","ROW","BY",
+  "CREATE","DROP","ALTER","INSERT","INTO","VALUES","UPDATE","SET","DELETE","TABLE","VIEW",
+  "INDEX","UNIQUE","IF","ADD","COLUMN","RENAME","PRIMARY","KEY","REFERENCES","DEFAULT",
+  "AUTOINCREMENT","SAVEPOINT","RELEASE","ROLLBACK","ATTACH","DETACH","PRAGMA",
+  "OUTER","NATURAL","USING","RETURNING","EXPLAIN","QUERY","PLAN",
+]);
+const SQL_FUNC_SET = new Set([
+  "COUNT","SUM","AVG","MIN","MAX","ROUND","COALESCE","NULLIF","CAST","TYPEOF",
+  "LENGTH","UPPER","LOWER","SUBSTR","TRIM","REPLACE","INSTR","DATE","STRFTIME",
+  "JULIANDAY","ROW_NUMBER","RANK","DENSE_RANK","LAG","LEAD","FIRST_VALUE",
+  "LAST_VALUE","NTILE","PERCENT_RANK","ABS","RANDOM","IFNULL","PRINTF","IIF",
+]);
+const SQL_TYPE_SET = new Set(["INTEGER","TEXT","REAL","BLOB","NUMERIC","BOOLEAN"]);
+
+function tokenizeSQL(code, tableSet, colSet) {
+  const tokens = [];
+  let i = 0;
+  while (i < code.length) {
+    // line comment
+    if (code[i] === "-" && code[i+1] === "-") {
+      let j = i; while (j < code.length && code[j] !== "\n") j++;
+      tokens.push({ color: "#3d5a45", text: code.slice(i, j) }); // dim green
+      i = j; continue;
+    }
+    // block comment
+    if (code[i] === "/" && code[i+1] === "*") {
+      let j = i + 2; while (j < code.length - 1 && !(code[j] === "*" && code[j+1] === "/")) j++;
+      tokens.push({ color: "#3d5a45", text: code.slice(i, j + 2) });
+      i = j + 2; continue;
+    }
+    // string literal
+    if (code[i] === "'" || code[i] === '"') {
+      const q = code[i]; let j = i + 1;
+      while (j < code.length && code[j] !== q) { if (code[j] === "\\") j++; j++; }
+      tokens.push({ color: "#b5946a", text: code.slice(i, j + 1) }); // amber-ish
+      i = j + 1; continue;
+    }
+    // number
+    if (/[0-9]/.test(code[i])) {
+      let j = i; while (j < code.length && /[0-9.]/.test(code[j])) j++;
+      tokens.push({ color: "#7ec8a0", text: code.slice(i, j) }); // soft green
+      i = j; continue;
+    }
+    // word
+    if (/[A-Za-z_]/.test(code[i])) {
+      let j = i; while (j < code.length && /[A-Za-z0-9_]/.test(code[j])) j++;
+      const word = code.slice(i, j);
+      const up = word.toUpperCase();
+      let color = C.text;
+      if (SQL_KW_SET.has(up))              color = "#00FFFF"; // cyan
+      else if (SQL_FUNC_SET.has(up))       color = "#CC88FF"; // purple
+      else if (SQL_TYPE_SET.has(up))       color = "#FF9944"; // orange
+      else if (tableSet.has(word.toLowerCase())) color = "#00FF88"; // green
+      else if (colSet.has(word.toLowerCase()))   color = "#AADDFF"; // light blue
+      tokens.push({ color, text: word });
+      i = j; continue;
+    }
+    // punctuation: (, ), ,, ;
+    if ("(),;".includes(code[i])) {
+      tokens.push({ color: "#777777", text: code[i] }); i++; continue;
+    }
+    // operators
+    if ("=<>!".includes(code[i])) {
+      let j = i; while (j < code.length && "=<>!".includes(code[j])) j++;
+      tokens.push({ color: "#88BBDD", text: code.slice(i, j) }); // pale blue
+      i = j; continue;
+    }
+    // everything else (whitespace, symbols)
+    tokens.push({ color: C.dim, text: code[i] }); i++;
+  }
+  return tokens;
+}
+
+function tokenizeYAML(code) {
+  const tokens = [];
+  for (const rawLine of code.split("\n")) {
+    const line = rawLine;
+    // comment
+    if (/^\s*#/.test(line)) {
+      tokens.push({ color: "#3d5a45", text: line }); tokens.push({ color: C.dim, text: "\n" }); continue;
+    }
+    // key: value
+    const kv = line.match(/^(\s*)([\w-]+)(\s*:\s*)(.*)$/);
+    if (kv) {
+      const [, indent, key, colon, val] = kv;
+      tokens.push({ color: C.dim, text: indent });
+      tokens.push({ color: "#00FFFF", text: key });     // key = cyan
+      tokens.push({ color: "#555555", text: colon });   // colon = dim
+      // value
+      if (/^["']/.test(val.trim())) {
+        tokens.push({ color: "#b5946a", text: val });   // string = amber
+      } else if (/^(true|false|null|~)$/i.test(val.trim())) {
+        tokens.push({ color: "#CC88FF", text: val });   // special = purple
+      } else if (/^-?\d/.test(val.trim())) {
+        tokens.push({ color: "#7ec8a0", text: val });   // number = green
+      } else {
+        tokens.push({ color: C.text, text: val });
+      }
+      tokens.push({ color: C.dim, text: "\n" }); continue;
+    }
+    // list item
+    const li = line.match(/^(\s*-\s+)(.*)$/);
+    if (li) {
+      tokens.push({ color: "#555555", text: li[1] });
+      tokens.push({ color: C.text, text: li[2] });
+      tokens.push({ color: C.dim, text: "\n" }); continue;
+    }
+    // section header (word ending with :)
+    if (/^\s*[\w-]+:\s*$/.test(line)) {
+      const m = line.match(/^(\s*)([\w-]+)(:\s*)$/);
+      if (m) {
+        tokens.push({ color: C.dim, text: m[1] });
+        tokens.push({ color: "#FFBB00", text: m[2] }); // amber for section keys
+        tokens.push({ color: "#555555", text: m[3] });
+        tokens.push({ color: C.dim, text: "\n" }); continue;
+      }
+    }
+    tokens.push({ color: C.text, text: line });
+    tokens.push({ color: C.dim, text: "\n" });
+  }
+  return tokens;
+}
+
+// Build HTML string from token array for use as innerHTML
+function tokensToHtml(tokens) {
+  return tokens.map(({ color, text }) => {
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return `<span style="color:${color}">${escaped}</span>`;
+  }).join("");
+}
+
+// ── Schema explorer (tables + columns) — VSCode SQLite Explorer style ──
+function SchemaExplorer({ db }) {
+  const [tables, setTables] = useState([]);
+  const [openTable, setOpenTable] = useState(null);
+  const [columns, setColumns] = useState({});
+
+  useEffect(() => {
+    if (!db) return;
+    const r = execSQL(db, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name");
+    if (r.ok) setTables(r.rows.map(([name, type]) => ({ name, type })));
+  }, [db]);
+
+  const toggleTable = (tableName) => {
+    if (!columns[tableName]) {
+      const r = execSQL(db, `PRAGMA table_info("${tableName}")`);
+      if (r.ok) setColumns((prev) => ({ ...prev, [tableName]: r.rows.map((row) => ({ cid: row[0], name: row[1], type: row[2], notnull: row[3], pk: row[5] })) }));
+    }
+    setOpenTable((t) => t === tableName ? null : tableName);
+  };
+
+  if (!tables.length) return (
+    <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "6px 22px" }}>no tables yet</div>
+  );
+
+  return (
+    <div>
+      {tables.map(({ name, type }) => {
+        const isOpen = openTable === name;
+        const isView = type === "view";
+        const iconColor = isView ? C.purple : C.cyan;
+        const cols = columns[name] || [];
+        return (
+          <div key={name}>
+            {/* Table / view row */}
+            <button
+              onClick={() => toggleTable(name)}
+              style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: isOpen ? `${iconColor}12` : "none", border: "none", cursor: "pointer", padding: "3px 8px 3px 12px", textAlign: "left", minHeight: 22 }}
+            >
+              <ChevronIcon open={isOpen} size={10} color={C.muted} />
+              <span style={{ display: "flex", flexShrink: 0 }}>
+                {isView ? <ViewIcon size={14} color={iconColor} /> : <TableIcon size={14} color={iconColor} />}
+              </span>
+              <span style={{ fontFamily: F.mono, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto", paddingLeft: 6, flexShrink: 0 }}>{isView ? "view" : "table"}</span>
+            </button>
+            {/* Columns */}
+            {isOpen && (
+              <div style={{ paddingLeft: 26, borderLeft: `1px solid ${C.border}`, marginLeft: 18 }}>
+                {cols.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "2px 0 2px 4px" }}>loading…</div>}
+                {cols.map((c) => (
+                  <div key={c.cid} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 8px 2px 2px", minHeight: 20 }}>
+                    <ColumnIcon size={10} />
+                    <span style={{ fontFamily: F.mono, fontSize: 11, color: c.pk ? C.amber : C.text }}>{c.name}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{(c.type || "").toLowerCase()}</span>
+                    {c.pk && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.amber, background: `${C.amber}18`, padding: "0 3px", borderRadius: 2 }}>PK</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Shared file row — VSCode Explorer style ───────────────────
+function FileRow({ path, name, isCurrent, yaml, col, indent, onOpen, onClose, confirmDelete, setConfirmDelete, onDeleteFile }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ display: "flex", alignItems: "center", background: isCurrent ? `${col}18` : hovered ? "#ffffff08" : "none" }}
+    >
+      {/* indent guide line */}
+      {indent > 0 && <div style={{ width: 1, alignSelf: "stretch", background: C.border, flexShrink: 0, marginLeft: indent - 1 }} />}
+      <button
+        onClick={() => { onOpen(path); if (onClose) onClose(); }}
+        style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: `3px 6px 3px ${indent > 0 ? 8 : 22}px`, textAlign: "left", minWidth: 0, minHeight: 22 }}
+      >
+        <span style={{ display: "flex", flexShrink: 0 }}>
+          {yaml ? <YamlFileIcon size={14} /> : <SqlFileIcon size={14} />}
+        </span>
+        <span style={{ fontFamily: F.mono, fontSize: 12, color: isCurrent ? col : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+      </button>
+      {/* delete: confirm mode or hover-visible × */}
+      {confirmDelete === path ? (
+        <button onClick={() => { onDeleteFile(path); setConfirmDelete(null); }}
+          style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}18`, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "2px 6px", margin: "0 6px 0 0", flexShrink: 0 }}>del?</button>
+      ) : (
+        <button onClick={() => setConfirmDelete(path)}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 8px", flexShrink: 0, opacity: hovered ? 0.5 : 0, transition: "opacity 0.1s" }}>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill={C.text}><path d="M4 4l8 8M12 4l-8 8" stroke={C.text} strokeWidth="2" strokeLinecap="round"/></svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── File Explorer Content (shared by VAULT tab and hamburger) ─
+function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
+  const [schemaOpen, setSchemaOpen] = useState(true);
+  const [newName, setNewName] = useState("");
+  const [newFolder, setNewFolder] = useState("queries");
+  const [creatingFile, setCreatingFile] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [collapsed, setCollapsed] = useState({});
+
+  const toggleFolder = (f) => setCollapsed((s) => ({ ...s, [f]: !s[f] }));
+
+  const folders = useMemo(() => {
+    const s = new Set(Object.keys(files).map((p) => p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : ""));
+    s.add("queries"); s.add("models/staging"); s.add("models/intermediate"); s.add("models/mart");
+    return [...s].filter(Boolean).sort();
+  }, [files]);
+
+  const byFolder = useMemo(() => {
+    const m = {};
+    Object.keys(files).forEach((path) => {
+      const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "(root)";
+      if (!m[folder]) m[folder] = [];
+      m[folder].push(path);
+    });
+    return m;
+  }, [files]);
+
+  // Build top-level tree: group subfolders under their parent
+  const allFolders = useMemo(() => {
+    const s = new Set(Object.keys(byFolder));
+    ["queries", "models/staging", "models/intermediate", "models/mart"].forEach((f) => s.add(f));
+    return [...s].sort();
+  }, [byFolder]);
+
+  const handleCreate = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const hasExt = /\.(sql|yaml|yml)$/i.test(name);
+    const fullName = hasExt ? name : name + ".sql";
+    const path = newFolder ? `${newFolder}/${fullName}` : fullName;
+    onNewFile(path);
+    setNewName("");
+    setCreatingFile(false);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.panel }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
+        <span style={{ fontFamily: F.mono, fontSize: 10, padding: "9px 12px", color: C.amber, letterSpacing: 1 }}>FILES</span>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setCreatingFile((v) => !v)}
+          style={{ fontFamily: F.mono, fontSize: 11, color: C.green, background: creatingFile ? `${C.green}14` : "none", border: `1px solid ${creatingFile ? C.green : C.border}`, cursor: "pointer", padding: "3px 8px", margin: "0 4px" }}
+          title="New file"
+        >+ new</button>
+        {onClose && <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 14, color: C.muted, padding: "4px 10px" }}>✕</button>}
+      </div>
+
+        {/* New file form */}
+        {creatingFile && (
+          <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
+            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>FOLDER</div>
+            <select
+              value={newFolder}
+              onChange={(e) => setNewFolder(e.target.value)}
+              style={{ width: "100%", fontFamily: F.mono, fontSize: 11, background: C.black, color: C.text, border: `1px solid ${C.border}`, padding: "4px 6px", marginBottom: 8 }}
+            >
+              {folders.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+            <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>FILENAME (.sql or .yml)</div>
+            <input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreatingFile(false); }}
+              placeholder="my_query.sql"
+              style={{ width: "100%", fontFamily: F.mono, fontSize: 11, background: C.black, color: C.white, border: `1px solid ${C.amber}`, outline: "none", padding: "4px 6px", boxSizing: "border-box", marginBottom: 8 }}
+            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={handleCreate} style={{ fontFamily: F.mono, fontSize: 10, color: C.green, background: `${C.green}14`, border: `1px solid ${C.green}`, cursor: "pointer", padding: "4px 10px", flex: 1 }}>✓ create</button>
+              <button onClick={() => setCreatingFile(false)} style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "4px 10px" }}>cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* File tree + inline schema */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
+          {/* Root-level files (e.g. dbt_project.yml) */}
+          {(byFolder["(root)"] || []).map((path) => {
+            const isCurrent = path === currentFile;
+            const yaml = isYaml(path);
+            const col = yaml ? C.green : C.amber;
+            return (
+              <FileRow key={path} path={path} name={path} isCurrent={isCurrent} yaml={yaml} col={col}
+                indent={0} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
+                setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile} />
+            );
+          })}
+
+          {/* Folders */}
+          {allFolders.map((folder) => {
+            const folderFiles = (byFolder[folder] || []).sort();
+            const isOpen = !collapsed[folder];
+            const fc = folder.startsWith("models/mart") ? C.green
+              : folder.startsWith("models/intermediate") ? C.amber
+              : folder.startsWith("models") ? C.cyan
+              : C.muted;
+            const label = folder.includes("/") ? folder.slice(folder.lastIndexOf("/") + 1) : folder;
+            const isNested = folder.includes("/");
+            return (
+              <div key={folder}>
+                {/* Folder header — VSCode style: chevron + folder icon + name */}
+                <button
+                  onClick={() => toggleFolder(folder)}
+                  style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: "none", border: "none", cursor: "pointer", padding: `3px 6px 3px ${isNested ? 18 : 6}px`, textAlign: "left", minHeight: 22 }}
+                >
+                  <ChevronIcon open={isOpen} size={10} color={C.muted} />
+                  <span style={{ color: fc, display: "flex" }}><FolderIcon size={14} /></span>
+                  <span style={{ fontFamily: F.mono, fontSize: 12, color: fc }}>{label}</span>
+                  {!isOpen && folderFiles.length > 0 && (
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{folderFiles.length}</span>
+                  )}
+                </button>
+
+                {/* Files inside folder */}
+                {isOpen && (
+                  <div>
+                    {folderFiles.length === 0 && (
+                      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, paddingLeft: isNested ? 42 : 28, paddingBottom: 2 }}>empty</div>
+                    )}
+                    {folderFiles.map((path) => {
+                      const name = path.slice(path.lastIndexOf("/") + 1);
+                      const isCurrent = path === currentFile;
+                      const yaml = isYaml(name);
+                      const col = yaml ? C.green : C.amber;
+                      return (
+                        <FileRow key={path} path={path} name={name} isCurrent={isCurrent} yaml={yaml} col={col}
+                          indent={isNested ? 28 : 14} onOpen={onOpen} onClose={onClose} confirmDelete={confirmDelete}
+                          setConfirmDelete={setConfirmDelete} onDeleteFile={onDeleteFile} />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* ── Inline DATABASE SCHEMA section — VSCode SQLite Explorer style ── */}
+          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4 }}>
+            <button
+              onClick={() => setSchemaOpen((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "4px 6px", textAlign: "left", minHeight: 24 }}
+            >
+              <ChevronIcon open={schemaOpen} size={10} color={C.muted} />
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.cyan, letterSpacing: 1, fontWeight: "bold" }}>DATABASE SCHEMA</span>
+            </button>
+            {schemaOpen && <SchemaExplorer db={db} />}
+          </div>
+        </div>
+
+        <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, lineHeight: 1.8 }}>
+            Double-click filename in editor to rename.<br />
+            Hover a file + click × to delete.<br />
+            .sql runs against SQLite · .yaml gets YAML linting.
+          </div>
+        </div>
+      </div>
+  );
+}
+
+// ── File Manager Panel (overlay wrapper around FileExplorerContent) ──
+function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 150, display: "flex" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
+      <div style={{ position: "relative", zIndex: 1, width: "80%", maxWidth: 320, height: "100%", display: "flex", flexDirection: "column" }}>
+        <FileExplorerContent
+          files={files} currentFile={currentFile} db={db}
+          onOpen={onOpen} onNewFile={onNewFile} onDeleteFile={onDeleteFile}
+          onClose={onClose}
+        />
+      </div>
     </div>
   );
 }
@@ -778,20 +1454,66 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const [replSql, setReplSql] = useState("");
   const [activeView, setActiveView] = useState("repl"); // "repl"|"editor"|"files"|"lineage"
   const [editorInitialSql, setEditorInitialSql] = useState(undefined);
-  const [saveStatus, setSaveStatus] = useState("idle");
   const [suggestions, setSuggestions] = useState([]);
   const [tableNames, setTableNames] = useState([]);
   const [columnNames, setColumnNames] = useState([]);
   const [kbdOpen, setKbdOpen] = useState(false);
   const [showOnboard, setShowOnboard] = useState(false);
   const [editorLintIssues, setEditorLintIssues] = useState([]);
-  const [editorKbdOpen, setEditorKbdOpen] = useState(false);
+  const [editorKbdOpen, setEditorKbdOpen] = useState(true);
+  const [files, setFiles] = useState(() => loadFileSystem());
+  const [currentFile, setCurrentFile] = useState("queries/main.sql");
+  const [showFileManager, setShowFileManager] = useState(false);
 
   const textareaRef = useRef(null);
   const scrollRef = useRef(null);
   const chipBarSwipeRef = useRef(null);
   const editorInsertRef = useRef(null);
   const ispt = lang === "pt";
+
+  // Persist files whenever they change
+  useEffect(() => { saveFileSystem(files); }, [files]);
+
+  const openFile = useCallback((path) => {
+    setCurrentFile(path);
+    setEditorInitialSql(files[path] ?? "");
+    setActiveView("editor");
+  }, [files]);
+
+  const handleFileSave = useCallback((path, content) => {
+    setFiles((prev) => ({ ...prev, [path]: content }));
+    // Clear so the reset button can always re-trigger the editor's initialSql effect
+    setEditorInitialSql(undefined);
+  }, []);
+
+  const handleFileNameChange = useCallback((newPath) => {
+    if (!newPath || newPath === currentFile) return;
+    setFiles((prev) => {
+      const next = { ...prev };
+      next[newPath] = next[currentFile] ?? "";
+      delete next[currentFile];
+      return next;
+    });
+    setCurrentFile(newPath);
+  }, [currentFile]);
+
+  const handleNewFile = useCallback((path) => {
+    const defaultContent = isYaml(path) ? "# YAML configuration\n" : "-- New query\nSELECT 1;";
+    setFiles((prev) => ({ ...prev, [path]: prev[path] ?? defaultContent }));
+    setCurrentFile(path);
+    setEditorInitialSql(undefined);
+    setActiveView("editor");
+  }, []);
+
+  const handleDeleteFile = useCallback((path) => {
+    setFiles((prev) => { const next = { ...prev }; delete next[path]; return next; });
+    if (path === currentFile) {
+      const remaining = Object.keys(files).filter((p) => p !== path);
+      const next = remaining[0] || "queries/main.sql";
+      setCurrentFile(next);
+      setEditorInitialSql(files[next] ?? "");
+    }
+  }, [currentFile, files]);
 
   const refreshCatalog = useCallback((dbInst) => {
     const d = dbInst || db;
@@ -809,12 +1531,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
       .then((d) => {
         setDb(d);
         refreshCatalog(d);
-        if (scrollback.length === 0) {
-          pushBlock({ type: "info", text: ispt
-            ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda. Veja as abas no fundo da tela.`
-            : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.  Tabs at the bottom: REPL · EDITOR · FILES · LINEAGE`
-          });
-        }
+        if (scrollback.length === 0) pushWelcome(d);
         if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboard(true);
       })
       .catch(() => pushBlock({ type: "error", text: "Failed to load sql.js engine" }))
@@ -860,6 +1577,18 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     });
   }, [replSql]);
 
+  const pushWelcome = useCallback((dbInst) => {
+    pushBlock({ type: "info", text: ispt
+      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
+      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.\nTabs: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
+    });
+    const d = dbInst || db;
+    if (d) {
+      const dtResult = execSQL(d, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name");
+      pushBlock({ type: "sql", cmd: "\\dt", result: dtResult });
+    }
+  }, [db, ispt, pushBlock]);
+
   const execute = useCallback(async () => {
     const trimmed = replSql.trim();
     if (!trimmed || !db) return;
@@ -869,20 +1598,19 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     resetHistoryIndex();
 
     if (trimmed.startsWith("\\")) {
-      if (trimmed === "\\save") {
-        setSaveStatus("saving");
-        const ok = await saveToIndexedDB();
-        setSaveStatus(ok ? "saved" : "error");
-        pushBlock({ type: "info", text: ok ? "✓ Workspace saved to IndexedDB" : "✗ Save failed" });
-        setTimeout(() => setSaveStatus("idle"), 2000);
+      if (trimmed === "\\reset") {
+        // Visual restart: replay welcome text + \dt without touching the database
+        clearScrollback();
+        pushWelcome();
         return;
       }
-      if (trimmed === "\\reset") {
+      if (trimmed === "\\resetdb") {
         const freshDb = await resetSandboxDB(DB_SCHEMA);
         setDb(freshDb);
         refreshCatalog(freshDb);
         clearScrollback();
-        pushBlock({ type: "info", text: ispt ? "Banco reiniciado com dados originais" : "Database reset to initial dataset" });
+        pushWelcome(freshDb);
+        pushBlock({ type: "info", text: ispt ? "⚠ Banco reiniciado com dados originais" : "⚠ Database wiped and restored to original dataset" });
         return;
       }
       handleMeta(trimmed, db, pushBlock, clearScrollback, replHistory);
@@ -891,7 +1619,11 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     const result = execSQL(db, trimmed);
     pushBlock({ type: "sql", cmd: trimmed, result });
     if (/^\s*(CREATE|DROP|ALTER)\b/i.test(trimmed)) refreshCatalog();
-  }, [replSql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt]);
+    // Auto-save DB after any statement that can change data or schema
+    if (/^\s*(CREATE|DROP|ALTER|INSERT|UPDATE|DELETE|REPLACE|TRUNCATE)\b/i.test(trimmed)) {
+      saveToIndexedDB();
+    }
+  }, [replSql, db, pushBlock, clearScrollback, pushHistory, replHistory, resetHistoryIndex, refreshCatalog, ispt, pushWelcome]);
 
   const onKeyDown = useCallback((e) => {
     if (e.key === "Tab") { e.preventDefault(); if (suggestions.length > 0) acceptSuggestion(suggestions[0]); return; }
@@ -912,8 +1644,6 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   };
   const onChipBarTouchEnd = () => { chipBarSwipeRef.current = null; };
 
-  const saveBtnLabel = saveStatus === "saving" ? "saving…" : saveStatus === "saved" ? "✓ ok" : saveStatus === "error" ? "✗ err" : "save";
-  const saveBtnColor = saveStatus === "saved" ? C.green : saveStatus === "error" ? C.red : C.dim;
 
   const SHORTCUTS = ["SELECT * FROM", "WHERE", "LEFT JOIN", "GROUP BY", "ORDER BY", "LIMIT 10", "\\dt", "\\?"];
   const showSuggestions = suggestions.length > 0;
@@ -923,21 +1653,48 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void, fontFamily: F.mono, position: "relative" }}>
 
       {showOnboard && <OnboardingModal onClose={closeOnboard} />}
+      {showFileManager && (
+        <FileManagerPanel
+          files={files}
+          currentFile={currentFile}
+          db={db}
+          onOpen={openFile}
+          onNewFile={handleNewFile}
+          onDeleteFile={handleDeleteFile}
+          onClose={() => setShowFileManager(false)}
+        />
+      )}
 
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderBottom: `1px solid ${C.border}`, background: C.black, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.dim, padding: "4px 8px", minHeight: 28, flexShrink: 0 }}>←</button>
+        <button onClick={() => setShowFileManager(true)} title="Files &amp; Schema" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", color: C.muted, padding: "2px 8px", minHeight: 28, flexShrink: 0, display: "flex", alignItems: "center" }}><FolderIcon size={15} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: C.text, letterSpacing: 1 }}>FREE_EXPLORE</span>
           <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>SQLite</span>
         </div>
         <button onClick={() => setShowOnboard(true)} title="Open guide" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.amber, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>?</button>
-        <button onClick={clearScrollback} title="Clear terminal output" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>cls</button>
+        <button onClick={clearScrollback} title="Clear shell output (does not affect DB or files)" style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: C.dim, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}>cls</button>
         <button
-          onClick={async () => { setSaveStatus("saving"); const ok = await saveToIndexedDB(); setSaveStatus(ok ? "saved" : "error"); setTimeout(() => setSaveStatus("idle"), 2000); }}
-          disabled={!db || saveStatus === "saving"}
-          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: saveBtnColor, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
-        >{saveBtnLabel}</button>
+          onClick={() => {
+            if (activeView === "repl") {
+              clearScrollback();
+              pushWelcome();
+            } else {
+              const original = DEFAULT_FILES[currentFile];
+              if (original !== undefined) {
+                setFiles((prev) => ({ ...prev, [currentFile]: original }));
+                setEditorInitialSql(original);
+              }
+            }
+          }}
+          title={activeView === "repl"
+            ? "Replay shell startup text and \\dt"
+            : DEFAULT_FILES[currentFile] !== undefined
+              ? `Reset ${currentFile.slice(currentFile.lastIndexOf("/") + 1)} to its original content`
+              : `No default for ${currentFile.slice(currentFile.lastIndexOf("/") + 1)}`}
+          style={{ background: "none", border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: activeView === "repl" ? C.amber : DEFAULT_FILES[currentFile] !== undefined ? C.amber : C.border, padding: "4px 7px", minHeight: 28, flexShrink: 0 }}
+        >reset</button>
       </div>
 
       {/* ── Main content area ── */}
@@ -958,10 +1715,14 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
             <SqlEditor
               db={db}
               lang={lang}
-              initialSql={editorInitialSql}
+              initialSql={editorInitialSql ?? files[currentFile]}
+              fileName={currentFile}
+              onFileNameChange={handleFileNameChange}
+              onOpenFileManager={() => setShowFileManager(true)}
               tableNames={tableNames}
               columnNames={columnNames}
               onRefreshCatalog={refreshCatalog}
+              onSqlChange={(content) => handleFileSave(currentFile, content)}
               onLintIssuesChange={setEditorLintIssues}
               insertRef={editorInsertRef}
             />
@@ -977,7 +1738,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               </div>
             )}
 
-            {/* SQL Keyboard */}
+            {/* SQL Keyboard — always starts expanded */}
             {editorKbdOpen && (
               <SandboxAuxKeyboard
                 onInsert={(text) => editorInsertRef.current?.(text)}
@@ -997,12 +1758,16 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
           </>
         )}
 
-        {/* FILES view */}
+        {/* FILES / VAULT view */}
         {activeView === "files" && (
-          <FileTree
+          <FileExplorerContent
+            files={files}
+            currentFile={currentFile}
             db={db}
-            lang={lang}
-            onOpenInEditor={(sql) => { setEditorInitialSql(sql); setActiveView("editor"); }}
+            onOpen={openFile}
+            onNewFile={handleNewFile}
+            onDeleteFile={handleDeleteFile}
+            onClose={null}
           />
         )}
 
@@ -1094,7 +1859,9 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
               cursor: "pointer",
             }}
           >
-            <span style={{ fontFamily: F.mono, fontSize: 13, color: activeView === tab.id ? tab.color : C.muted, lineHeight: 1 }}>{tab.icon}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 13, color: activeView === tab.id ? tab.color : C.muted, lineHeight: 1 }}>
+              {tab.icon === null ? <FolderIcon size={14} /> : tab.icon}
+            </span>
             <span style={{ fontFamily: F.mono, fontSize: 9, color: activeView === tab.id ? tab.color : C.muted, letterSpacing: 1 }}>{tab.label}</span>
           </button>
         ))}
