@@ -627,11 +627,11 @@ function TabBar({ active, onTabChange }) {
   const { t } = useLang();
   const tabs = [
     { id: "home", label: "~", icon: "~" },
-    { id: "learn", label: "learn", icon: "learn" },
+    { id: "learn", label: "quest", icon: "quest" },
     { id: "practice", label: "code", icon: "code" },
     { id: "quiz", label: "quiz", icon: "quiz" },
     { id: "review", label: "cards", icon: "cards" },
-    { id: "profile", label: "user", icon: "user" },
+    { id: "profile", label: "player", icon: "player" },
   ];
   return (
     <>
@@ -707,13 +707,11 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const lv = getLevel(xp);
 
   const menuItems = [
-    { num: "1", id: "SYSTEM_STORY",  desc: lang === "pt" ? "// trilha de aprendizado SQL" : "// SQL learning campaign",   action: () => onNavigate("learn") },
-    { num: "2", id: "BOUNTY_BOARD",  desc: lang === "pt" ? "// desafio diário rotativo"   : "// daily rotating challenge", action: () => onNavigate("daily") },
-    { num: "3", id: "PRACTICE",      desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL`  : `// all ${CHALLENGES_DB.length} SQL challenges`,    action: () => onNavigate("practice") },
-    { num: "4", id: "QUIZ",          desc: lang === "pt" ? "// múltipla escolha"           : "// multiple-choice questions", action: () => onNavigate("quiz") },
-    { num: "5", id: "REVIEW_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"  : "// spaced repetition cards",  action: () => onNavigate("review") },
-    { num: "6", id: "PROFILE",       desc: lang === "pt" ? "// stats e conquistas"        : "// stats & achievements",     action: () => onNavigate("profile") },
-    { num: "7", id: "FREE_EXPLORE",  desc: lang === "pt" ? "// sandbox SQL livre"         : "// free SQL sandbox",          action: () => onNavigate("explore") },
+    { num: "1", id: "QUERY_QUEST",   desc: lang === "pt" ? "// trilha de aprendizado SQL"          : "// SQL learning campaign",        action: () => onNavigate("learn") },
+    { num: "2", id: "CODE_ARENA",   desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL` : `// all ${CHALLENGES_DB.length} SQL challenges`, action: () => onNavigate("practice") },
+    { num: "3", id: "QUIZ_BATTLE",  desc: lang === "pt" ? "// múltipla escolha"                   : "// multiple-choice questions",    action: () => onNavigate("quiz") },
+    { num: "4", id: "FLASH_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"            : "// spaced repetition cards",      action: () => onNavigate("review") },
+    { num: "5", id: "PLAYER_STATS", desc: lang === "pt" ? "// stats e conquistas"                 : "// stats & achievements",         action: () => onNavigate("profile") },
   ];
 
   const handleCmd = (e) => {
@@ -751,10 +749,18 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
           <span style={{ color: C.cyan, fontSize: 14 }}>{dc.title}</span>
           <span style={{ color: C.dim, fontSize: 12, marginLeft: "auto" }}>→ ENTER</span>
         </button>
-        <div style={{ fontSize: 11, color: C.dim, marginTop: 6, paddingLeft: 18, lineHeight: 1.5 }}>
-          {lang === "pt" ? dc.desc_pt : dc.desc_en}
-        </div>
       </div>
+
+      {/* Free Explore */}
+      <button onClick={() => onNavigate("explore")} style={{
+        display: "flex", alignItems: "center", gap: 8, margin: "0 0 16px",
+        padding: "10px 12px", border: `1px solid ${C.amber}50`,
+        background: C.amberGhost, cursor: "pointer", width: "100%", textAlign: "left",
+      }}>
+        <span style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, minWidth: 28 }}>[*]</span>
+        <span style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, letterSpacing: 1 }}>FREE_EXPLORE</span>
+        <span style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, marginLeft: "auto" }}>{lang === "pt" ? "// sandbox SQL livre →" : "// free SQL sandbox →"}</span>
+      </button>
 
       {/* Menu */}
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
