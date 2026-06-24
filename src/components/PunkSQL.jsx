@@ -631,7 +631,7 @@ function TabBar({ active, onTabChange }) {
     { id: "practice", label: "code", icon: "code" },
     { id: "quiz", label: "quiz", icon: "quiz" },
     { id: "review", label: "cards", icon: "cards" },
-    { id: "profile", label: "user", icon: "user" },
+    { id: "profile", label: "stats", icon: "stats" },
   ];
   return (
     <>
@@ -707,11 +707,11 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const lv = getLevel(xp);
 
   const menuItems = [
-    { num: "1", id: "LEARN",         desc: lang === "pt" ? "// trilha de aprendizado SQL"          : "// SQL learning campaign",        action: () => onNavigate("learn") },
-    { num: "2", id: "CODE",          desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL` : `// all ${CHALLENGES_DB.length} SQL challenges`, action: () => onNavigate("practice") },
-    { num: "3", id: "QUIZ",          desc: lang === "pt" ? "// múltipla escolha"                   : "// multiple-choice questions",    action: () => onNavigate("quiz") },
-    { num: "4", id: "REVIEW_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"            : "// spaced repetition cards",      action: () => onNavigate("review") },
-    { num: "5", id: "USER",          desc: lang === "pt" ? "// stats e conquistas"                 : "// stats & achievements",         action: () => onNavigate("profile") },
+    { num: "1", id: "SQL_CAMPAIGN",  desc: lang === "pt" ? "// trilha de aprendizado SQL"          : "// SQL learning campaign",        action: () => onNavigate("learn") },
+    { num: "2", id: "CODE_ARENA",   desc: lang === "pt" ? `// todos os ${CHALLENGES_DB.length} desafios SQL` : `// all ${CHALLENGES_DB.length} SQL challenges`, action: () => onNavigate("practice") },
+    { num: "3", id: "QUIZ_BATTLE",  desc: lang === "pt" ? "// múltipla escolha"                   : "// multiple-choice questions",    action: () => onNavigate("quiz") },
+    { num: "4", id: "FLASH_CARDS",  desc: lang === "pt" ? "// flashcards com repetição"            : "// spaced repetition cards",      action: () => onNavigate("review") },
+    { num: "5", id: "PLAYER_STATS", desc: lang === "pt" ? "// stats e conquistas"                 : "// stats & achievements",         action: () => onNavigate("profile") },
   ];
 
   const handleCmd = (e) => {
