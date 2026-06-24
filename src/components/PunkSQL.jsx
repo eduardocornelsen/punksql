@@ -3932,6 +3932,7 @@ export default function PunkSQLCLI() {
   const levelUpActive = useRef(false);
   const prevLevel = useRef(getLevel(0).level);
   const prevEarned = useRef(new Set());
+  const achievementBootstrapped = useRef(false);
 
   const markSolved = useCallback((id) => {
     setSolved(prev => {
@@ -3999,8 +4000,20 @@ export default function PunkSQLCLI() {
 
   // Check for new badge unlocks after solved changes
   useEffect(() => {
+    // Wait until storage has finished loading so we don't run against the
+    // initial empty-state render and mistake existing badges as fresh unlocks.
+    if (!storageLoaded) return;
+
     const newEarned = ACHIEVEMENTS.filter(a => a.check(solved, xp));
     const newIds = newEarned.map(a => a.id);
+
+    if (!achievementBootstrapped.current) {
+      // First run after load — silently initialise the baseline, no popup.
+      achievementBootstrapped.current = true;
+      prevEarned.current = new Set(newIds);
+      return;
+    }
+
     const freshUnlock = newIds.find(id => !prevEarned.current.has(id));
     if (freshUnlock && solved.size > 0) {
       const badge = ACHIEVEMENTS.find(a => a.id === freshUnlock);
@@ -4013,7 +4026,7 @@ export default function PunkSQLCLI() {
       }
     }
     prevEarned.current = new Set(newIds);
-  }, [solved, xp]);
+  }, [solved, xp, storageLoaded]);
 
   const t = useCallback(k => i18n[lang][k] || k, [lang]);
 
