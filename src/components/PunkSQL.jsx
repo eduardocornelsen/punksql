@@ -3400,7 +3400,7 @@ function ReviewScreen({ onXP }) {
       {/* Timer for Expert/Hero modes */}
       {cfg.timerSec && !gameOver && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <ProgressBar progress={cards.length > 0 ? ((idx % cards.length) + 1) / cards.length : 0} />
+          <ProgressBar progress={cards.length > 0 ? (idx % cards.length) / cards.length : 0} />
           <div style={{
             fontFamily: F.mono, fontSize: 22, minWidth: 44, textAlign: "right",
             color: cardTimer > 4 ? C.amber : C.red,
@@ -3408,7 +3408,7 @@ function ReviewScreen({ onXP }) {
           }}>{cardTimer}s</div>
         </div>
       )}
-      {!cfg.timerSec && <ProgressBar progress={cards.length > 0 ? ((idx % cards.length) + 1) / cards.length : 0} />}
+      {!cfg.timerSec && <ProgressBar progress={cards.length > 0 ? (idx % cards.length) / cards.length : 0} />}
 
       {/* Game Over overlay */}
       {gameOver ? (
