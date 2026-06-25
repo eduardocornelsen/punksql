@@ -3507,12 +3507,12 @@ function ReviewScreen({ onXP }) {
         </div>
       )}
 
-      {/* Difficulty selector — standard mode only */}
+      {/* Difficulty selector + reset button — standard mode only */}
       {cardMode === "standard" && (
       <StdoutList
         items={["ALL","EASY","MED","HARD","DIALECT"]}
         delay={60}
-        style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}
+        style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}
         renderItem={(d) => {
           const totalForDiff = d === "ALL" ? allCards.length : allCards.filter(c => c.diff === d).length;
           const doneForDiff = d === "ALL"
@@ -3530,6 +3530,15 @@ function ReviewScreen({ onXP }) {
         }}
       />
       )}
+      {cardMode === "standard" && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+          <button onClick={resetProgress} style={{
+            fontFamily: F.mono, fontSize: 11, color: C.muted, background: "none",
+            border: "none", cursor: "pointer", padding: "2px 4px", letterSpacing: 1,
+            opacity: doneSet.size > 0 ? 1 : 0.35,
+          }}>↺ reset</button>
+        </div>
+      )}
 
       {/* Timer for Expert/Hero modes */}
       {cfg.timerSec && !gameOver && !victory && (
@@ -3542,7 +3551,11 @@ function ReviewScreen({ onXP }) {
           }}>{cardTimer}s</div>
         </div>
       )}
-      {!cfg.timerSec && !victory && <ProgressBar progress={cardQueue.length > 0 ? queuePos / cardQueue.length : 0} />}
+      {!cfg.timerSec && !victory && (() => {
+        const total = diff === "ALL" ? allCards.length : allCards.filter(c => c.diff === diff).length;
+        const done = diff === "ALL" ? doneSet.size : allCards.filter((c, i) => c.diff === diff && doneSet.has(i)).length;
+        return <ProgressBar progress={total > 0 ? done / total : 0} />;
+      })()}
 
       {/* Victory overlay — Hero mode win */}
       {victory ? (
