@@ -3344,7 +3344,7 @@ function ReviewScreen({ onXP }) {
   const onTM = (e) => {
     if (ejecting) return;
     const dx = e.touches[0].clientX - touchStart.current;
-    if (Math.abs(dx) > 10) setSwiping(true);
+    if (Math.abs(dx) > 10) { setSwiping(true); e.stopPropagation(); }
     setSwipeX(dx);
   };
   const onTE = (e) => {
@@ -3469,7 +3469,7 @@ function ReviewScreen({ onXP }) {
       {victory ? (
         <div style={{ marginTop: 20, background: C.panel, border: `1px solid ${C.red}`, padding: "32px 22px", textAlign: "center", animation: "fadeSlide 0.4s ease" }}>
           <div style={{ fontFamily: F.mono, fontSize: 13, color: C.red, letterSpacing: 3, marginBottom: 8 }}>HERO COMPLETE</div>
-          <div style={{ fontSize: 56, marginBottom: 8, animation: "badgeUnlock 0.8s ease" }}>☠</div>
+          <div style={{ fontSize: 56, marginBottom: 8, animation: "badgeUnlock 0.8s ease", color: C.red, textShadow: `0 0 20px ${C.red}` }}>☠</div>
           <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginBottom: 4 }}>{HERO_STREAK_WIN} {lang === "pt" ? "cards corretos seguidos" : "cards correct in a row"}</div>
           <div style={{ fontFamily: F.mono, fontSize: 36, color: C.red, margin: "14px 0" }}>{score} <span style={{ fontSize: 18, color: C.muted }}>pts</span></div>
           <div style={{ fontFamily: F.mono, fontSize: 13, color: C.muted, marginBottom: 4 }}>{lang === "pt" ? "melhor" : "best"}: {cardStats.hero?.bestScore || score}pt · {lang === "pt" ? "vitórias" : "wins"}: {cardStats.hero?.wins || 1}</div>
@@ -4368,6 +4368,8 @@ export default function PunkSQLCLI() {
     swipeStartX.current = null;
     swipeStartY.current = null;
     if (swipeInScrollable.current) return;
+    // Cards screen uses horizontal swipe for card actions — don't switch tabs
+    if (tab === "review") return;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
     const idx = MAIN_TABS.indexOf(tab);
     if (dx < 0 && idx < MAIN_TABS.length - 1) setTab(MAIN_TABS[idx + 1]);
