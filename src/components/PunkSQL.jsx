@@ -37,7 +37,20 @@ function saveCardStats(stats) {
   try { localStorage.setItem(CARD_STATS_KEY, JSON.stringify(stats)); } catch {}
 }
 function loadQuizState() {
-  try { return JSON.parse(localStorage.getItem(QUIZ_STATE_KEY) || "{}"); } catch { return {}; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(QUIZ_STATE_KEY) || "{}");
+    // Migrate old format {order, history} → {order, queue, pos, history}
+    let changed = false;
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (v && v.order && !v.queue) {
+        out[k] = { order: v.order, queue: [...v.order], pos: 0, history: v.history || [] };
+        changed = true;
+      } else { out[k] = v; }
+    }
+    if (changed) { try { localStorage.setItem(QUIZ_STATE_KEY, JSON.stringify(out)); } catch {} }
+    return out;
+  } catch { return {}; }
 }
 function saveQuizState(state) {
   try { localStorage.setItem(QUIZ_STATE_KEY, JSON.stringify(state)); } catch {}
@@ -3693,16 +3706,15 @@ function QuizScreen({ onXP }) {
   const { t, lang } = useLang();
   const [modFilter, setModFilter] = useState(0);
   const [tabStates, setTabStates] = useState(() => loadQuizState());
-  // historyPos: null = current unanswered question, number = reviewing a past answer
+  // historyPos: null = current question, number = reviewing a past answer
   const [historyPos, setHistoryPos] = useState(null);
-  const [showResult, setShowResult] = useState(false);
+  // selected: null = unanswered; ≥0 = chosen option index. displayShowResult derives from this.
   const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [timer, setTimer] = useState(15);
+  const [timer, setTimer] = useState(20);
   const timerRef = useRef(null);
-  const handleAnswerRef = useRef(null);
-  // Cache shuffled option order per question (stable within session, re-shuffled on reload)
+  const handleTimeoutRef = useRef(null);
   const optCacheRef = useRef({});
 
   const tabKey = String(modFilter);
@@ -3713,28 +3725,43 @@ function QuizScreen({ onXP }) {
     return QUIZ_DB.filter(q => q.mod === modFilter);
   }, [modFilter]);
 
-  // Initialize tab state when switching tabs; also reset review/answer UI state
+  // Initialize tab when first visited or after format migration (old format had no queue/pos)
   useEffect(() => {
     setTabStates(prev => {
-      const existing = prev[tabKey];
-      if (existing && existing.order && existing.order.length === tabQuestions.length) return prev;
-      const newState = { order: shuffleArr(tabQuestions.map(q => q.id)), history: [] };
-      const updated = { ...prev, [tabKey]: newState };
+      const ex = prev[tabKey];
+      if (ex && ex.queue && ex.pos !== undefined) return prev;
+      const ord = shuffleArr(tabQuestions.map(q => q.id));
+      // Migrate old format {order, history} → new format {order, queue, pos, history}
+      if (ex && ex.order && !ex.queue) {
+        const migrated = { order: ex.order, queue: [...ex.order], pos: 0, history: ex.history || [] };
+        const updated = { ...prev, [tabKey]: migrated };
+        saveQuizState(updated);
+        return updated;
+      }
+      const next = { order: ord, queue: [...ord], pos: 0, history: [] };
+      const updated = { ...prev, [tabKey]: next };
       saveQuizState(updated);
       return updated;
     });
     setHistoryPos(null);
     setSelected(null);
-    setShowResult(false);
   }, [tabKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tabState = tabStates[tabKey] || { order: tabQuestions.map(q => q.id), history: [] };
-  const { order, history } = tabState;
-  const currentOrderIdx = order.length > 0 ? history.length % order.length : 0;
-  const currentQId = order[currentOrderIdx];
+  const raw = tabStates[tabKey];
+  // Inline migration fallback for first render before useEffect fires
+  const tabState = raw?.queue
+    ? raw
+    : raw?.order
+      ? { order: raw.order, queue: [...raw.order], pos: 0, history: raw.history || [] }
+      : { order: [], queue: tabQuestions.map(q => q.id), pos: 0, history: [] };
 
-  // Get question with shuffled options (cached per session)
+  const { order, queue, history } = tabState;
+  const pos = tabState.pos ?? 0;
+  const safePos = queue.length > 0 ? pos % queue.length : 0;
+  const currentQId = queue[safePos] ?? null;
+
   function getQ(qId) {
+    if (!qId) return null;
     if (!optCacheRef.current[qId]) {
       const orig = QUIZ_DB.find(q => q.id === qId);
       if (!orig) return null;
@@ -3748,82 +3775,99 @@ function QuizScreen({ onXP }) {
     return optCacheRef.current[qId];
   }
 
-  // Determine what to display: current question or a history entry
   const isReviewing = historyPos !== null && historyPos >= 0 && historyPos < history.length;
-  let displayQId, displaySelected, displayShowResult;
+  // Result is shown when reviewing a past answer OR when an option has been selected this round
+  const displayShowResult = isReviewing || selected !== null;
+
+  let displayQId, displaySelected;
   if (isReviewing) {
     const h = history[historyPos];
     displayQId = h.qId;
     displaySelected = h.selectedIdx;
-    displayShowResult = true;
   } else {
     displayQId = currentQId;
     displaySelected = selected;
-    displayShowResult = showResult;
   }
 
   const q = getQ(displayQId);
   const pts = q?.diff === "EASY" ? 10 : q?.diff === "MED" ? 20 : q?.diff === "HARD" ? 30 : 40;
 
-  // Timer: only runs for current unanswered question
+  // Timer resets when tab or position changes. Stops immediately when answered (selected ≠ null) or reviewing.
   useEffect(() => {
     clearInterval(timerRef.current);
-    if (isReviewing || showResult || !q) { setTimer(15); return; }
-    setTimer(15);
+    if (isReviewing || selected !== null || !q) return;
+    setTimer(20);
     timerRef.current = setInterval(() => {
       setTimer(prev => {
-        if (prev <= 1) { clearInterval(timerRef.current); handleAnswerRef.current?.(-1); return 0; }
+        if (prev <= 1) { clearInterval(timerRef.current); handleTimeoutRef.current?.(); return 0; }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [tabKey, currentOrderIdx, isReviewing, showResult]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tabKey, pos, isReviewing, selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getStreakMult = (s) => s >= 10 ? 2.0 : s >= 5 ? 1.5 : s >= 3 ? 1.25 : 1.0;
-  const getQuizTimeMult = (t) => t > 10 ? 1.5 : t > 5 ? 1.25 : 1.0;
+  const getTimeMult = (t) => t > 13 ? 1.5 : t > 7 ? 1.25 : 1.0;
 
+  // Answer: freeze timer display, update score/streak, show result. History committed on NEXT.
   const handleAnswer = (optIdx) => {
     if (displayShowResult || isReviewing || !q) return;
     clearInterval(timerRef.current);
-    const correct = optIdx !== -1 && optIdx === q.ans;
+    const correct = optIdx === q.ans;
     setSelected(optIdx);
-    setShowResult(true);
     if (correct) {
       const nextStreak = streak + 1;
-      const earned = Math.round(pts * Math.min(3.0, getStreakMult(nextStreak) * getQuizTimeMult(timer)));
+      const earned = Math.round(pts * Math.min(3.0, getStreakMult(nextStreak) * getTimeMult(timer)));
       setScore(s => s + earned);
       setStreak(nextStreak);
       if (onXP) onXP(earned);
     } else {
       setStreak(0);
     }
-    const newHistory = [...history, { qId: currentQId, selectedIdx: optIdx, correct }];
+  };
+
+  // Timeout: skip question silently, append to end of queue for retry, advance pos.
+  const handleTimeout = () => {
     setTabStates(prev => {
-      const updated = { ...prev, [tabKey]: { ...tabState, history: newHistory } };
+      const ts = prev[tabKey] || tabState;
+      if (!ts.queue || ts.queue.length === 0) return prev;
+      const sp = ts.pos % ts.queue.length;
+      const skippedQId = ts.queue[sp];
+      const updated = { ...prev, [tabKey]: { ...ts, queue: [...ts.queue, skippedQId], pos: ts.pos + 1 } };
       saveQuizState(updated);
       return updated;
     });
   };
-  handleAnswerRef.current = handleAnswer;
+  handleTimeoutRef.current = handleTimeout;
 
+  // NEXT: commit answer to history and advance pos. In review mode: navigate history.
   const nextQuestion = () => {
     if (isReviewing) {
-      if (historyPos < history.length - 1) { setHistoryPos(historyPos + 1); }
-      else { setHistoryPos(null); setSelected(null); setShowResult(false); }
+      if (historyPos < history.length - 1) setHistoryPos(historyPos + 1);
+      else setHistoryPos(null);
     } else {
+      if (selected === null || !q) return;
+      const correct = selected === q.ans;
+      const newHistory = [...history, { qId: currentQId, selectedIdx: selected, correct }];
+      setTabStates(prev => {
+        const ts = prev[tabKey] || tabState;
+        const updated = { ...prev, [tabKey]: { ...ts, history: newHistory, pos: ts.pos + 1 } };
+        saveQuizState(updated);
+        return updated;
+      });
       setSelected(null);
-      setShowResult(false);
     }
   };
 
   const prevQuestion = () => {
-    if (isReviewing && historyPos > 0) { setHistoryPos(historyPos - 1); }
-    else if (!isReviewing && history.length > 0) { setHistoryPos(history.length - 1); }
+    if (isReviewing && historyPos > 0) setHistoryPos(historyPos - 1);
+    else if (!isReviewing && history.length > 0) setHistoryPos(history.length - 1);
   };
 
   const resetTab = () => {
     tabQuestions.forEach(tq => { delete optCacheRef.current[tq.id]; });
-    const newState = { order: shuffleArr(tabQuestions.map(q => q.id)), history: [] };
+    const ord = shuffleArr(tabQuestions.map(q => q.id));
+    const newState = { order: ord, queue: [...ord], pos: 0, history: [] };
     setTabStates(prev => {
       const updated = { ...prev, [tabKey]: newState };
       saveQuizState(updated);
@@ -3831,16 +3875,19 @@ function QuizScreen({ onXP }) {
     });
     setHistoryPos(null);
     setSelected(null);
-    setShowResult(false);
     setScore(0);
     setStreak(0);
   };
 
-  const timerColor = timer > 10 ? C.green : timer > 5 ? C.amber : C.red;
+  const timerColor = timer > 13 ? C.green : timer > 7 ? C.amber : C.red;
   const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL","M11: dbt","☠ HERO"];
   const answeredCount = history.length;
   const correctCount = history.filter(h => h.correct).length;
   const canGoPrev = isReviewing ? historyPos > 0 : history.length > 0;
+  const isRetry = order.length > 0 && pos >= order.length;
+  const progressPct = order.length > 0 ? Math.min(pos, order.length) / order.length : 0;
+  const qCounter = isRetry ? `[RETRY ${pos - order.length + 1}]` : `[${pos + 1}/${order.length}]`;
+  const hasActivity = pos > 0 || history.length > 0;
 
   if (!q) return null;
 
@@ -3876,16 +3923,21 @@ function QuizScreen({ onXP }) {
 
       {/* Progress + Timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <ProgressBar progress={order.length > 0 ? currentOrderIdx / order.length : 0} />
+        <ProgressBar progress={progressPct} />
         {!isReviewing && (
           <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
         )}
       </div>
 
-      {/* Reviewing banner */}
+      {/* Status banners */}
       {isReviewing && (
         <div style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, border: `1px solid ${C.amberDim}`, padding: "4px 10px", marginBottom: 8, letterSpacing: 1 }}>
           REVIEWING [{historyPos + 1}/{history.length}]
+        </div>
+      )}
+      {!isReviewing && isRetry && (
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.cyan, border: `1px solid ${C.border}`, padding: "4px 10px", marginBottom: 8, letterSpacing: 1 }}>
+          ↺ RETRY ROUND — UNANSWERED QUESTIONS
         </div>
       )}
 
@@ -3894,7 +3946,7 @@ function QuizScreen({ onXP }) {
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: C.border }} />
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
           <span style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>
-            {isReviewing ? `[HISTORY ${historyPos + 1}/${history.length}]` : `[${currentOrderIdx + 1}/${order.length}]`}
+            {isReviewing ? `[HISTORY ${historyPos + 1}/${history.length}]` : qCounter}
           </span>
           <span style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, border: `1px solid ${C.border}`, padding: "3px 10px", letterSpacing: 1 }}>{q.diff}</span>
         </div>
@@ -3904,7 +3956,7 @@ function QuizScreen({ onXP }) {
       {/* Options */}
       <StdoutList
         items={q.opts}
-        resetKey={isReviewing ? `h-${historyPos}` : `q-${tabKey}-${currentOrderIdx}`}
+        resetKey={isReviewing ? `h-${historyPos}` : `q-${tabKey}-${pos}`}
         delay={80}
         style={{ gap: 8, marginBottom: 14 }}
         renderItem={(opt, i) => {
@@ -3962,10 +4014,10 @@ function QuizScreen({ onXP }) {
         <button onClick={resetTab} style={{
           fontFamily: F.mono, fontSize: 13, letterSpacing: 1, cursor: "pointer",
           padding: "5px 14px", borderRadius: 3,
-          color: history.length > 0 ? C.amber : C.muted,
-          background: history.length > 0 ? C.amberGhost : "none",
-          border: `1px solid ${history.length > 0 ? C.amberDim : C.border}`,
-          opacity: history.length > 0 ? 1 : 0.5,
+          color: hasActivity ? C.amber : C.muted,
+          background: hasActivity ? C.amberGhost : "none",
+          border: `1px solid ${hasActivity ? C.amberDim : C.border}`,
+          opacity: hasActivity ? 1 : 0.5,
           transition: "all 0.2s",
         }}>↺ reset</button>
       </div>
@@ -3977,7 +4029,7 @@ function QuizScreen({ onXP }) {
             { l: "SCORE", v: `${score}`, c: C.dim },
             { l: "ACC", v: answeredCount > 0 ? `${Math.round((correctCount / answeredCount) * 100)}%` : "—", c: C.dim },
             { l: "STREAK", v: `${streak}`, c: C.dim },
-            { l: "DONE", v: `${Math.min(answeredCount, order.length)}/${order.length}`, c: C.dim },
+            { l: "DONE", v: `${Math.min(pos, order.length)}/${order.length}`, c: C.dim },
           ].map(s => (
             <div key={s.l} style={{ textAlign: "center" }}>
               <div style={{ fontFamily: F.mono, fontSize: 18, color: s.c }}>{s.v}</div>
