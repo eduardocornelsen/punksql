@@ -3593,7 +3593,7 @@ function ReviewScreen({ onXP }) {
 
           {/* Swipable card */}
           <div
-            key={idx}
+            key={queuePos}
             onClick={!swiping && !ejecting ? flip : undefined}
             onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
             style={{
