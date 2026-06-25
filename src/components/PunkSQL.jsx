@@ -14,6 +14,7 @@ const STORAGE_KEY = "qq-save";
 const SQL_DRAFT_PREFIX = "qq-draft-";
 const CODE_ONBOARDING_KEY = "punksql-code-tour-v1";
 const CARD_STATS_KEY = "punksql-card-stats";
+const QUIZ_STATE_KEY = "punksql-quiz-state";
 const HERO_STREAK_WIN = 10;
 
 function loadProgress() {
@@ -34,6 +35,12 @@ function loadCardStats() {
 }
 function saveCardStats(stats) {
   try { localStorage.setItem(CARD_STATS_KEY, JSON.stringify(stats)); } catch {}
+}
+function loadQuizState() {
+  try { return JSON.parse(localStorage.getItem(QUIZ_STATE_KEY) || "{}"); } catch { return {}; }
+}
+function saveQuizState(state) {
+  try { localStorage.setItem(QUIZ_STATE_KEY, JSON.stringify(state)); } catch {}
 }
 function loadSQLDraft(challengeId) {
   try { return localStorage.getItem(SQL_DRAFT_PREFIX + challengeId) || ""; } catch(e) { return ""; }
@@ -3684,82 +3691,158 @@ function ReviewScreen({ onXP }) {
 // ═══════════════════════════════════════════════════════════
 function QuizScreen({ onXP }) {
   const { t, lang } = useLang();
-  const [modFilter, setModFilter] = useState(0); // 0 = all, "HERO" = hero mode
-  const [idx, setIdx] = useState(0);
-  const [selected, setSelected] = useState(null);
+  const [modFilter, setModFilter] = useState(0);
+  const [tabStates, setTabStates] = useState(() => loadQuizState());
+  // historyPos: null = current unanswered question, number = reviewing a past answer
+  const [historyPos, setHistoryPos] = useState(null);
   const [showResult, setShowResult] = useState(false);
+  const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [correct, setCorrect] = useState(0);
   const [streak, setStreak] = useState(0);
   const [timer, setTimer] = useState(15);
   const timerRef = useRef(null);
+  const handleAnswerRef = useRef(null);
+  // Cache shuffled option order per question (stable within session, re-shuffled on reload)
+  const optCacheRef = useRef({});
 
-  const questions = useMemo(() => {
-    let base;
-    if (modFilter === 0) base = QUIZ_DB.filter(q => q.mod !== "HERO");
-    else if (modFilter === "HERO") base = QUIZ_DB.filter(q => q.diff === "EXPERT" || q.diff === "HARD");
-    else base = QUIZ_DB.filter(q => q.mod === modFilter);
-    return base.map(q => {
-      const tagged = q.opts.map((opt, i) => ({ opt, correct: i === q.ans }));
+  const tabKey = String(modFilter);
+
+  const tabQuestions = useMemo(() => {
+    if (modFilter === 0) return QUIZ_DB.filter(q => q.mod !== "HERO");
+    if (modFilter === "HERO") return QUIZ_DB.filter(q => q.diff === "EXPERT" || q.diff === "HARD");
+    return QUIZ_DB.filter(q => q.mod === modFilter);
+  }, [modFilter]);
+
+  // Initialize tab state when switching tabs; also reset review/answer UI state
+  useEffect(() => {
+    setTabStates(prev => {
+      const existing = prev[tabKey];
+      if (existing && existing.order && existing.order.length === tabQuestions.length) return prev;
+      const newState = { order: shuffleArr(tabQuestions.map(q => q.id)), history: [] };
+      const updated = { ...prev, [tabKey]: newState };
+      saveQuizState(updated);
+      return updated;
+    });
+    setHistoryPos(null);
+    setSelected(null);
+    setShowResult(false);
+  }, [tabKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tabState = tabStates[tabKey] || { order: tabQuestions.map(q => q.id), history: [] };
+  const { order, history } = tabState;
+  const currentOrderIdx = order.length > 0 ? history.length % order.length : 0;
+  const currentQId = order[currentOrderIdx];
+
+  // Get question with shuffled options (cached per session)
+  function getQ(qId) {
+    if (!optCacheRef.current[qId]) {
+      const orig = QUIZ_DB.find(q => q.id === qId);
+      if (!orig) return null;
+      const tagged = orig.opts.map((opt, i) => ({ opt, correct: i === orig.ans }));
       for (let i = tagged.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
       }
-      return { ...q, opts: tagged.map(t => t.opt), ans: tagged.findIndex(t => t.correct) };
-    });
-  }, [modFilter]);
+      optCacheRef.current[qId] = { ...orig, opts: tagged.map(t => t.opt), ans: tagged.findIndex(t => t.correct) };
+    }
+    return optCacheRef.current[qId];
+  }
 
-  const q = questions[idx % questions.length];
+  // Determine what to display: current question or a history entry
+  const isReviewing = historyPos !== null && historyPos >= 0 && historyPos < history.length;
+  let displayQId, displaySelected, displayShowResult;
+  if (isReviewing) {
+    const h = history[historyPos];
+    displayQId = h.qId;
+    displaySelected = h.selectedIdx;
+    displayShowResult = true;
+  } else {
+    displayQId = currentQId;
+    displaySelected = selected;
+    displayShowResult = showResult;
+  }
+
+  const q = getQ(displayQId);
   const pts = q?.diff === "EASY" ? 10 : q?.diff === "MED" ? 20 : q?.diff === "HARD" ? 30 : 40;
 
-  // Timer countdown
+  // Timer: only runs for current unanswered question
   useEffect(() => {
-    if (showResult) return;
+    clearInterval(timerRef.current);
+    if (isReviewing || showResult || !q) { setTimer(15); return; }
     setTimer(15);
     timerRef.current = setInterval(() => {
       setTimer(prev => {
-        if (prev <= 1) { clearInterval(timerRef.current); handleAnswer(-1); return 0; }
+        if (prev <= 1) { clearInterval(timerRef.current); handleAnswerRef.current?.(-1); return 0; }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [idx, showResult === false]);
+  }, [tabKey, currentOrderIdx, isReviewing, showResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getStreakMult = (s) => s >= 10 ? 2.0 : s >= 5 ? 1.5 : s >= 3 ? 1.25 : 1.0;
   const getQuizTimeMult = (t) => t > 10 ? 1.5 : t > 5 ? 1.25 : 1.0;
 
   const handleAnswer = (optIdx) => {
-    if (showResult) return;
+    if (displayShowResult || isReviewing || !q) return;
     clearInterval(timerRef.current);
+    const correct = optIdx !== -1 && optIdx === q.ans;
     setSelected(optIdx);
     setShowResult(true);
-    setTotal(t => t + 1);
-    if (optIdx === q.ans) {
+    if (correct) {
       const nextStreak = streak + 1;
-      const streakMult = getStreakMult(nextStreak);
-      const timeMult = getQuizTimeMult(timer);
-      const combined = Math.min(3.0, streakMult * timeMult);
-      const earned = Math.round(pts * combined);
+      const earned = Math.round(pts * Math.min(3.0, getStreakMult(nextStreak) * getQuizTimeMult(timer)));
       setScore(s => s + earned);
-      setCorrect(c => c + 1);
       setStreak(nextStreak);
       if (onXP) onXP(earned);
     } else {
       setStreak(0);
     }
+    const newHistory = [...history, { qId: currentQId, selectedIdx: optIdx, correct }];
+    setTabStates(prev => {
+      const updated = { ...prev, [tabKey]: { ...tabState, history: newHistory } };
+      saveQuizState(updated);
+      return updated;
+    });
   };
+  handleAnswerRef.current = handleAnswer;
 
   const nextQuestion = () => {
-    setSelected(null);
-    setShowResult(false);
-    setIdx(i => i + 1);
+    if (isReviewing) {
+      if (historyPos < history.length - 1) { setHistoryPos(historyPos + 1); }
+      else { setHistoryPos(null); setSelected(null); setShowResult(false); }
+    } else {
+      setSelected(null);
+      setShowResult(false);
+    }
   };
 
-  const resetQuiz = () => { setIdx(0); setSelected(null); setShowResult(false); setScore(0); setTotal(0); setCorrect(0); setStreak(0); };
+  const prevQuestion = () => {
+    if (isReviewing && historyPos > 0) { setHistoryPos(historyPos - 1); }
+    else if (!isReviewing && history.length > 0) { setHistoryPos(history.length - 1); }
+  };
+
+  const resetTab = () => {
+    tabQuestions.forEach(tq => { delete optCacheRef.current[tq.id]; });
+    const newState = { order: shuffleArr(tabQuestions.map(q => q.id)), history: [] };
+    setTabStates(prev => {
+      const updated = { ...prev, [tabKey]: newState };
+      saveQuizState(updated);
+      return updated;
+    });
+    setHistoryPos(null);
+    setSelected(null);
+    setShowResult(false);
+    setScore(0);
+    setStreak(0);
+  };
 
   const timerColor = timer > 10 ? C.green : timer > 5 ? C.amber : C.red;
   const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL","M11: dbt","☠ HERO"];
+  const answeredCount = history.length;
+  const correctCount = history.filter(h => h.correct).length;
+  const canGoPrev = isReviewing ? historyPos > 0 : history.length > 0;
+
+  if (!q) return null;
 
   return (
     <div style={{ padding: "12px 16px 20px", animation: "langSwitch 0.3s ease" }}>
@@ -3775,33 +3858,44 @@ function QuizScreen({ onXP }) {
         </div>
       </div>
 
-      {/* Module filter */}
+      {/* Module filter tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
         {modNames.map((name, i) => {
           const filterVal = i === 0 ? 0 : i === modNames.length - 1 ? "HERO" : i;
           const isActive = modFilter === filterVal;
           const isHero = filterVal === "HERO";
           return (
-          <button key={i} onClick={() => { setModFilter(filterVal); resetQuiz(); }} style={{
-            background: "none", border: `1px solid ${isActive ? (isHero ? C.red : C.dim) : C.border}`,
-            cursor: "pointer", padding: "6px 10px", minHeight: 34,
-            fontFamily: F.mono, fontSize: 11, color: isActive ? (isHero ? C.red : C.text) : C.dim, whiteSpace: "nowrap",
-          }}>{name}</button>
+            <button key={i} onClick={() => setModFilter(filterVal)} style={{
+              background: "none", border: `1px solid ${isActive ? (isHero ? C.red : C.dim) : C.border}`,
+              cursor: "pointer", padding: "6px 10px", minHeight: 34,
+              fontFamily: F.mono, fontSize: 11, color: isActive ? (isHero ? C.red : C.text) : C.dim, whiteSpace: "nowrap",
+            }}>{name}</button>
           );
         })}
       </div>
 
       {/* Progress + Timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <ProgressBar progress={questions.length > 0 ? (idx % questions.length) / questions.length : 0} />
-        <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
+        <ProgressBar progress={order.length > 0 ? currentOrderIdx / order.length : 0} />
+        {!isReviewing && (
+          <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
+        )}
       </div>
 
+      {/* Reviewing banner */}
+      {isReviewing && (
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, border: `1px solid ${C.amberDim}`, padding: "4px 10px", marginBottom: 8, letterSpacing: 1 }}>
+          REVIEWING [{historyPos + 1}/{history.length}]
+        </div>
+      )}
+
       {/* Question card */}
-      <div style={{ background: C.panel, border: `1px solid ${showResult ? (selected === q.ans ? C.green : C.red) : C.border}`, padding: "20px 18px", marginBottom: 14, position: "relative" }}>
+      <div style={{ background: C.panel, border: `1px solid ${displayShowResult ? (displaySelected === q.ans ? C.green : C.red) : C.border}`, padding: "20px 18px", marginBottom: 14, position: "relative" }}>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: C.border }} />
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>[{(idx % questions.length) + 1}/{questions.length}]</span>
+          <span style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>
+            {isReviewing ? `[HISTORY ${historyPos + 1}/${history.length}]` : `[${currentOrderIdx + 1}/${order.length}]`}
+          </span>
           <span style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, border: `1px solid ${C.border}`, padding: "3px 10px", letterSpacing: 1 }}>{q.diff}</span>
         </div>
         <div style={{ fontFamily: F.mono, fontSize: 18, color: C.white, lineHeight: 1.6 }}>{lang === "pt" ? q.q_pt : q.q_en}</div>
@@ -3810,27 +3904,27 @@ function QuizScreen({ onXP }) {
       {/* Options */}
       <StdoutList
         items={q.opts}
-        resetKey={idx}
+        resetKey={isReviewing ? `h-${historyPos}` : `q-${tabKey}-${currentOrderIdx}`}
         delay={80}
         style={{ gap: 8, marginBottom: 14 }}
         renderItem={(opt, i) => {
           const isCorrect = i === q.ans;
-          const isSelected = i === selected;
+          const isSelected = i === displaySelected;
           let bg = "none", borderColor = C.border, textColor = C.white;
-          if (showResult) {
+          if (displayShowResult) {
             if (isCorrect) { bg = C.greenGhost; borderColor = C.green; textColor = C.green; }
             else if (isSelected && !isCorrect) { bg = C.redGhost; borderColor = C.red; textColor = C.red; }
             else { textColor = C.dim; }
           }
           return (
-            <button onClick={() => handleAnswer(i)} disabled={showResult} style={{
-              background: bg, border: `1px solid ${borderColor}`, cursor: showResult ? "default" : "pointer",
+            <button onClick={() => handleAnswer(i)} disabled={displayShowResult} style={{
+              background: bg, border: `1px solid ${borderColor}`, cursor: displayShowResult ? "default" : "pointer",
               padding: "14px 16px", fontFamily: F.mono, fontSize: 16, color: textColor,
               textAlign: "left", minHeight: 50, display: "flex", alignItems: "center", gap: 12,
               transition: "all 0.2s",
             }}>
-              <span style={{ fontFamily: F.mono, fontSize: 14, color: showResult && isCorrect ? C.green : C.dim, flexShrink: 0, width: 24 }}>
-                {showResult ? (isCorrect ? "✓" : isSelected ? "✗" : "○") : String.fromCharCode(65 + i)}
+              <span style={{ fontFamily: F.mono, fontSize: 14, color: displayShowResult && isCorrect ? C.green : C.dim, flexShrink: 0, width: 24 }}>
+                {displayShowResult ? (isCorrect ? "✓" : isSelected ? "✗" : "○") : String.fromCharCode(65 + i)}
               </span>
               <span style={{ fontFamily: F.mono }}>{opt}</span>
             </button>
@@ -3838,24 +3932,52 @@ function QuizScreen({ onXP }) {
         }}
       />
 
-      {/* Next button */}
-      {showResult && (
-        <button onClick={nextQuestion} style={{
-          width: "100%", padding: "14px 0", cursor: "pointer",
-          fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700,
-          color: C.cyan, background: "none", border: `1px solid ${C.cyan}`,
-          minHeight: 50,
-        }}>NEXT ▶</button>
-      )}
+      {/* Navigation buttons */}
+      <div style={{ display: "flex", gap: 8 }}>
+        {canGoPrev && (
+          <button onClick={prevQuestion} style={{
+            flex: displayShowResult ? "0 0 auto" : 1,
+            padding: "14px 16px", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700,
+            color: C.dim, background: "none", border: `1px solid ${C.border}`,
+            minHeight: 50,
+          }}>◀ PREV</button>
+        )}
+        {displayShowResult && (
+          <button onClick={nextQuestion} style={{
+            flex: 1, padding: "14px 0", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700,
+            color: isReviewing && historyPos < history.length - 1 ? C.dim : C.cyan,
+            background: "none",
+            border: `1px solid ${isReviewing && historyPos < history.length - 1 ? C.border : C.cyan}`,
+            minHeight: 50,
+          }}>
+            {isReviewing && historyPos < history.length - 1 ? "NEXT ▶" : isReviewing ? "▶ CURRENT" : "NEXT ▶"}
+          </button>
+        )}
+      </div>
+
+      {/* Reset button */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+        <button onClick={resetTab} style={{
+          fontFamily: F.mono, fontSize: 13, letterSpacing: 1, cursor: "pointer",
+          padding: "5px 14px", borderRadius: 3,
+          color: history.length > 0 ? C.amber : C.muted,
+          background: history.length > 0 ? C.amberGhost : "none",
+          border: `1px solid ${history.length > 0 ? C.amberDim : C.border}`,
+          opacity: history.length > 0 ? 1 : 0.5,
+          transition: "all 0.2s",
+        }}>↺ reset</button>
+      </div>
 
       {/* Stats bar */}
-      <CLIBox title="QUIZ_STATS" style={{ marginTop: 16 }}>
+      <CLIBox title="QUIZ_STATS" style={{ marginTop: 8 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
           {[
             { l: "SCORE", v: `${score}`, c: C.dim },
-            { l: "ACC", v: total > 0 ? `${Math.round((correct / total) * 100)}%` : "—", c: C.dim },
+            { l: "ACC", v: answeredCount > 0 ? `${Math.round((correctCount / answeredCount) * 100)}%` : "—", c: C.dim },
             { l: "STREAK", v: `${streak}`, c: C.dim },
-            { l: "Q's", v: `${total}/${questions.length}`, c: C.dim },
+            { l: "DONE", v: `${Math.min(answeredCount, order.length)}/${order.length}`, c: C.dim },
           ].map(s => (
             <div key={s.l} style={{ textAlign: "center" }}>
               <div style={{ fontFamily: F.mono, fontSize: 18, color: s.c }}>{s.v}</div>
