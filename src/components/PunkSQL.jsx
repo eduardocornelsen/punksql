@@ -3533,9 +3533,13 @@ function ReviewScreen({ onXP }) {
       {cardMode === "standard" && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
           <button onClick={resetProgress} style={{
-            fontFamily: F.mono, fontSize: 11, color: C.muted, background: "none",
-            border: "none", cursor: "pointer", padding: "2px 4px", letterSpacing: 1,
-            opacity: doneSet.size > 0 ? 1 : 0.35,
+            fontFamily: F.mono, fontSize: 13, letterSpacing: 1, cursor: "pointer",
+            padding: "5px 14px", borderRadius: 3,
+            color: doneSet.size > 0 ? C.amber : C.muted,
+            background: doneSet.size > 0 ? C.amberGhost : "none",
+            border: `1px solid ${doneSet.size > 0 ? C.amberDim : C.border}`,
+            opacity: doneSet.size > 0 ? 1 : 0.5,
+            transition: "all 0.2s",
           }}>↺ reset</button>
         </div>
       )}
