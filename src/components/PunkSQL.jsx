@@ -112,7 +112,7 @@ const i18n = {
     quest_1_cmd: "solve --count 2", quest_2_cmd: "review --cards 10", quest_3_cmd: "earn --xp 100",
     stat_today: "TODAY", stat_week: "WEEK", stat_acc: "ACC", stat_solved: "solved", stat_correct: "correct",
     learn_cmd: "ls -la", learn_title: "SQL_FUNDAMENTALS",
-    learn_sub: "// zero to interview // 10 modules",
+    learn_sub: "// zero to interview // 11 modules",
     lessons: "lessons", challenges: "challenges", locked: "[LOCKED]",
     mod_4: "Aggregations",
     hint: "HINT",
@@ -128,7 +128,7 @@ const i18n = {
     query_ok: "OK — 4 rows (23ms)", query_meta: "duckdb_v0.10",
     cols_label: "cols:", sql_label: "sql:", run: "▶ RUN", submit: "⬆ SUBMIT",
     practice_cmd: "ls --sort=diff", practice_title: "CHALLENGES",
-    practice_showing: "// {n} of 112",
+    practice_showing: "// {n} of 122",
     ch_1: "top_spending", ch_2: "revenue_trend", ch_3: "category_rank",
     ch_4: "avg_order_region", ch_5: "retention_cohorts",
     review_title: "SPACED_REVIEW",
@@ -165,7 +165,7 @@ const i18n = {
     quest_1_cmd: "resolver --total 2", quest_2_cmd: "revisar --cards 10", quest_3_cmd: "ganhar --xp 100",
     stat_today: "HOJE", stat_week: "SEMANA", stat_acc: "PREC", stat_solved: "resolvidos", stat_correct: "corretos",
     learn_cmd: "ls -la", learn_title: "FUNDAMENTOS_SQL",
-    learn_sub: "// do zero à entrevista // 10 módulos",
+    learn_sub: "// do zero à entrevista // 11 módulos",
     lessons: "lições", challenges: "desafios", locked: "[BLOQUEADO]",
     mod_4: "Agregações",
     hint: "DICA",
@@ -181,7 +181,7 @@ const i18n = {
     query_ok: "OK — 4 linhas (23ms)", query_meta: "duckdb_v0.10",
     cols_label: "cols:", sql_label: "sql:", run: "▶ RODAR", submit: "⬆ ENVIAR",
     practice_cmd: "ls --ordenar=dific", practice_title: "DESAFIOS",
-    practice_showing: "// {n} de 112",
+    practice_showing: "// {n} de 122",
     ch_1: "top_gastos", ch_2: "receita_mensal", ch_3: "rank_categorias",
     ch_4: "ticket_regiao", ch_5: "coortes_retencao",
     review_title: "REVISÃO_ESPAÇADA",
@@ -475,7 +475,8 @@ const ACHIEVEMENTS = [
   { id: "persistent", i: "⊗", n_en: "Persistent", n_pt: "Persistente", d_en: "Fail 5 times then solve the same challenge", d_pt: "Falhe 5 vezes e então resolva o mesmo desafio", c: C.red, check: (s, xp, meta) => (meta?.persistentSolves || 0) >= 1 },
   { id: "punk_god", i: "Ψ", n_en: "PUNK GOD", n_pt: "PUNK GOD", d_en: "Reach level 20 — the pinnacle", d_pt: "Alcance o nível 20 — o topo", c: C.cyanHot, check: (s, xp) => getLevel(xp).level >= 20 },
   { id: "century", i: "⍟", n_en: "Century", n_pt: "Século", d_en: "Solve 100 challenges", d_pt: "Resolva 100 desafios", c: C.cyanHot, check: (s) => s.size >= 100 },
-  { id: "all_done", i: "Ω", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 112 challenges", d_pt: "Resolva todos os 112 desafios", c: C.cyanHot, check: (s) => s.size >= 112 },
+  { id: "dbt_done", i: "⬟", n_en: "dbt Operator", n_pt: "Operador dbt", d_en: "Complete the dbt module", d_pt: "Complete o módulo dbt", c: C.purple, check: (s) => CHALLENGES_DB.filter(c => c.mod === 11).every(c => s.has(c.id)) },
+  { id: "all_done", i: "Ω", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 122 challenges", d_pt: "Resolva todos os 122 desafios", c: C.cyanHot, check: (s) => s.size >= 122 },
 ];
 
 function LevelUpOverlay({ level, onDone }) {
@@ -826,6 +827,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
     { id: 8, n: "ctes", tp: "WITH, chained CTEs, recursive" },
     { id: 9, n: "dml", tp: "INSERT, UPDATE, DELETE, NULL, duplicates" },
     { id: 10, n: "ddl", tp: "CREATE TABLE, CREATE VIEW, BEGIN/COMMIT" },
+    { id: 11, n: "dbt", tp: "ref(), source(), config(), Jinja, YAML tests" },
   ];
   // Compute status from solved challenges
   const mods = modDefs.map((m, i) => {
@@ -1052,6 +1054,17 @@ const CHALLENGES_DB = [
   { id:110, mod:10, title:"create_index", diff:"MED", desc_en:"Create an index named idx_orders_status on the orders table for the status column.", desc_pt:"Crie um índice chamado idx_orders_status na tabela orders para a coluna status.", hint:"CREATE INDEX idx_orders_status ON orders(...)", validate:"CREATE INDEX idx_orders_status ON orders(status)", verify:"SELECT name FROM sqlite_master WHERE type='index' AND name='idx_orders_status'", schema:"orders: id, customer_id, total_amount, status, order_date" },
   { id:111, mod:10, title:"create_and_drop_table", diff:"EASY", desc_en:"In two statements: (1) CREATE TABLE staging_area (id INTEGER PRIMARY KEY, data TEXT); (2) DROP TABLE staging_area. Verify the table no longer exists.", desc_pt:"Em dois comandos: (1) crie staging_area; (2) DROP TABLE staging_area. Verifique que a tabela não existe mais.", hint:"CREATE TABLE staging_area (...);\nDROP TABLE staging_area", validate:"CREATE TABLE staging_area (id INTEGER PRIMARY KEY, data TEXT); DROP TABLE staging_area", verify:"SELECT COUNT(*) AS exists_count FROM sqlite_master WHERE type='table' AND name='staging_area'", schema:"staging_area: id, data" },
   { id:112, mod:10, title:"savepoint_schema_snapshot", diff:"EXPERT", desc_en:"Use a SAVEPOINT called 'schema_change' to atomically: (1) CREATE TABLE price_history (product_id INTEGER, price REAL, snapshot_date TEXT); (2) INSERT INTO price_history SELECT id, price, '2024-01-01' FROM products; (3) RELEASE SAVEPOINT schema_change.", desc_pt:"Use SAVEPOINT 'schema_change' para: (1) CREATE TABLE price_history; (2) INSERT INTO price_history SELECT dos produtos; (3) RELEASE. Operação atômica de snapshot de preços.", hint:"SAVEPOINT schema_change;\nCREATE TABLE price_history (product_id INTEGER, ...);\nINSERT INTO price_history SELECT id, price, '...' FROM products;\nRELEASE SAVEPOINT schema_change", validate:"SAVEPOINT schema_change; CREATE TABLE price_history (product_id INTEGER, price REAL, snapshot_date TEXT); INSERT INTO price_history SELECT id, price, '2024-01-01' FROM products; RELEASE SAVEPOINT schema_change", verify:"SELECT COUNT(*) AS snapshots FROM price_history", schema:"products: id, name, price, category, stock" },
+  // ── MODULE 11: dbt — Data Build Tool (10 challenges, text-based) ──
+  { id:113, mod:11, type:"text", title:"ref_a_model", diff:"EASY", desc_en:"In dbt, reference another model called 'stg_orders' using the ref() macro in a FROM clause. Write the full FROM line.", desc_pt:"No dbt, referencie o modelo 'stg_orders' usando a macro ref() em uma cláusula FROM. Escreva a linha FROM completa.", hint:"FROM {{ ref('...') }}", validate:"from {{ ref('stg_orders') }}", schema:"dbt macro: {{ ref('model_name') }}" },
+  { id:114, mod:11, type:"text", title:"source_macro", diff:"EASY", desc_en:"Reference the raw source table 'orders' from schema 'raw' using the source() macro.", desc_pt:"Referencie a tabela fonte 'orders' do schema 'raw' usando a macro source().", hint:"{{ source('schema', 'table') }}", validate:"{{ source('raw', 'orders') }}", schema:"dbt macro: {{ source('schema_name', 'table_name') }}" },
+  { id:115, mod:11, type:"text", title:"config_table", diff:"EASY", desc_en:"Add a dbt config block at the top of a model file to set the materialization to 'table'.", desc_pt:"Adicione um bloco config no início do arquivo para definir a materialização como 'table'.", hint:"{{ config(materialized='...') }}", validate:"{{ config(materialized='table') }}", schema:"dbt config: {{ config(materialized='table'|'view'|'incremental'|'ephemeral') }}" },
+  { id:116, mod:11, type:"text", title:"jinja_if_block", diff:"MED", desc_en:"Write a Jinja if/endif block that adds a WHERE clause filtering to active records only when the variable 'is_active_only' is true.", desc_pt:"Escreva um bloco if/endif Jinja que adiciona WHERE para registros ativos apenas quando a variável 'is_active_only' é verdadeira.", hint:"{% if var('is_active_only') %}\nWHERE is_active = true\n{% endif %}", validate:"{% if var('is_active_only') %}|{% endif %}", schema:"Jinja: {% if condition %} ... {% endif %}" },
+  { id:117, mod:11, type:"text", title:"schema_not_null", diff:"MED", desc_en:"Write the YAML in schema.yml for a 'not_null' generic test on the 'customer_id' column of a model named 'orders'.", desc_pt:"Escreva o YAML no schema.yml para o teste genérico 'not_null' na coluna 'customer_id' do modelo 'orders'.", hint:"columns:\n  - name: customer_id\n    tests:\n      - not_null", validate:"not_null|tests:", schema:"dbt tests: not_null, unique, accepted_values, relationships" },
+  { id:118, mod:11, type:"text", title:"schema_unique", diff:"MED", desc_en:"Write the YAML to apply both 'unique' and 'not_null' tests to the 'order_id' column.", desc_pt:"Escreva o YAML para aplicar os testes 'unique' e 'not_null' na coluna 'order_id'.", hint:"- name: order_id\n  tests:\n    - unique\n    - not_null", validate:"unique|not_null|tests:", schema:"dbt YAML: schema.yml column tests" },
+  { id:119, mod:11, type:"text", title:"incremental_model", diff:"HARD", desc_en:"Write the Jinja block that filters rows for incremental runs only: add a WHERE clause that selects rows where updated_at is greater than the max updated_at already in this model.", desc_pt:"Escreva o bloco Jinja para rodar incrementalmente: WHERE updated_at > MAX(updated_at) do modelo.", hint:"{% if is_incremental() %}\nWHERE updated_at > (SELECT MAX(updated_at) FROM {{ this }})\n{% endif %}", validate:"{% if is_incremental() %}|{{ this }}|{% endif %}", schema:"dbt incremental: {{ this }} refers to the existing model table" },
+  { id:120, mod:11, type:"text", title:"jinja_for_loop", diff:"HARD", desc_en:"Use a Jinja for loop to iterate over a list ['orders', 'returns', 'refunds'] and generate a UNION ALL query that selects id and source_table from each.", desc_pt:"Use um loop Jinja para iterar sobre ['orders', 'returns', 'refunds'] e gerar UNION ALL com id e source_table de cada tabela.", hint:"{% for table in ['orders', 'returns', 'refunds'] %}\nSELECT id, '{{ table }}' AS source_table FROM {{ table }}\n{% if not loop.last %}UNION ALL{% endif %}\n{% endfor %}", validate:"{% for table in|{% endfor %}|union all", schema:"Jinja: {% for item in list %} ... {% endfor %}" },
+  { id:121, mod:11, type:"text", title:"config_incremental_schema", diff:"HARD", desc_en:"Write a config block that sets materialization to 'incremental', schema to 'analytics', and unique_key to 'order_id'.", desc_pt:"Escreva um bloco config com materialização 'incremental', schema 'analytics' e unique_key 'order_id'.", hint:"{{ config(\n  materialized='incremental',\n  schema='analytics',\n  unique_key='order_id'\n) }}", validate:"materialized='incremental'|schema='analytics'|unique_key='order_id'", schema:"dbt config: {{ config(materialized=, schema=, unique_key=) }}" },
+  { id:122, mod:11, type:"text", title:"accepted_values_test", diff:"EXPERT", desc_en:"Write the YAML schema test for 'accepted_values' on the 'status' column. The accepted values are 'pending', 'shipped', and 'completed'.", desc_pt:"Escreva o teste YAML 'accepted_values' para a coluna 'status'. Os valores aceitos são 'pending', 'shipped' e 'completed'.", hint:"- name: status\n  tests:\n    - accepted_values:\n        values: ['pending', 'shipped', 'completed']", validate:"accepted_values|values:|pending|shipped|completed", schema:"dbt YAML: accepted_values test checks for allowed values" },
 ];
 CHALLENGES_DB.forEach(ch => { ch.color = ch.diff === "EASY" ? C.green : ch.diff === "MED" ? C.cyan : ch.diff === "HARD" ? C.amber : C.red; });
 
@@ -1059,6 +1072,17 @@ CHALLENGES_DB.forEach(ch => { ch.color = ch.diff === "EASY" ? C.green : ch.diff 
 // XP penalty applied to the solve reward (cumulative by level).
 // Level 0 = no hints used, 1 = clause hint (free), 2 = skeleton (-5), 3 = fill-in (-15).
 const HINT_XP_PENALTIES = [0, 0, 5, 15];
+
+// Text-match validator for dbt/Jinja challenges (no SQL execution)
+function validateText(userInput, requiredTokens) {
+  const lower = userInput.toLowerCase();
+  const tokens = requiredTokens.split("|").map(t => t.trim().toLowerCase()).filter(Boolean);
+  const missing = tokens.filter(t => !lower.includes(t));
+  if (missing.length === 0) {
+    return { pass: true, msg: "Correct! All required elements found.", result: { ok: true, columns: ["result"], rows: [["PASS"]], ms: "0", msg: "Text match passed" } };
+  }
+  return { pass: false, msg: `Missing: ${missing.join(", ")}`, result: { ok: false, columns: [], rows: [], ms: "0", msg: `Missing: ${missing.join(", ")}` } };
+}
 
 function maskSubqueries(q, aggressive) {
   let result = '';
@@ -1297,6 +1321,9 @@ const CHALLENGE_TAGS = {
   91:"data-eng", 92:"data-eng", 93:"data-eng", 94:"data-eng", 95:"data-eng",
   96:"data-eng", 97:"fintech", 98:"data-eng", 99:"data-eng", 100:"data-eng",
   107:"data-eng", 108:"data-eng", 109:"fintech", 110:"data-eng", 111:"data-eng", 112:"data-eng",
+  // Module 11 — dbt
+  113:"data-eng", 114:"data-eng", 115:"data-eng", 116:"data-eng", 117:"data-eng",
+  118:"data-eng", 119:"data-eng", 120:"data-eng", 121:"data-eng", 122:"data-eng",
 };
 CHALLENGES_DB.forEach(ch => { ch.tag = CHALLENGE_TAGS[ch.id] || "analytics"; });
 
@@ -1304,11 +1331,12 @@ const MOD_LABELS = [
   {id:1, label:"SELECT"}, {id:2, label:"WHERE"}, {id:3, label:"ORDER"},
   {id:4, label:"GROUP"}, {id:5, label:"JOIN"},   {id:6, label:"SUB"},
   {id:7, label:"WINDOW"}, {id:8, label:"CTE"},   {id:9, label:"DML"}, {id:10, label:"DDL"},
+  {id:11, label:"dbt"},
 ];
 const ARCHETYPE_ORDER = ["ecomm", "fintech", "analytics", "social", "hr", "data-eng"];
 
 // ═══════════════════════════════════════════════════════════
-//  QUIZ DATABASE — 30 multiple-choice questions
+//  QUIZ DATABASE — multiple-choice questions (60 standard + 16 module 11/hero)
 // ═══════════════════════════════════════════════════════════
 const QUIZ_DB = [
   // Module 1: basics
@@ -1382,6 +1410,24 @@ const QUIZ_DB = [
   { id:58, mod:10, diff:"MED", q_en:"PRIMARY KEY in CREATE TABLE ensures...?", q_pt:"PRIMARY KEY no CREATE TABLE garante...?", opts:["Each row has a unique, non-NULL identifier","Rows are sorted by that column","The column has a default value","Foreign key relationships"], ans:0 },
   { id:59, mod:10, diff:"MED", q_en:"What does wrapping statements in BEGIN ... COMMIT do?", q_pt:"O que BEGIN ... COMMIT faz ao envolver instruções?", opts:["Creates a transaction: all succeed or all roll back","Comments the SQL block out","Starts and stops a loop","Creates a named savepoint"], ans:0 },
   { id:60, mod:10, diff:"HARD", q_en:"Which statement about VIEWs is TRUE?", q_pt:"Qual afirmação sobre VIEWs é VERDADEIRA?", opts:["The query runs each time the view is accessed","Views store data permanently like tables","Dropping the base table keeps the view working","Views cannot include JOINs or aggregations"], ans:0 },
+  // ── MODULE 11: dbt quiz ──
+  { id:61, mod:11, diff:"EASY", q_en:"In dbt, {{ ref('stg_orders') }} does what?", q_pt:"No dbt, {{ ref('stg_orders') }} faz o quê?", opts:["References another dbt model by name","References a raw source table","Creates a new table called stg_orders","Runs a SQL query named stg_orders"], ans:0 },
+  { id:62, mod:11, diff:"EASY", q_en:"What does {{ source('raw', 'orders') }} do?", q_pt:"O que {{ source('raw', 'orders') }} faz?", opts:["References a source table 'orders' in schema 'raw'","Creates a schema called raw","References the model 'raw_orders'","Drops the raw schema"], ans:0 },
+  { id:63, mod:11, diff:"MED", q_en:"Which dbt materialization stores data as a physical table?", q_pt:"Qual materialização dbt armazena dados como tabela física?", opts:["table","view","ephemeral","incremental"], ans:0 },
+  { id:64, mod:11, diff:"MED", q_en:"What does {{ config(materialized='incremental') }} do?", q_pt:"O que {{ config(materialized='incremental') }} faz?", opts:["Appends only new rows on each run","Rebuilds the table from scratch each run","Creates a virtual view","Drops and recreates the table"], ans:0 },
+  { id:65, mod:11, diff:"HARD", q_en:"In dbt schema.yml, the 'accepted_values' test checks?", q_pt:"No schema.yml do dbt, o teste 'accepted_values' verifica?", opts:["That a column only contains values from a defined list","That a column has no NULLs","That values are unique","That two columns have the same type"], ans:0 },
+  { id:66, mod:11, diff:"HARD", q_en:"{{ this }} in an incremental model refers to?", q_pt:"{{ this }} em um modelo incremental se refere a?", opts:["The existing target table in the database","The current model file","The source table","The dbt project name"], ans:0 },
+  // ── HERO QUIZ — cross-module expert questions ──
+  { id:67, mod:"HERO", diff:"EXPERT", q_en:"What's the difference between RANK() and DENSE_RANK() on tied values?", q_pt:"Qual a diferença entre RANK() e DENSE_RANK() em empates?", opts:["RANK() skips rank numbers after ties; DENSE_RANK() does not","They're identical","DENSE_RANK() is only available in PostgreSQL","RANK() is faster"], ans:0 },
+  { id:68, mod:"HERO", diff:"EXPERT", q_en:"A correlated subquery vs a regular subquery — what's the key difference?", q_pt:"Subquery correlacionada vs regular — qual a diferença principal?", opts:["Correlated subquery references the outer query and re-runs per row","They produce identical results","Correlated subqueries run only once","Regular subqueries can't use WHERE"], ans:0 },
+  { id:69, mod:"HERO", diff:"EXPERT", q_en:"ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW defines?", q_pt:"ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW define?", opts:["A running total from the first row to current","Only the current row","The last 2 rows","All rows in the partition"], ans:0 },
+  { id:70, mod:"HERO", diff:"EXPERT", q_en:"Which query finds the second highest salary WITHOUT using LIMIT/OFFSET?", q_pt:"Qual query encontra o 2º maior salário SEM LIMIT/OFFSET?", opts:["WHERE salary = (SELECT MAX(salary) WHERE salary < (SELECT MAX(salary)))","SELECT salary ORDER BY salary DESC","GROUP BY salary HAVING COUNT > 1","SELECT DISTINCT salary LIMIT 2"], ans:0 },
+  { id:71, mod:"HERO", diff:"EXPERT", q_en:"EXISTS vs IN for large result sets — which is typically faster?", q_pt:"EXISTS vs IN para grandes resultados — qual é tipicamente mais rápido?", opts:["EXISTS — it short-circuits on first match","IN — it materializes all values first","They're always equal","Depends only on the database engine"], ans:0 },
+  { id:72, mod:"HERO", diff:"EXPERT", q_en:"In dbt, what prevents stale data in incremental models after a schema change?", q_pt:"No dbt, o que previne dados obsoletos após mudança de schema em modelos incrementais?", opts:["Running dbt build --full-refresh","dbt test --incremental","ALTER TABLE in the model","SAVEPOINT before run"], ans:0 },
+  { id:73, mod:"HERO", diff:"EXPERT", q_en:"A SAVEPOINT differs from BEGIN/COMMIT because?", q_pt:"SAVEPOINT difere de BEGIN/COMMIT porque?", opts:["SAVEPOINTs can be nested; BEGIN cannot","They're identical in SQLite","SAVEPOINTs permanently commit data","BEGIN is DDL; SAVEPOINT is DML"], ans:0 },
+  { id:74, mod:"HERO", diff:"EXPERT", q_en:"SUM(amount) OVER (PARTITION BY dept ORDER BY date) calculates?", q_pt:"SUM(amount) OVER (PARTITION BY dept ORDER BY date) calcula?", opts:["Running total per department, ordered by date","Grand total across all departments","Total per department (not cumulative)","Nothing — invalid syntax"], ans:0 },
+  { id:75, mod:"HERO", diff:"EXPERT", q_en:"CREATE TABLE t AS SELECT * FROM s WHERE 1=0 creates?", q_pt:"CREATE TABLE t AS SELECT * FROM s WHERE 1=0 cria?", opts:["An empty table with the same schema as s","A copy of all rows in s","A view of s","An error"], ans:0 },
+  { id:76, mod:"HERO", diff:"EXPERT", q_en:"Which dbt Jinja block runs code ONLY on incremental runs?", q_pt:"Qual bloco Jinja do dbt executa código APENAS em runs incrementais?", opts:["{% if is_incremental() %}","{% if this.is_new %}","{% if run_started_at %}","{% if var('incremental') %}"], ans:0 },
 ];
 
 
@@ -2343,7 +2389,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   };
 
   const handleRun = () => {
-    if (!db) return;
+    if (!db && ch.type !== "text") return;
     const trimmed = sql.trim();
     pushQueryHistory(trimmed);
     resetHistoryIndex();
@@ -2365,6 +2411,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
       }
     };
+
+    // dbt / Jinja / YAML text-match challenges (no SQL execution)
+    if (ch.type === "text") {
+      const v = validateText(trimmed, ch.validate);
+      setResult(v.result);
+      processResult(v, v.result);
+      setResOpen(true);
+      setOpenPanel(null);
+      return;
+    }
 
     if (ch.verify) {
       let r;
@@ -3118,31 +3174,88 @@ function ReviewScreen({ onXP }) {
     // HARD DDL (2 cards)
     { front: p ? "SAVEPOINT vs BEGIN/COMMIT?" : "SAVEPOINT vs BEGIN/COMMIT?", back: p ? "Ambos criam transações. No SQLite:\nBEGIN; ...; COMMIT (plana)\nSAVEPOINT name; ...; RELEASE name\nSAVEPOINT suporta aninhamento.\nROLLBACK TO name desfaz até aquele ponto." : "Both create transactions. In SQLite:\nBEGIN; ...; COMMIT (flat)\nSAVEPOINT name; ...; RELEASE name\nSAVEPOINT supports nesting.\nROLLBACK TO name undoes to that point.", diff: "HARD" },
     { front: p ? "CREATE TABLE AS SELECT?" : "CREATE TABLE AS SELECT?", back: p ? "Cria uma tabela a partir do resultado de uma query.\nCREATE TABLE clean_data AS\n  SELECT * FROM raw_data\n  WHERE valid = 1\nPadrão rápido de ETL / snapshot." : "Creates a table from a query result.\nCREATE TABLE clean_data AS\n  SELECT * FROM raw_data\n  WHERE valid = 1\nQuick ETL / snapshot pattern.", diff: "HARD" },
+    // ── DIALECT cards (12) — Postgres vs MySQL vs SQLite syntax comparisons ──
+    { front: p ? "LIMIT: Postgres vs MySQL vs SQL Server" : "LIMIT rows: Postgres vs MySQL vs SQL Server", back: "PostgreSQL / MySQL:\nSELECT * FROM t LIMIT 10;\n\nSQL Server:\nSELECT TOP 10 * FROM t;\n\nOracle:\nSELECT * FROM t\n  WHERE ROWNUM <= 10;", diff: "DIALECT" },
+    { front: p ? "Data atual: Postgres vs MySQL vs SQLite" : "Current date: Postgres vs MySQL vs SQLite", back: "PostgreSQL:\nSELECT CURRENT_DATE;\nSELECT NOW();\n\nMySQL:\nSELECT CURDATE();\nSELECT NOW();\n\nSQLite:\nSELECT DATE('now');\nSELECT DATETIME('now');", diff: "DIALECT" },
+    { front: p ? "String concatenação: PG vs MySQL vs SQLite" : "String concat: PG vs MySQL vs SQLite", back: "PostgreSQL / SQLite:\n'Hello' || ' ' || 'World'\n\nMySQL:\nCONCAT('Hello', ' ', 'World')\n\nAll support CONCAT() in modern versions.\nPostgres also has CONCAT().", diff: "DIALECT" },
+    { front: p ? "AUTO_INCREMENT: Postgres vs MySQL" : "Auto-increment primary key: PG vs MySQL", back: "MySQL:\nid INT AUTO_INCREMENT PRIMARY KEY\n\nPostgreSQL:\nid SERIAL PRIMARY KEY\n-- or modern syntax:\nid INT GENERATED ALWAYS AS IDENTITY\n\nSQLite:\nid INTEGER PRIMARY KEY\n-- (auto-increments by default)", diff: "DIALECT" },
+    { front: p ? "String uppercase: UPPER() vs UCASE()" : "Uppercase string: Postgres vs MySQL", back: "PostgreSQL / SQLite / SQL Server:\nUPPER(col)\n\nMySQL:\nUPPER(col)  ✓ (supported)\nUCASE(col)  (MySQL alias)\n\nBoth work in MySQL. Prefer UPPER()\nfor portability.", diff: "DIALECT" },
+    { front: p ? "ILIKE vs LIKE: case sensitivity" : "Case-insensitive LIKE: Postgres vs MySQL", back: "PostgreSQL:\nWHERE name ILIKE '%john%'\n-- case-insensitive built-in\n\nMySQL (default case-insensitive):\nWHERE name LIKE '%john%'\n-- depends on collation\n\nSQLite:\nWHERE LOWER(name) LIKE '%john%'", diff: "DIALECT" },
+    { front: p ? "Tipo de coluna boolean: PG vs MySQL vs SQLite" : "Boolean column type: PG vs MySQL vs SQLite", back: "PostgreSQL:\nBOOLEAN (true/false)\n\nMySQL:\nTINYINT(1)  -- 1 = true, 0 = false\nBOOL alias exists\n\nSQLite:\nINTEGER (0/1)\n-- no native boolean type", diff: "DIALECT" },
+    { front: p ? "Extrair ano: Postgres vs MySQL vs SQLite" : "Extract year from date: PG vs MySQL vs SQLite", back: "PostgreSQL:\nEXTRACT(YEAR FROM date_col)\nDATE_PART('year', date_col)\n\nMySQL:\nYEAR(date_col)\nEXTRACT(YEAR FROM date_col)\n\nSQLite:\nSTRFTIME('%Y', date_col)\nSUBSTR(date_col, 1, 4)", diff: "DIALECT" },
+    { front: p ? "NULL coalescência: COALESCE vs IFNULL vs NVL" : "NULL coalesce: COALESCE vs IFNULL vs NVL", back: "Standard (all DBs):\nCOALESCE(col, default)\n-- returns first non-NULL\n\nMySQL / SQLite:\nIFNULL(col, default)\n\nOracle:\nNVL(col, default)\n\nSQL Server:\nISNULL(col, default)", diff: "DIALECT" },
+    { front: p ? "TRUNCATE TABLE: PG vs MySQL vs SQLite" : "TRUNCATE TABLE: Postgres vs MySQL vs SQLite", back: "PostgreSQL / MySQL:\nTRUNCATE TABLE t;\n-- fast, logs minimal, resets counters\n\nSQLite:\nDELETE FROM t;\n-- no TRUNCATE in SQLite\n-- same effect, different internals\n\nTRUNCATE ≠ DROP — table stays.", diff: "DIALECT" },
+    { front: p ? "OFFSET para paginação: PG vs MySQL vs SQL Server" : "Pagination OFFSET: PG vs MySQL vs SQL Server", back: "PostgreSQL / MySQL:\nSELECT * FROM t\nLIMIT 10 OFFSET 20;\n\nSQL Server:\nSELECT * FROM t\nORDER BY id\nOFFSET 20 ROWS\nFETCH NEXT 10 ROWS ONLY;\n\nOracle: uses ROWNUM or FETCH NEXT.", diff: "DIALECT" },
+    { front: p ? "Window functions: compatibilidade" : "Window functions: compatibility", back: "Supported in:\n✓ PostgreSQL (8.4+)\n✓ MySQL (8.0+)\n✓ SQL Server (2005+)\n✓ SQLite (3.25+)\n✓ BigQuery, Snowflake, Redshift\n\nNOT supported in:\n✗ MySQL < 8.0\n✗ Very old SQLite versions", diff: "DIALECT" },
   ];
 
+  // MODE: "standard" | "expert" | "hero"
+  const [cardMode, setCardMode] = useState("standard");
+  const modeConfig = {
+    standard: { timerSec: null, hardOnly: false, maxLives: 3 },
+    expert:   { timerSec: 8,    hardOnly: true,  maxLives: 3 },
+    hero:     { timerSec: 5,    hardOnly: true,  maxLives: 1 },
+  };
+  const cfg = modeConfig[cardMode];
+
   const [diff, setDiff] = useState("ALL");
-  const cards = diff === "ALL" ? allCards : allCards.filter(c => c.diff === diff);
+  const baseCards = cardMode !== "standard"
+    ? allCards.filter(c => c.diff === "HARD")
+    : (diff === "ALL" ? allCards : allCards.filter(c => c.diff === diff));
+  const cards = baseCards;
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [flipAnim, setFlipAnim] = useState(false);
   const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
+  const [lives, setLives] = useState(cfg.maxLives);
   const [reviewed, setReviewed] = useState(0);
   const [correct, setCorrect] = useState(0);
-  const [statsByDiff, setStatsByDiff] = useState({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 } });
+  const [statsByDiff, setStatsByDiff] = useState({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 }, DIALECT: { r: 0, c: 0 } });
   const [swipeX, setSwipeX] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const [ejecting, setEjecting] = useState(null); // "left" | "right" | null
   const [gameOver, setGameOver] = useState(false);
+  const [cardTimer, setCardTimer] = useState(cfg.timerSec);
+  const cardTimerRef = useRef(null);
   const touchStart = useRef(0);
 
   const card = cards[idx % cards.length];
-  const pts = card?.diff === "EASY" ? 1 : card?.diff === "MED" ? 2 : 3;
+  const pts = card?.diff === "EASY" ? 1 : card?.diff === "MED" ? 2 : card?.diff === "DIALECT" ? 2 : 3;
 
-  const flip = () => { if (swiping || ejecting || gameOver) return; setFlipAnim(true); setTimeout(() => { setFlipped(!flipped); setFlipAnim(false); }, 200); };
+  // Per-card countdown timer for Expert/Hero modes
+  useEffect(() => {
+    if (!cfg.timerSec || gameOver || ejecting) return;
+    setCardTimer(cfg.timerSec);
+    clearInterval(cardTimerRef.current);
+    cardTimerRef.current = setInterval(() => {
+      setCardTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(cardTimerRef.current);
+          // Time's up = miss
+          setEjecting("left");
+          setTimeout(() => {
+            nextCard(false);
+            setEjecting(null);
+          }, 280);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(cardTimerRef.current);
+  }, [idx, cardMode, gameOver]);
+
+  const flip = () => {
+    if (swiping || ejecting || gameOver) return;
+    // In hero mode, flipping is disabled — must commit blind
+    if (cardMode === "hero") return;
+    setFlipAnim(true);
+    setTimeout(() => { setFlipped(!flipped); setFlipAnim(false); }, 200);
+  };
 
   const nextCard = (known) => {
     if (gameOver) return;
+    clearInterval(cardTimerRef.current);
     const cardDiff = card?.diff || "EASY";
     if (known) {
       setScore(s => s + pts);
@@ -3165,7 +3278,17 @@ function ReviewScreen({ onXP }) {
     setIdx(i => i + 1);
   };
 
-  const resetGame = () => { setScore(0); setLives(3); setReviewed(0); setCorrect(0); setIdx(0); setFlipped(false); setGameOver(false); setSwipeX(0); setEjecting(null); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 } }); };
+  const resetGame = (mode) => {
+    const m = mode || cardMode;
+    const mc = modeConfig[m];
+    clearInterval(cardTimerRef.current);
+    setScore(0); setLives(mc.maxLives); setReviewed(0); setCorrect(0); setIdx(0);
+    setFlipped(false); setGameOver(false); setSwipeX(0); setEjecting(null);
+    setCardTimer(mc.timerSec);
+    setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 }, DIALECT: { r: 0, c: 0 } });
+  };
+
+  const switchMode = (m) => { setCardMode(m); resetGame(m); };
 
   const onTS = (e) => {
     if (ejecting) return;
@@ -3228,35 +3351,76 @@ function ReviewScreen({ onXP }) {
         </div>
       </div>
 
-      {/* Difficulty selector */}
+      {/* Mode selector */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        {[
+          { id: "standard", label: "STANDARD", color: C.cyan },
+          { id: "expert",   label: "⚡ EXPERT",  color: C.amber },
+          { id: "hero",     label: "☠ HERO",    color: C.red },
+        ].map(m => (
+          <button key={m.id} onClick={() => switchMode(m.id)} style={{
+            flex: 1, background: "none", border: `1px solid ${cardMode === m.id ? m.color : C.border}`,
+            cursor: "pointer", padding: "7px 6px", fontFamily: F.mono, fontSize: 12,
+            color: cardMode === m.id ? m.color : C.dim, whiteSpace: "nowrap",
+          }}>{m.label}</button>
+        ))}
+      </div>
+
+      {/* Mode description */}
+      {cardMode !== "standard" && (
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, marginBottom: 10, padding: "6px 10px", border: `1px solid ${C.border}` }}>
+          {cardMode === "expert"
+            ? "// HARD cards only · 8s per card · 3 lives"
+            : "// HARD cards only · 5s per card · 1 life · no flipping"}
+        </div>
+      )}
+
+      {/* Difficulty selector — standard mode only */}
+      {cardMode === "standard" && (
       <StdoutList
-        items={["ALL","EASY","MED","HARD"]}
+        items={["ALL","EASY","MED","HARD","DIALECT"]}
         delay={60}
         style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}
         renderItem={(d) => {
-          const st = statsByDiff[d] || { r: 0, c: 0 };
-          const pct = st.r > 0 ? Math.round(st.c / st.r * 100) : 0;
+          const totalForDiff = d === "ALL" ? allCards.length : allCards.filter(c => c.diff === d).length;
+          const reviewed = statsByDiff[d]?.r || 0;
+          const pct = totalForDiff > 0 ? Math.round(reviewed / totalForDiff * 100) : 0;
           return (
-            <button onClick={() => { setDiff(d); setIdx(0); setFlipped(false); }} style={{
+            <button onClick={() => { setDiff(d); setIdx(0); setFlipped(false); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 }, DIALECT: { r: 0, c: 0 } }); }} style={{
               background: "none", border: `1px solid ${diff === d ? C.dim : C.border}`,
-              cursor: "pointer", padding: "8px 14px", minHeight: 40,
-              fontFamily: F.mono, fontSize: 14, color: diff === d ? C.text : C.dim,
+              cursor: "pointer", padding: "8px 10px", minHeight: 40,
+              fontFamily: F.mono, fontSize: 13, color: diff === d ? C.text : C.dim,
               display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap",
             }}><span>{d}</span><span style={{ fontSize: 11, color: diff === d ? C.dim : C.muted }}>{pct}%</span></button>
           );
         }}
       />
+      )}
 
-      <ProgressBar progress={cards.length > 0 ? ((idx % cards.length) + 1) / cards.length : 0} />
+      {/* Timer for Expert/Hero modes */}
+      {cfg.timerSec && !gameOver && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <ProgressBar progress={cards.length > 0 ? (idx % cards.length) / cards.length : 0} />
+          <div style={{
+            fontFamily: F.mono, fontSize: 22, minWidth: 44, textAlign: "right",
+            color: cardTimer > 4 ? C.amber : C.red,
+            animation: cardTimer <= 3 ? "timerPulse 0.6s ease infinite" : "none",
+          }}>{cardTimer}s</div>
+        </div>
+      )}
+      {!cfg.timerSec && <ProgressBar progress={cards.length > 0 ? (idx % cards.length) / cards.length : 0} />}
 
       {/* Game Over overlay */}
       {gameOver ? (
         <div style={{ marginTop: 20, background: C.panel, border: `1px solid ${C.red}`, padding: "32px 22px", textAlign: "center" }}>
           <div style={{ fontFamily: F.mono, fontSize: 28, color: C.red, marginBottom: 8 }}>GAME OVER</div>
+          {cardMode === "hero" && reviewed === 0 && (
+            <div style={{ fontFamily: F.mono, fontSize: 13, color: C.amber, marginBottom: 8 }}>// hero mode: 1 life only</div>
+          )}
           <div style={{ fontFamily: F.mono, fontSize: 16, color: C.dim, marginBottom: 6 }}>{lang === "pt" ? "Você perdeu todas as vidas!" : "You lost all lives!"}</div>
           <div style={{ fontFamily: F.mono, fontSize: 36, color: C.dim, margin: "16px 0" }}>{score} <span style={{ fontSize: 18, color: C.muted }}>pts</span></div>
           <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginBottom: 20 }}>{reviewed} {lang === "pt" ? "cards revisados" : "cards reviewed"}</div>
-          <button onClick={resetGame} style={{ fontFamily: F.mono, fontSize: 16, color: C.cyan, background: "none", border: `1px solid ${C.cyan}`, padding: "14px 28px", cursor: "pointer", letterSpacing: 2 }}>
+          <button onClick={() => resetGame()} style={{ fontFamily: F.mono, fontSize: 16, color: C.cyan, background: "none", border: `1px solid ${C.cyan}`, padding: "14px 28px", cursor: "pointer", letterSpacing: 2 }}>
             {lang === "pt" ? "JOGAR DENOVO" : "PLAY AGAIN"}
           </button>
         </div>
@@ -3299,7 +3463,8 @@ function ReviewScreen({ onXP }) {
               ? <div style={{ fontFamily: F.mono, fontSize: 20, color: C.white, lineHeight: 1.7, textAlign: "center" }}>{card.front}</div>
               : <div style={{ fontFamily: F.mono, fontSize: 15, color: C.text, lineHeight: 2, whiteSpace: "pre-wrap" }}>{card.back}</div>
             }
-            {!flipped && <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 24, textAlign: "center" }}>{t("tap_reveal")}<Cursor /></div>}
+            {!flipped && cardMode !== "hero" && <div style={{ fontFamily: F.mono, fontSize: 14, color: C.dim, marginTop: 24, textAlign: "center" }}>{t("tap_reveal")}<Cursor /></div>}
+            {!flipped && cardMode === "hero" && <div style={{ fontFamily: F.mono, fontSize: 13, color: C.red, marginTop: 24, textAlign: "center" }}>// swipe blind — no peeking</div>}
           </div>
 
           {/* Action buttons when flipped */}
@@ -3320,7 +3485,7 @@ function ReviewScreen({ onXP }) {
       <CLIBox title={t("session_stats")} style={{ marginTop: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
           {[
-            { l: "HP", v: `${lives}/3`, c: C.dim },
+            { l: "HP", v: `${lives}/${cfg.maxLives}`, c: C.dim },
             { l: "SCORE", v: `${score}`, c: C.dim },
             { l: t("done"), v: String(reviewed), c: C.dim },
             { l: "CARDS", v: String(cards.length), c: C.dim },
@@ -3342,7 +3507,7 @@ function ReviewScreen({ onXP }) {
 // ═══════════════════════════════════════════════════════════
 function QuizScreen({ onXP }) {
   const { t, lang } = useLang();
-  const [modFilter, setModFilter] = useState(0); // 0 = all
+  const [modFilter, setModFilter] = useState(0); // 0 = all, "HERO" = hero mode
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [showResult, setShowResult] = useState(false);
@@ -3354,7 +3519,10 @@ function QuizScreen({ onXP }) {
   const timerRef = useRef(null);
 
   const questions = useMemo(() => {
-    const base = modFilter === 0 ? QUIZ_DB : QUIZ_DB.filter(q => q.mod === modFilter);
+    let base;
+    if (modFilter === 0) base = QUIZ_DB.filter(q => q.mod !== "HERO");
+    else if (modFilter === "HERO") base = QUIZ_DB.filter(q => q.diff === "EXPERT" || q.diff === "HARD");
+    else base = QUIZ_DB.filter(q => q.mod === modFilter);
     return base.map(q => {
       const tagged = q.opts.map((opt, i) => ({ opt, correct: i === q.ans }));
       for (let i = tagged.length - 1; i > 0; i--) {
@@ -3414,7 +3582,7 @@ function QuizScreen({ onXP }) {
   const resetQuiz = () => { setIdx(0); setSelected(null); setShowResult(false); setScore(0); setTotal(0); setCorrect(0); setStreak(0); };
 
   const timerColor = timer > 10 ? C.green : timer > 5 ? C.amber : C.red;
-  const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL"];
+  const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL","M11: dbt","☠ HERO"];
 
   return (
     <div style={{ padding: "12px 16px 20px", animation: "langSwitch 0.3s ease" }}>
@@ -3432,13 +3600,18 @@ function QuizScreen({ onXP }) {
 
       {/* Module filter */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
-        {modNames.map((name, i) => (
-          <button key={i} onClick={() => { setModFilter(i); resetQuiz(); }} style={{
-            background: "none", border: `1px solid ${modFilter === i ? C.dim : C.border}`,
+        {modNames.map((name, i) => {
+          const filterVal = i === 0 ? 0 : i === modNames.length - 1 ? "HERO" : i;
+          const isActive = modFilter === filterVal;
+          const isHero = filterVal === "HERO";
+          return (
+          <button key={i} onClick={() => { setModFilter(filterVal); resetQuiz(); }} style={{
+            background: "none", border: `1px solid ${isActive ? (isHero ? C.red : C.dim) : C.border}`,
             cursor: "pointer", padding: "6px 10px", minHeight: 34,
-            fontFamily: F.mono, fontSize: 11, color: modFilter === i ? C.text : C.dim, whiteSpace: "nowrap",
+            fontFamily: F.mono, fontSize: 11, color: isActive ? (isHero ? C.red : C.text) : C.dim, whiteSpace: "nowrap",
           }}>{name}</button>
-        ))}
+          );
+        })}
       </div>
 
       {/* Progress + Timer */}
@@ -3777,9 +3950,9 @@ function OnboardingScreen({ onComplete, lang }) {
   const ispt = lang === "pt";
   const slides = [
     { icon: ">_", title: ispt ? "BEM-VINDO AO PUNKSQL" : "WELCOME TO PUNKSQL", body: ispt ? "Aprenda SQL resolvendo desafios reais.\nEscreva queries, execute no navegador,\ne suba de nível como num jogo." : "Learn SQL by solving real challenges.\nWrite queries, execute in-browser,\nand level up like a game.", color: C.cyan },
-    { icon: "◈", title: ispt ? "QUEST" : "QUEST", body: ispt ? "A aba QUEST tem 10 módulos:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n→ DML → DDL\n\nCada módulo tem 14–22 exercícios\nque vão do fácil ao expert." : "The QUEST tab has 10 modules:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n→ DML → DDL\n\nEach module has 14–22 exercises\nranging from easy to expert.", color: C.green },
-    { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? `CODE: ${CHALLENGES_DB.length} desafios SQL reais.\nEscreva queries e execute-as\ndiretamente no navegador.\n\nQUIZ: 30 perguntas de múltipla\nescolha com timer de 15s.` : `CODE: ${CHALLENGES_DB.length} real SQL challenges.\nWrite queries and execute them\ndirectly in your browser.\n\nQUIZ: 30 multiple-choice questions\nwith a 15-second timer.`, color: C.cyan },
-    { icon: "◇", title: ispt ? "CARDS + XP" : "CARDS + XP", body: ispt ? "CARDS: Flashcards com swipe.\nDireita = sabia (+pts)\nEsquerda = não sabia (-1 vida)\n3 vidas — Game Over reseta!\n\nXP: Tudo dá XP — challenges, quiz,\ncards. Suba de nível e ganhe badges!" : "CARDS: Swipeable flashcards.\nRight = knew it (+pts)\nLeft = didn't know (-1 life)\n3 lives — Game Over resets!\n\nXP: Everything earns XP — challenges,\nquiz, cards. Level up and earn badges!", color: C.amber },
+    { icon: "◈", title: ispt ? "QUEST" : "QUEST", body: ispt ? "A aba QUEST tem 11 módulos:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n→ DML → DDL → dbt\n\nCada módulo tem desafios\nque vão do fácil ao expert." : "The QUEST tab has 11 modules:\nSELECT → WHERE → ORDER BY → GROUP BY\n→ JOIN → Subqueries → Window → CTEs\n→ DML → DDL → dbt\n\nEach module has challenges\nranging from easy to expert.", color: C.green },
+    { icon: ">", title: ispt ? "CODE + QUIZ" : "CODE + QUIZ", body: ispt ? `CODE: ${CHALLENGES_DB.length} desafios — SQL + dbt.\nEscreva queries e execute-as\ndiretamente no navegador.\n\nQUIZ: múltipla escolha com\ntimer de 15s + modo HERO.` : `CODE: ${CHALLENGES_DB.length} challenges — SQL + dbt.\nWrite queries and execute them\ndirectly in your browser.\n\nQUIZ: multiple-choice questions\nwith 15-second timer + HERO mode.`, color: C.cyan },
+    { icon: "◇", title: ispt ? "CARDS + XP" : "CARDS + XP", body: ispt ? "CARDS: 3 modos de jogo.\nSTANDARD: swipe com 3 vidas\nEXPERT: 8s/card, HARD only\nHERO: 5s/card, 1 vida, sem virar!\n\nXP: Tudo dá XP — challenges, quiz,\ncards. Suba de nível e ganhe badges!" : "CARDS: 3 game modes.\nSTANDARD: swipe with 3 lives\nEXPERT: 8s/card, HARD cards only\nHERO: 5s/card, 1 life, no flipping!\n\nXP: Everything earns XP — challenges,\nquiz, cards. Level up and earn badges!", color: C.amber },
     { icon: "[*]", title: ispt ? "FREE_EXPLORE" : "FREE_EXPLORE", body: ispt ? "Execute qualquer SQL diretamente\nno navegador — sem restrições.\n\nTeste queries, explore schemas,\nexperimente JOINs complexos ou\ncrie suas próprias análises.\n\nNenhuma resposta certa. Só você\ne o SQL." : "Run any SQL directly in the\nbrowser — no restrictions.\n\nTest queries, explore schemas,\ntry complex JOINs or build\nyour own analyses.\n\nNo right answer. Just you\nand the SQL.", color: C.green },
     { icon: "▲", title: ispt ? "PRONTO PARA COMEÇAR?" : "READY TO START?", body: ispt ? "A tela de código tem um tutorial\nintegrado que te guia por todos\nos controles no primeiro uso.\n\nComece pelo módulo 1: first_query\nBoa sorte, dev!" : "The code screen has a built-in\ntutorial that walks you through\nall the controls on first use.\n\nStart with module 1: first_query\nGood luck, dev!", color: C.green },
   ];
@@ -4031,7 +4204,7 @@ export default function PunkSQLCLI() {
     { id: 1, n: "first_query" }, { id: 2, n: "filtering" }, { id: 3, n: "sorting" },
     { id: 4, n: "aggregations" }, { id: 5, n: "joins" }, { id: 6, n: "subqueries" },
     { id: 7, n: "window_fn" }, { id: 8, n: "ctes" },
-    { id: 9, n: "dml" }, { id: 10, n: "ddl" },
+    { id: 9, n: "dml" }, { id: 10, n: "ddl" }, { id: 11, n: "dbt" },
   ];
 
   const nav = (target, id) => {
