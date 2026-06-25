@@ -3120,6 +3120,28 @@ function PracticeScreen({ onNavigate, solved = new Set() }) {
 // ═══════════════════════════════════════════════════════════
 //  REVIEW
 // ═══════════════════════════════════════════════════════════
+function shuffleArr(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function buildStdQueue(diff, doneSet, allCards) {
+  const ids = allCards
+    .map((c, i) => ({ d: c.diff, id: i }))
+    .filter(({ d, id }) => (diff === "ALL" || d === diff) && !doneSet.has(id))
+    .map(({ id }) => id);
+  return shuffleArr(ids);
+}
+function buildHardQueue(allCards) {
+  return shuffleArr(allCards.map((c, i) => c.diff === "HARD" ? i : -1).filter(id => id >= 0));
+}
+function getCardStreakMult(s) {
+  return s >= 10 ? 2.0 : s >= 5 ? 1.5 : s >= 3 ? 1.25 : 1.0;
+}
+
 function ReviewScreen({ onXP }) {
   const { t, lang } = useLang();
   const p = lang === "pt";
@@ -3208,11 +3230,13 @@ function ReviewScreen({ onXP }) {
   const cfg = modeConfig[cardMode];
 
   const [diff, setDiff] = useState("ALL");
-  const baseCards = cardMode !== "standard"
-    ? allCards.filter(c => c.diff === "HARD")
-    : (diff === "ALL" ? allCards : allCards.filter(c => c.diff === diff));
-  const cards = baseCards;
-  const [idx, setIdx] = useState(0);
+  // Queue-based card system: tracks globally which cards are done this session.
+  // Standard mode: builds a shuffled queue of remaining (unseen) cards per tab.
+  // Expert/Hero: shuffle all HARD cards, cycle indefinitely (no done tracking).
+  const [doneSet, setDoneSet] = useState(new Set());
+  const [cardQueue, setCardQueue] = useState(() => shuffleArr(allCards.map((_, i) => i)));
+  const [queuePos, setQueuePos] = useState(0);
+  const [scoreStreak, setScoreStreak] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [flipAnim, setFlipAnim] = useState(false);
   const [score, setScore] = useState(0);
@@ -3225,13 +3249,15 @@ function ReviewScreen({ onXP }) {
   const [cardStats, setCardStats] = useState(() => loadCardStats());
   const [swipeX, setSwipeX] = useState(0);
   const [swiping, setSwiping] = useState(false);
-  const [ejecting, setEjecting] = useState(null); // "left" | "right" | null
+  const [ejecting, setEjecting] = useState(null);
   const [gameOver, setGameOver] = useState(false);
   const [cardTimer, setCardTimer] = useState(cfg.timerSec);
   const cardTimerRef = useRef(null);
   const touchStart = useRef(0);
 
-  const card = cards[idx % cards.length];
+  const card = cardMode !== "standard"
+    ? allCards[cardQueue[queuePos % Math.max(cardQueue.length, 1)]]
+    : (cardQueue[queuePos] !== undefined ? allCards[cardQueue[queuePos]] : null);
   const pts = card?.diff === "EASY" ? 1 : card?.diff === "MED" ? 2 : card?.diff === "DIALECT" ? 2 : 3;
 
   // Per-card countdown timer for Expert/Hero modes
@@ -3255,7 +3281,7 @@ function ReviewScreen({ onXP }) {
       });
     }, 1000);
     return () => clearInterval(cardTimerRef.current);
-  }, [idx, cardMode, gameOver]);
+  }, [queuePos, cardMode, gameOver, victory]);
 
   const flip = () => {
     if (swiping || ejecting || gameOver) return;
@@ -3269,32 +3295,39 @@ function ReviewScreen({ onXP }) {
     if (gameOver || victory) return;
     clearInterval(cardTimerRef.current);
     const cardDiff = card?.diff || "EASY";
-    const newScore = known ? score + pts : score;
+    const cardId = cardMode !== "standard"
+      ? cardQueue[queuePos % Math.max(cardQueue.length, 1)]
+      : cardQueue[queuePos];
+
     if (known) {
+      const newStreak = scoreStreak + 1;
+      setScoreStreak(newStreak);
+      const mult = getCardStreakMult(newStreak);
+      const bonusPts = Math.round(pts * mult);
+      const newScore = score + bonusPts;
       setScore(newScore);
       setCorrect(c => c + 1);
-      if (onXP) onXP(pts);
+      if (onXP) onXP(bonusPts);
       if (cardMode === "hero") {
-        const newStreak = heroStreak + 1;
-        setHeroStreak(newStreak);
-        if (newStreak >= HERO_STREAK_WIN) {
-          // Hero victory — save stats and award bonus XP
+        const newHeroStreak = heroStreak + 1;
+        setHeroStreak(newHeroStreak);
+        if (newHeroStreak >= HERO_STREAK_WIN) {
           const prev = loadCardStats();
           const h = prev.hero || {};
-          const ns = { ...prev, hero: { wins: (h.wins || 0) + 1, attempts: (h.attempts || 0) + 1, bestScore: Math.max(h.bestScore || 0, newScore), bestStreak: Math.max(h.bestStreak || 0, newStreak) } };
+          const ns = { ...prev, hero: { wins: (h.wins || 0) + 1, attempts: (h.attempts || 0) + 1, bestScore: Math.max(h.bestScore || 0, newScore), bestStreak: Math.max(h.bestStreak || 0, newHeroStreak) } };
           saveCardStats(ns);
           setCardStats(ns);
           setVictory(true);
-          if (onXP) onXP(50); // bonus XP triggers achievement check
+          if (onXP) onXP(50);
           return;
         }
       }
     } else {
+      setScoreStreak(0);
       if (cardMode === "hero") setHeroStreak(0);
       const newLives = lives - 1;
       setLives(newLives);
       if (newLives <= 0) {
-        // Save end-of-game stats for expert/hero
         if (cardMode !== "standard") {
           const prev = loadCardStats();
           let ns;
@@ -3311,6 +3344,11 @@ function ReviewScreen({ onXP }) {
         setGameOver(true); setEjecting(null); return;
       }
     }
+
+    // Mark card as done in standard mode
+    if (cardMode === "standard" && cardId !== undefined) {
+      setDoneSet(prev => { const n = new Set(prev); n.add(cardId); return n; });
+    }
     setStatsByDiff(prev => ({
       ...prev,
       ALL: { r: prev.ALL.r + 1, c: prev.ALL.c + (known ? 1 : 0) },
@@ -3320,16 +3358,55 @@ function ReviewScreen({ onXP }) {
     setFlipped(false);
     setSwipeX(0);
     setSwiping(false);
-    setIdx(i => i + 1);
+    const nextPos = queuePos + 1;
+    if (cardMode !== "standard" && nextPos >= cardQueue.length) {
+      // Reshuffle and cycle for expert/hero
+      setCardQueue(buildHardQueue(allCards));
+      setQueuePos(0);
+    } else {
+      setQueuePos(nextPos);
+    }
   };
 
   const resetGame = (mode) => {
     const m = mode || cardMode;
     const mc = modeConfig[m];
     clearInterval(cardTimerRef.current);
-    setScore(0); setLives(mc.maxLives); setReviewed(0); setCorrect(0); setIdx(0);
-    setFlipped(false); setGameOver(false); setVictory(false); setHeroStreak(0); setSwipeX(0); setEjecting(null);
+    setScore(0); setLives(mc.maxLives); setReviewed(0); setCorrect(0);
+    setFlipped(false); setGameOver(false); setVictory(false);
+    setHeroStreak(0); setScoreStreak(0); setSwipeX(0); setEjecting(null);
     setCardTimer(mc.timerSec);
+    setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 }, DIALECT: { r: 0, c: 0 } });
+    if (m !== "standard") {
+      setCardQueue(buildHardQueue(allCards));
+    } else {
+      // PLAY AGAIN in standard keeps doneSet — resume with remaining cards
+      setCardQueue(buildStdQueue(diff, doneSet, allCards));
+    }
+    setQueuePos(0);
+  };
+
+  // Switch diff tab: rebuild queue from unseen cards, preserve all progress
+  const switchDiff = (newDiff) => {
+    setDiff(newDiff);
+    setCardQueue(buildStdQueue(newDiff, doneSet, allCards));
+    setQueuePos(0);
+    setFlipped(false);
+    setSwipeX(0);
+    setSwiping(false);
+  };
+
+  // Hard reset: clear doneSet and all session stats, see all cards again
+  const resetProgress = () => {
+    const empty = new Set();
+    setDoneSet(empty);
+    clearInterval(cardTimerRef.current);
+    setScore(0); setLives(cfg.maxLives); setReviewed(0); setCorrect(0);
+    setFlipped(false); setGameOver(false); setVictory(false);
+    setHeroStreak(0); setScoreStreak(0); setSwipeX(0); setEjecting(null);
+    setCardTimer(cfg.timerSec);
+    setCardQueue(buildStdQueue(diff, empty, allCards));
+    setQueuePos(0);
     setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 }, DIALECT: { r: 0, c: 0 } });
   };
 
@@ -3438,10 +3515,12 @@ function ReviewScreen({ onXP }) {
         style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}
         renderItem={(d) => {
           const totalForDiff = d === "ALL" ? allCards.length : allCards.filter(c => c.diff === d).length;
-          const reviewed = statsByDiff[d]?.r || 0;
-          const pct = totalForDiff > 0 ? Math.round(reviewed / totalForDiff * 100) : 0;
+          const doneForDiff = d === "ALL"
+            ? doneSet.size
+            : allCards.filter((c, i) => c.diff === d && doneSet.has(i)).length;
+          const pct = totalForDiff > 0 ? Math.round(doneForDiff / totalForDiff * 100) : 0;
           return (
-            <button onClick={() => { setDiff(d); setIdx(0); setFlipped(false); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 }, DIALECT: { r: 0, c: 0 } }); }} style={{
+            <button onClick={() => switchDiff(d)} style={{
               background: "none", border: `1px solid ${diff === d ? C.dim : C.border}`,
               cursor: "pointer", padding: "8px 10px", minHeight: 40,
               fontFamily: F.mono, fontSize: 13, color: diff === d ? C.text : C.dim,
@@ -3455,7 +3534,7 @@ function ReviewScreen({ onXP }) {
       {/* Timer for Expert/Hero modes */}
       {cfg.timerSec && !gameOver && !victory && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <ProgressBar progress={cards.length > 0 ? (idx % cards.length) / cards.length : 0} />
+          <ProgressBar progress={cardQueue.length > 0 ? (queuePos % Math.max(cardQueue.length, 1)) / cardQueue.length : 0} />
           <div style={{
             fontFamily: F.mono, fontSize: 22, minWidth: 44, textAlign: "right",
             color: cardTimer > 4 ? C.amber : C.red,
@@ -3463,7 +3542,7 @@ function ReviewScreen({ onXP }) {
           }}>{cardTimer}s</div>
         </div>
       )}
-      {!cfg.timerSec && !victory && <ProgressBar progress={cards.length > 0 ? (idx % cards.length) / cards.length : 0} />}
+      {!cfg.timerSec && !victory && <ProgressBar progress={cardQueue.length > 0 ? queuePos / cardQueue.length : 0} />}
 
       {/* Victory overlay — Hero mode win */}
       {victory ? (
@@ -3494,8 +3573,15 @@ function ReviewScreen({ onXP }) {
             {lang === "pt" ? "JOGAR DENOVO" : "PLAY AGAIN"}
           </button>
         </div>
-      ) : cards.length === 0 ? (
-        <div style={{ marginTop: 40, fontFamily: F.mono, fontSize: 16, color: C.dim, textAlign: "center" }}>// no cards for "{diff}"</div>
+      ) : !card ? (
+        <div style={{ marginTop: 20, background: C.panel, border: `1px solid ${C.border}`, padding: "28px 22px", textAlign: "center" }}>
+          <div style={{ fontFamily: F.mono, fontSize: 22, color: C.cyan, marginBottom: 8 }}>✓ ALL DONE</div>
+          <div style={{ fontFamily: F.mono, fontSize: 13, color: C.dim, marginBottom: 4 }}>{p ? `${reviewed} cards revisados · ${correct} corretos` : `${reviewed} cards reviewed · ${correct} correct`}</div>
+          <div style={{ fontFamily: F.mono, fontSize: 32, color: C.dim, margin: "14px 0" }}>{score}<span style={{ fontSize: 16, color: C.muted }}>pt</span></div>
+          <button onClick={resetProgress} style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, background: "none", border: `1px solid ${C.cyan}`, padding: "12px 24px", cursor: "pointer", letterSpacing: 2 }}>
+            {p ? "RESETAR + JOGAR DENOVO" : "RESET + PLAY AGAIN"}
+          </button>
+        </div>
       ) : (
         <>
           {/* Swipe hints */}
@@ -3560,7 +3646,9 @@ function ReviewScreen({ onXP }) {
             { l: t("done"), v: String(reviewed), c: C.dim },
             cardMode === "hero"
               ? { l: "STREAK", v: `${heroStreak}/${HERO_STREAK_WIN}`, c: heroStreak > 0 ? C.red : C.dim }
-              : { l: "CARDS", v: String(cards.length), c: C.dim },
+              : scoreStreak >= 3
+                ? { l: `STREAK ×${getCardStreakMult(scoreStreak).toFixed(2)}`, v: `${scoreStreak}`, c: C.amber }
+                : { l: "CARDS", v: String(cardQueue.length), c: C.dim },
           ].map(s => (
             <div key={s.l} style={{ textAlign: "center" }}>
               <div style={{ fontFamily: F.mono, fontSize: 20, color: s.c }}>{s.v}</div>
