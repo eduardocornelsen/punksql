@@ -3382,10 +3382,11 @@ function ReviewScreen({ onXP }) {
         delay={60}
         style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}
         renderItem={(d) => {
-          const st = statsByDiff[d] || { r: 0, c: 0 };
-          const pct = st.r > 0 ? Math.round(st.c / st.r * 100) : 0;
+          const totalForDiff = d === "ALL" ? allCards.length : allCards.filter(c => c.diff === d).length;
+          const reviewed = statsByDiff[d]?.r || 0;
+          const pct = totalForDiff > 0 ? Math.round(reviewed / totalForDiff * 100) : 0;
           return (
-            <button onClick={() => { setDiff(d); setIdx(0); setFlipped(false); }} style={{
+            <button onClick={() => { setDiff(d); setIdx(0); setFlipped(false); setStatsByDiff({ ALL: { r: 0, c: 0 }, EASY: { r: 0, c: 0 }, MED: { r: 0, c: 0 }, HARD: { r: 0, c: 0 }, DIALECT: { r: 0, c: 0 } }); }} style={{
               background: "none", border: `1px solid ${diff === d ? C.dim : C.border}`,
               cursor: "pointer", padding: "8px 10px", minHeight: 40,
               fontFamily: F.mono, fontSize: 13, color: diff === d ? C.text : C.dim,
