@@ -14,6 +14,7 @@ const STORAGE_KEY = "qq-save";
 const SQL_DRAFT_PREFIX = "qq-draft-";
 const CODE_ONBOARDING_KEY = "punksql-code-tour-v1";
 const CARD_STATS_KEY = "punksql-card-stats";
+const QUIZ_STATE_KEY = "punksql-quiz-state";
 const HERO_STREAK_WIN = 10;
 
 function loadProgress() {
@@ -34,6 +35,25 @@ function loadCardStats() {
 }
 function saveCardStats(stats) {
   try { localStorage.setItem(CARD_STATS_KEY, JSON.stringify(stats)); } catch {}
+}
+function loadQuizState() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(QUIZ_STATE_KEY) || "{}");
+    // Migrate old format {order, history} → {order, queue, pos, history}
+    let changed = false;
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (v && v.order && !v.queue) {
+        out[k] = { order: v.order, queue: [...v.order], pos: 0, history: v.history || [] };
+        changed = true;
+      } else { out[k] = v; }
+    }
+    if (changed) { try { localStorage.setItem(QUIZ_STATE_KEY, JSON.stringify(out)); } catch {} }
+    return out;
+  } catch { return {}; }
+}
+function saveQuizState(state) {
+  try { localStorage.setItem(QUIZ_STATE_KEY, JSON.stringify(state)); } catch {}
 }
 function loadSQLDraft(challengeId) {
   try { return localStorage.getItem(SQL_DRAFT_PREFIX + challengeId) || ""; } catch(e) { return ""; }
@@ -3684,65 +3704,121 @@ function ReviewScreen({ onXP }) {
 // ═══════════════════════════════════════════════════════════
 function QuizScreen({ onXP }) {
   const { t, lang } = useLang();
-  const [modFilter, setModFilter] = useState(0); // 0 = all, "HERO" = hero mode
-  const [idx, setIdx] = useState(0);
+  const [modFilter, setModFilter] = useState(0);
+  const [tabStates, setTabStates] = useState(() => loadQuizState());
+  // historyPos: null = current question, number = reviewing a past answer
+  const [historyPos, setHistoryPos] = useState(null);
+  // selected: null = unanswered; ≥0 = chosen option index. displayShowResult derives from this.
   const [selected, setSelected] = useState(null);
-  const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [correct, setCorrect] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [timer, setTimer] = useState(15);
+  const [timer, setTimer] = useState(20);
   const timerRef = useRef(null);
+  const handleTimeoutRef = useRef(null);
+  const optCacheRef = useRef({});
 
-  const questions = useMemo(() => {
-    let base;
-    if (modFilter === 0) base = QUIZ_DB.filter(q => q.mod !== "HERO");
-    else if (modFilter === "HERO") base = QUIZ_DB.filter(q => q.diff === "EXPERT" || q.diff === "HARD");
-    else base = QUIZ_DB.filter(q => q.mod === modFilter);
-    return base.map(q => {
-      const tagged = q.opts.map((opt, i) => ({ opt, correct: i === q.ans }));
+  const tabKey = String(modFilter);
+
+  const tabQuestions = useMemo(() => {
+    if (modFilter === 0) return QUIZ_DB.filter(q => q.mod !== "HERO");
+    if (modFilter === "HERO") return QUIZ_DB.filter(q => q.diff === "EXPERT" || q.diff === "HARD");
+    return QUIZ_DB.filter(q => q.mod === modFilter);
+  }, [modFilter]);
+
+  // Initialize tab when first visited or after format migration (old format had no queue/pos)
+  useEffect(() => {
+    setTabStates(prev => {
+      const ex = prev[tabKey];
+      if (ex && ex.queue && ex.pos !== undefined) return prev;
+      const ord = shuffleArr(tabQuestions.map(q => q.id));
+      // Migrate old format {order, history} → new format {order, queue, pos, history}
+      if (ex && ex.order && !ex.queue) {
+        const migrated = { order: ex.order, queue: [...ex.order], pos: 0, history: ex.history || [] };
+        const updated = { ...prev, [tabKey]: migrated };
+        saveQuizState(updated);
+        return updated;
+      }
+      const next = { order: ord, queue: [...ord], pos: 0, history: [] };
+      const updated = { ...prev, [tabKey]: next };
+      saveQuizState(updated);
+      return updated;
+    });
+    setHistoryPos(null);
+    setSelected(null);
+  }, [tabKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const raw = tabStates[tabKey];
+  // Inline migration fallback for first render before useEffect fires
+  const tabState = raw?.queue
+    ? raw
+    : raw?.order
+      ? { order: raw.order, queue: [...raw.order], pos: 0, history: raw.history || [] }
+      : { order: [], queue: tabQuestions.map(q => q.id), pos: 0, history: [] };
+
+  const { order, queue, history } = tabState;
+  const pos = tabState.pos ?? 0;
+  const safePos = queue.length > 0 ? pos % queue.length : 0;
+  const currentQId = queue[safePos] ?? null;
+
+  function getQ(qId) {
+    if (!qId) return null;
+    if (!optCacheRef.current[qId]) {
+      const orig = QUIZ_DB.find(q => q.id === qId);
+      if (!orig) return null;
+      const tagged = orig.opts.map((opt, i) => ({ opt, correct: i === orig.ans }));
       for (let i = tagged.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
       }
-      return { ...q, opts: tagged.map(t => t.opt), ans: tagged.findIndex(t => t.correct) };
-    });
-  }, [modFilter]);
+      optCacheRef.current[qId] = { ...orig, opts: tagged.map(t => t.opt), ans: tagged.findIndex(t => t.correct) };
+    }
+    return optCacheRef.current[qId];
+  }
 
-  const q = questions[idx % questions.length];
+  const isReviewing = historyPos !== null && historyPos >= 0 && historyPos < history.length;
+  // Result is shown when reviewing a past answer OR when an option has been selected this round
+  const displayShowResult = isReviewing || selected !== null;
+
+  let displayQId, displaySelected;
+  if (isReviewing) {
+    const h = history[historyPos];
+    displayQId = h.qId;
+    displaySelected = h.selectedIdx;
+  } else {
+    displayQId = currentQId;
+    displaySelected = selected;
+  }
+
+  const q = getQ(displayQId);
   const pts = q?.diff === "EASY" ? 10 : q?.diff === "MED" ? 20 : q?.diff === "HARD" ? 30 : 40;
 
-  // Timer countdown
+  // Timer resets when tab or position changes. Stops immediately when answered (selected ≠ null) or reviewing.
   useEffect(() => {
-    if (showResult) return;
-    setTimer(15);
+    clearInterval(timerRef.current);
+    if (isReviewing || selected !== null || !q) return;
+    setTimer(20);
     timerRef.current = setInterval(() => {
       setTimer(prev => {
-        if (prev <= 1) { clearInterval(timerRef.current); handleAnswer(-1); return 0; }
+        if (prev <= 1) { clearInterval(timerRef.current); handleTimeoutRef.current?.(); return 0; }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [idx, showResult === false]);
+  }, [tabKey, pos, isReviewing, selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getStreakMult = (s) => s >= 10 ? 2.0 : s >= 5 ? 1.5 : s >= 3 ? 1.25 : 1.0;
-  const getQuizTimeMult = (t) => t > 10 ? 1.5 : t > 5 ? 1.25 : 1.0;
+  const getTimeMult = (t) => t > 13 ? 1.5 : t > 7 ? 1.25 : 1.0;
 
+  // Answer: freeze timer display, update score/streak, show result. History committed on NEXT.
   const handleAnswer = (optIdx) => {
-    if (showResult) return;
+    if (displayShowResult || isReviewing || !q) return;
     clearInterval(timerRef.current);
+    const correct = optIdx === q.ans;
     setSelected(optIdx);
-    setShowResult(true);
-    setTotal(t => t + 1);
-    if (optIdx === q.ans) {
+    if (correct) {
       const nextStreak = streak + 1;
-      const streakMult = getStreakMult(nextStreak);
-      const timeMult = getQuizTimeMult(timer);
-      const combined = Math.min(3.0, streakMult * timeMult);
-      const earned = Math.round(pts * combined);
+      const earned = Math.round(pts * Math.min(3.0, getStreakMult(nextStreak) * getTimeMult(timer)));
       setScore(s => s + earned);
-      setCorrect(c => c + 1);
       setStreak(nextStreak);
       if (onXP) onXP(earned);
     } else {
@@ -3750,16 +3826,70 @@ function QuizScreen({ onXP }) {
     }
   };
 
+  // Timeout: skip question silently, append to end of queue for retry, advance pos.
+  const handleTimeout = () => {
+    setTabStates(prev => {
+      const ts = prev[tabKey] || tabState;
+      if (!ts.queue || ts.queue.length === 0) return prev;
+      const sp = ts.pos % ts.queue.length;
+      const skippedQId = ts.queue[sp];
+      const updated = { ...prev, [tabKey]: { ...ts, queue: [...ts.queue, skippedQId], pos: ts.pos + 1 } };
+      saveQuizState(updated);
+      return updated;
+    });
+  };
+  handleTimeoutRef.current = handleTimeout;
+
+  // NEXT: commit answer to history and advance pos. In review mode: navigate history.
   const nextQuestion = () => {
-    setSelected(null);
-    setShowResult(false);
-    setIdx(i => i + 1);
+    if (isReviewing) {
+      if (historyPos < history.length - 1) setHistoryPos(historyPos + 1);
+      else setHistoryPos(null);
+    } else {
+      if (selected === null || !q) return;
+      const correct = selected === q.ans;
+      const newHistory = [...history, { qId: currentQId, selectedIdx: selected, correct }];
+      setTabStates(prev => {
+        const ts = prev[tabKey] || tabState;
+        const updated = { ...prev, [tabKey]: { ...ts, history: newHistory, pos: ts.pos + 1 } };
+        saveQuizState(updated);
+        return updated;
+      });
+      setSelected(null);
+    }
   };
 
-  const resetQuiz = () => { setIdx(0); setSelected(null); setShowResult(false); setScore(0); setTotal(0); setCorrect(0); setStreak(0); };
+  const prevQuestion = () => {
+    if (isReviewing && historyPos > 0) setHistoryPos(historyPos - 1);
+    else if (!isReviewing && history.length > 0) setHistoryPos(history.length - 1);
+  };
 
-  const timerColor = timer > 10 ? C.green : timer > 5 ? C.amber : C.red;
+  const resetTab = () => {
+    tabQuestions.forEach(tq => { delete optCacheRef.current[tq.id]; });
+    const ord = shuffleArr(tabQuestions.map(q => q.id));
+    const newState = { order: ord, queue: [...ord], pos: 0, history: [] };
+    setTabStates(prev => {
+      const updated = { ...prev, [tabKey]: newState };
+      saveQuizState(updated);
+      return updated;
+    });
+    setHistoryPos(null);
+    setSelected(null);
+    setScore(0);
+    setStreak(0);
+  };
+
+  const timerColor = timer > 13 ? C.green : timer > 7 ? C.amber : C.red;
   const modNames = ["ALL","M1: SELECT","M2: WHERE","M3: ORDER","M4: GROUP","M5: JOIN","M6: SUB","M7: WINDOW","M8: CTE","M9: DML","M10: DDL","M11: dbt","☠ HERO"];
+  const answeredCount = history.length;
+  const correctCount = history.filter(h => h.correct).length;
+  const canGoPrev = isReviewing ? historyPos > 0 : history.length > 0;
+  const isRetry = order.length > 0 && pos >= order.length;
+  const progressPct = order.length > 0 ? Math.min(pos, order.length) / order.length : 0;
+  const qCounter = isRetry ? `[RETRY ${pos - order.length + 1}]` : `[${pos + 1}/${order.length}]`;
+  const hasActivity = pos > 0 || history.length > 0;
+
+  if (!q) return null;
 
   return (
     <div style={{ padding: "12px 16px 20px", animation: "langSwitch 0.3s ease" }}>
@@ -3775,33 +3905,49 @@ function QuizScreen({ onXP }) {
         </div>
       </div>
 
-      {/* Module filter */}
+      {/* Module filter tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
         {modNames.map((name, i) => {
           const filterVal = i === 0 ? 0 : i === modNames.length - 1 ? "HERO" : i;
           const isActive = modFilter === filterVal;
           const isHero = filterVal === "HERO";
           return (
-          <button key={i} onClick={() => { setModFilter(filterVal); resetQuiz(); }} style={{
-            background: "none", border: `1px solid ${isActive ? (isHero ? C.red : C.dim) : C.border}`,
-            cursor: "pointer", padding: "6px 10px", minHeight: 34,
-            fontFamily: F.mono, fontSize: 11, color: isActive ? (isHero ? C.red : C.text) : C.dim, whiteSpace: "nowrap",
-          }}>{name}</button>
+            <button key={i} onClick={() => setModFilter(filterVal)} style={{
+              background: "none", border: `1px solid ${isActive ? (isHero ? C.red : C.dim) : C.border}`,
+              cursor: "pointer", padding: "6px 10px", minHeight: 34,
+              fontFamily: F.mono, fontSize: 11, color: isActive ? (isHero ? C.red : C.text) : C.dim, whiteSpace: "nowrap",
+            }}>{name}</button>
           );
         })}
       </div>
 
       {/* Progress + Timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <ProgressBar progress={questions.length > 0 ? (idx % questions.length) / questions.length : 0} />
-        <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
+        <ProgressBar progress={progressPct} />
+        {!isReviewing && (
+          <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
+        )}
       </div>
 
+      {/* Status banners */}
+      {isReviewing && (
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.amber, border: `1px solid ${C.amberDim}`, padding: "4px 10px", marginBottom: 8, letterSpacing: 1 }}>
+          REVIEWING [{historyPos + 1}/{history.length}]
+        </div>
+      )}
+      {!isReviewing && isRetry && (
+        <div style={{ fontFamily: F.mono, fontSize: 11, color: C.cyan, border: `1px solid ${C.border}`, padding: "4px 10px", marginBottom: 8, letterSpacing: 1 }}>
+          ↺ RETRY ROUND — UNANSWERED QUESTIONS
+        </div>
+      )}
+
       {/* Question card */}
-      <div style={{ background: C.panel, border: `1px solid ${showResult ? (selected === q.ans ? C.green : C.red) : C.border}`, padding: "20px 18px", marginBottom: 14, position: "relative" }}>
+      <div style={{ background: C.panel, border: `1px solid ${displayShowResult ? (displaySelected === q.ans ? C.green : C.red) : C.border}`, padding: "20px 18px", marginBottom: 14, position: "relative" }}>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: C.border }} />
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-          <span style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>[{(idx % questions.length) + 1}/{questions.length}]</span>
+          <span style={{ fontFamily: F.mono, fontSize: 12, color: C.dim }}>
+            {isReviewing ? `[HISTORY ${historyPos + 1}/${history.length}]` : qCounter}
+          </span>
           <span style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, border: `1px solid ${C.border}`, padding: "3px 10px", letterSpacing: 1 }}>{q.diff}</span>
         </div>
         <div style={{ fontFamily: F.mono, fontSize: 18, color: C.white, lineHeight: 1.6 }}>{lang === "pt" ? q.q_pt : q.q_en}</div>
@@ -3810,27 +3956,27 @@ function QuizScreen({ onXP }) {
       {/* Options */}
       <StdoutList
         items={q.opts}
-        resetKey={idx}
+        resetKey={isReviewing ? `h-${historyPos}` : `q-${tabKey}-${pos}`}
         delay={80}
         style={{ gap: 8, marginBottom: 14 }}
         renderItem={(opt, i) => {
           const isCorrect = i === q.ans;
-          const isSelected = i === selected;
+          const isSelected = i === displaySelected;
           let bg = "none", borderColor = C.border, textColor = C.white;
-          if (showResult) {
+          if (displayShowResult) {
             if (isCorrect) { bg = C.greenGhost; borderColor = C.green; textColor = C.green; }
             else if (isSelected && !isCorrect) { bg = C.redGhost; borderColor = C.red; textColor = C.red; }
             else { textColor = C.dim; }
           }
           return (
-            <button onClick={() => handleAnswer(i)} disabled={showResult} style={{
-              background: bg, border: `1px solid ${borderColor}`, cursor: showResult ? "default" : "pointer",
+            <button onClick={() => handleAnswer(i)} disabled={displayShowResult} style={{
+              background: bg, border: `1px solid ${borderColor}`, cursor: displayShowResult ? "default" : "pointer",
               padding: "14px 16px", fontFamily: F.mono, fontSize: 16, color: textColor,
               textAlign: "left", minHeight: 50, display: "flex", alignItems: "center", gap: 12,
               transition: "all 0.2s",
             }}>
-              <span style={{ fontFamily: F.mono, fontSize: 14, color: showResult && isCorrect ? C.green : C.dim, flexShrink: 0, width: 24 }}>
-                {showResult ? (isCorrect ? "✓" : isSelected ? "✗" : "○") : String.fromCharCode(65 + i)}
+              <span style={{ fontFamily: F.mono, fontSize: 14, color: displayShowResult && isCorrect ? C.green : C.dim, flexShrink: 0, width: 24 }}>
+                {displayShowResult ? (isCorrect ? "✓" : isSelected ? "✗" : "○") : String.fromCharCode(65 + i)}
               </span>
               <span style={{ fontFamily: F.mono }}>{opt}</span>
             </button>
@@ -3838,24 +3984,52 @@ function QuizScreen({ onXP }) {
         }}
       />
 
-      {/* Next button */}
-      {showResult && (
-        <button onClick={nextQuestion} style={{
-          width: "100%", padding: "14px 0", cursor: "pointer",
-          fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700,
-          color: C.cyan, background: "none", border: `1px solid ${C.cyan}`,
-          minHeight: 50,
-        }}>NEXT ▶</button>
-      )}
+      {/* Navigation buttons */}
+      <div style={{ display: "flex", gap: 8 }}>
+        {canGoPrev && (
+          <button onClick={prevQuestion} style={{
+            flex: displayShowResult ? "0 0 auto" : 1,
+            padding: "14px 16px", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700,
+            color: C.dim, background: "none", border: `1px solid ${C.border}`,
+            minHeight: 50,
+          }}>◀ PREV</button>
+        )}
+        {displayShowResult && (
+          <button onClick={nextQuestion} style={{
+            flex: 1, padding: "14px 0", cursor: "pointer",
+            fontFamily: F.mono, fontSize: 16, letterSpacing: 2, fontWeight: 700,
+            color: isReviewing && historyPos < history.length - 1 ? C.dim : C.cyan,
+            background: "none",
+            border: `1px solid ${isReviewing && historyPos < history.length - 1 ? C.border : C.cyan}`,
+            minHeight: 50,
+          }}>
+            {isReviewing && historyPos < history.length - 1 ? "NEXT ▶" : isReviewing ? "▶ CURRENT" : "NEXT ▶"}
+          </button>
+        )}
+      </div>
+
+      {/* Reset button */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+        <button onClick={resetTab} style={{
+          fontFamily: F.mono, fontSize: 13, letterSpacing: 1, cursor: "pointer",
+          padding: "5px 14px", borderRadius: 3,
+          color: hasActivity ? C.amber : C.muted,
+          background: hasActivity ? C.amberGhost : "none",
+          border: `1px solid ${hasActivity ? C.amberDim : C.border}`,
+          opacity: hasActivity ? 1 : 0.5,
+          transition: "all 0.2s",
+        }}>↺ reset</button>
+      </div>
 
       {/* Stats bar */}
-      <CLIBox title="QUIZ_STATS" style={{ marginTop: 16 }}>
+      <CLIBox title="QUIZ_STATS" style={{ marginTop: 8 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
           {[
             { l: "SCORE", v: `${score}`, c: C.dim },
-            { l: "ACC", v: total > 0 ? `${Math.round((correct / total) * 100)}%` : "—", c: C.dim },
+            { l: "ACC", v: answeredCount > 0 ? `${Math.round((correctCount / answeredCount) * 100)}%` : "—", c: C.dim },
             { l: "STREAK", v: `${streak}`, c: C.dim },
-            { l: "Q's", v: `${total}/${questions.length}`, c: C.dim },
+            { l: "DONE", v: `${Math.min(pos, order.length)}/${order.length}`, c: C.dim },
           ].map(s => (
             <div key={s.l} style={{ textAlign: "center" }}>
               <div style={{ fontFamily: F.mono, fontSize: 18, color: s.c }}>{s.v}</div>
