@@ -4,7 +4,7 @@
 
 ### Learn SQL by solving real challenges.
 
-**112 exercises · 10 modules · Real in-browser SQL execution · Cyberpunk CLI aesthetic**
+**122 exercises · 11 modules · Real in-browser SQL execution · Cyberpunk CLI aesthetic**
 
 [▶ Play Now](https://punksql.vercel.app) · [Report Bug](https://github.com/eduardocornelsen/punksql/issues) · [Request Feature](https://github.com/eduardocornelsen/punksql/issues)
 
@@ -29,13 +29,26 @@ Built for career switchers learning SQL from scratch, and for data professionals
 
 | Home | Editor | Learn | Profile |
 |:---:|:---:|:---:|:---:|
-| Boot sequence, daily challenge, quests, stats | Mobile SQL editor with swipe cursor & focus mode | 10-module skill tree with progressive unlocking | Level, XP, achievements with expand-to-see details |
+| Boot sequence, daily challenge, FREE_EXPLORE card, stats | Mobile SQL editor with swipe cursor & focus mode | 11-module skill tree with progressive unlocking | Level, XP, 23 achievements with expand-to-see details |
 
 </div>
 
 ---
 
 ## Features
+
+### 🗺 FREE_EXPLORE Sandbox
+
+A full IDE-like SQL sandbox accessible from the home screen — no lesson, no right answer.
+
+- **SHELL** — interactive SQL terminal with autocomplete, command history (`↑`/`↓`), and meta-commands (`\dt`, `\d <table>`, `\history`, `\resetdb`, `\?`)
+- **EDITOR** — `.sql` / `.yaml` file editor with save/load, syntax-aware dbt Jinja token bar
+- **VAULT** — file browser and schema explorer with layer hints and file detail panel
+- **DAG** — data lineage graph visualizing the SRC → STG → INT → MRT pipeline
+
+The sandbox runs the same SQLite WASM engine as the challenges and comes pre-seeded with the full e-commerce dataset plus `raw_sales` and `employee_salaries`.
+
+---
 
 ### 🔥 SQL Engine (In-Browser)
 
@@ -57,12 +70,32 @@ The code editor was designed specifically for writing SQL on a phone:
 ### 🎮 Gamification
 
 - **20 levels** with progressive XP thresholds (25 → 11,200 XP)
-- **12 achievements** with real unlock conditions (first query, module completion, DML/DDL mastery, solve counts, level milestones)
+- **23 achievements** with real unlock conditions (first query, module completions, DML/DDL/dbt mastery, solve milestones, level gates, Hero Champion, no-hint solves, persistence, daily streaks)
 - **Level-up animation** — full-screen number with bounce + glow
 - **Badge unlock animation** — spinning icon with achievement name
 - **Sound effects** — ascending arpeggio on correct, buzz on wrong, fanfare on level-up (Tone.js)
 - **XP only on first solve** — no farming, progress is real
 - **Daily challenge** — rotates based on day of year, +100 XP bonus
+
+### 🃏 Flashcards
+
+Three play modes on top of the standard swipeable deck:
+
+- **Standard** — all difficulties (EASY / MED / HARD / DIALECT), 3 lives; streak bonus multiplier (×1.25 at 3, ×1.50 at 5, ×2.00 at 10)
+- **Expert ⚡** — HARD cards only, 3 lives, 8-second timer per card
+- **Hero ☠** — HARD cards only, 1 life, 5-second timer; win by getting 10 in a row (streak bar shown)
+- **DIALECT tab** — 12 cards comparing PostgreSQL / MySQL / SQLite syntax (LIMIT, dates, concat, booleans, NULL coalescing, etc.)
+
+Per-mode stats (wins, best streak, games played) persist to `localStorage`. Card order is shuffled on each session. Tab progress is tracked independently so switching tabs doesn't reset your current pass.
+
+### 📝 Quiz
+
+- **76 questions** across 11 modules + a HERO round (10 expert questions spanning all topics)
+- **20-second timer** per question (green > 13s, amber > 7s, red ≤ 7s)
+- **Timeout retry queue** — timed-out questions cycle back for a retry round rather than counting as wrong
+- **State persistence** — question order and answer history survive page reloads and tab switches
+- **Back navigation** — PREV button to review past answers; ▶ CURRENT to return to the live question
+- **Per-tab shuffle** — question order is randomised on first visit and stable thereafter
 
 ### 🌍 Bilingual
 
@@ -78,12 +111,12 @@ XP, solved challenges, and language preference are saved to browser storage and 
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **SQL Challenges** | 112 | EASY → EXPERT, real SQL execution, DML/DDL with savepoint isolation |
-| **Quiz Questions** | 60 | 6 per module, multiple-choice, 15s timer |
-| **Flashcards** | 50 | Swipeable cards with 3-life system, per-difficulty stats |
-| **Achievements** | 12 | First Query → SQL Master (solve all 112), Data Surgeon, Schema Architect |
+| **SQL Challenges** | 122 | EASY → EXPERT, real SQL execution, DML/DDL with savepoint isolation; Module 11 uses text-match for dbt/Jinja |
+| **Quiz Questions** | 76 | 6 per module (Modules 1–11) + 10 HERO questions, multiple-choice, 20s timer |
+| **Flashcards** | 68 | Swipeable cards with 3-life system; Expert ⚡ and Hero ☠ modes; DIALECT tab |
+| **Achievements** | 23 | First Query → SQL Master (all 122) · Hero Champion · dbt Operator · Century · PUNK GOD |
 | **Levels** | 20 | Progressive XP curve |
-| **Modules** | 10 | SELECT → DDL, sequential unlocking |
+| **Modules** | 11 | SELECT → DDL → dbt, sequential unlocking |
 
 ### Learning Path
 
@@ -100,7 +133,12 @@ Module 9:  dml             INSERT, UPDATE, DELETE, NULL handling, duplicates,
                            data cleaning (raw_sales + employee_salaries tables)
 Module 10: ddl             CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP,
                            SAVEPOINTs for atomic schema changes
+Module 11: dbt             ref(), source(), config(), Jinja ({% if is_incremental() %},
+                           {{ this }}), YAML tests (not_null, unique,
+                           accepted_values), incremental models
 ```
+
+Module 11 challenges are **text-match** (not SQL execution) — you type dbt Jinja/YAML snippets and they are validated by pattern against the expected expression.
 
 ---
 
@@ -226,13 +264,17 @@ punksql/
 │   │       ├── progress/        # Cloud progress sync (GET / PUT)
 │   │       └── analytics/       # Attempt logging
 │   ├── components/
-│   │   ├── PunkSQL.jsx          # Complete app (~3300 lines, single file)
+│   │   ├── PunkSQL.jsx          # Core app (~4700 lines): challenges, quiz, cards, profile
+│   │   ├── sandbox/
+│   │   │   └── SandboxScreen.jsx  # FREE_EXPLORE IDE (SHELL/EDITOR/VAULT/DAG tabs, ~1900 lines)
 │   │   └── AuthProvider.jsx     # Supabase auth context
 │   ├── hooks/
 │   │   └── useProgress.js       # localStorage ↔ Supabase sync logic
 │   ├── stores/
-│   │   └── useGameStore.js      # Zustand store (game state, query history)
+│   │   ├── useGameStore.js      # Zustand store (game state, query history)
+│   │   └── useSandboxStore.js   # Sandbox state (open files, REPL history, DAG layout)
 │   └── lib/
+│       ├── sqlEngine.js         # sql.js wrapper: execSQL, IndexedDB persistence, schema helpers
 │       └── supabase/            # Supabase client (browser + server)
 ├── public/
 │   ├── manifest.json            # PWA manifest (installable as mobile app)
@@ -242,7 +284,7 @@ punksql/
 └── README.md
 ```
 
-The core app lives in `PunkSQL.jsx`. This is intentional — it's a self-contained artifact that can be ported to React Native or run as a standalone page with minimal changes.
+`PunkSQL.jsx` contains challenges, quiz, flashcards, profile, and home screen. The sandbox lives in `SandboxScreen.jsx` and shares the same SQLite WASM engine via `sqlEngine.js`.
 
 ---
 
@@ -276,20 +318,20 @@ PunkSQL sits in a crowded space alongside DataLemur, HackerRank, LeetCode, and S
 | Runs fully offline (WASM) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Gamification (XP / levels / achievements) | ✅ | partial | partial | partial | ❌ |
 | DML + DDL challenges | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Flashcards + spaced repetition | ✅ | ❌ | ❌ | ❌ | ❌ |
+| dbt / Jinja / YAML challenges | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Free SQL sandbox (IDE-like) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Flashcards + Expert / Hero modes | ✅ | ❌ | ❌ | ❌ | ❌ |
 | PWA installable | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 The **mobile-first + offline + no-signup** combination is a genuine moat — no other SQL learning platform does all three.
 
 ### Where competitors win (improvement gaps)
 
-**Solution explanations & hints** — DataLemur shows a full editorial after each submission: *why* this query works, common mistakes, alternative approaches. PunkSQL validates correctness but leaves the learner without guidance. LeetCode and DataLemur both offer 3-tier progressive hints that reduce frustration without giving away the answer.
-
-**Real interview question tagging** — DataLemur and StrataScratch brand challenges as "asked at Meta / Airbnb / Stripe". This creates perceived value and urgency. PunkSQL challenges are well-crafted but unframed.
+**Real interview question tagging** — DataLemur and StrataScratch brand challenges as "asked at Meta / Airbnb / Stripe". This creates perceived value and urgency. PunkSQL challenges carry company archetype tags (e-commerce / fintech / analytics / social media) but not company-specific branding.
 
 **Account-based persistence + shareable profile** — Progress currently lives in `localStorage`. Users can't show their SQL rank to an employer, and progress is lost on a browser clear. HackerRank certificates are a primary reason people use the platform.
 
-**Per-skill analytics** — StrataScratch shows a radar chart of SQL competency (JOINs, window functions, aggregations) so users know exactly what to study. PunkSQL tracks XP but not skill accuracy per topic.
+**Per-skill analytics** — StrataScratch shows a radar chart of SQL competency (JOINs, window functions, aggregations). PunkSQL now ships a skills radar on the profile screen; StrataScratch's advantage is that radar data is backed by real interview benchmark data.
 
 **Community solutions** — LeetCode's comment sections are where users learn the most — alternative approaches, gotchas, debate. PunkSQL has no community layer.
 
@@ -301,8 +343,8 @@ The **mobile-first + offline + no-signup** combination is a genuine moat — no 
 
 ### Shipped
 
-- [x] 112 SQL challenges with real execution (DML + DDL included)
-- [x] Gamification (levels, achievements, XP)
+- [x] 122 SQL challenges with real execution (DML + DDL + dbt text-match)
+- [x] Gamification (levels, 23 achievements, XP multipliers, EXP timer)
 - [x] Mobile-first editor with swipe cursor
 - [x] EN/PT-BR bilingual
 - [x] Sound effects
@@ -310,25 +352,31 @@ The **mobile-first + offline + no-signup** combination is a genuine moat — no 
 - [x] PWA-ready
 - [x] DML data cleaning module (DELETE, UPDATE, INSERT INTO SELECT, SAVEPOINT)
 - [x] DDL schema module (CREATE TABLE/VIEW/INDEX, ALTER TABLE, DROP, SAVEPOINT)
+- [x] **Module 11: dbt** — ref(), source(), config(), Jinja blocks, YAML tests, incremental models
 - [x] Supabase auth wiring + cloud progress sync
 - [x] Solution explanations — annotated query + plain-English breakdown shown after solve
 - [x] 3-level hints — clause hint → skeleton query → fill-in-the-blank, each with a small XP cost
 - [x] Company archetype tags — challenges labelled as e-commerce / fintech / analytics / social media interview-style
 - [x] Editor refactor — linter upgrades, keyboard remapping (*, `,`, `(`, `)` keys), smart indentation, hamburger fix ([#5](https://github.com/eduardocornelsen/punksql/issues/5))
+- [x] **Skills radar** — per-module accuracy chart on profile screen
+- [x] **FREE_EXPLORE sandbox** — full IDE: SHELL terminal, EDITOR, VAULT file browser, DAG lineage graph
+- [x] **Flashcard Expert ⚡ and Hero ☠ modes** — timed, lives-limited runs; Hero requires 10 correct in a row
+- [x] **DIALECT flashcard tab** — 12 cards comparing PostgreSQL / MySQL / SQLite / SQL Server syntax
+- [x] **Flashcard scoring multiplier** — streak-based XP bonus (×1.25 / ×1.50 / ×2.00)
+- [x] **Quiz improvements** — 20s timer, timeout retry queue, state persistence, PREV navigation
 
 ### Prioritized backlog
 
 | Priority | Feature | Effort | Impact | Why it matters |
 |---|---|---|---|---|
 | 1 | **Shareable profile card** — generate a linkable SQL rank card from the existing auth | Low | High | Lets users prove skills; shareable cards drive organic growth |
-| 2 | **Skills radar** — per-module accuracy chart showing strong vs. weak SQL topic areas | Low | High | Gives users a study direction; closes StrataScratch gap |
-| 3 | **Firebase auth migration** — replace Supabase with Firebase; fixes localhost OAuth redirect loop and `file://` origin conflict for Android ([#4](https://github.com/eduardocornelsen/punksql/issues/4)) | Medium | High | Unblocks native Android build; removes SSR auth complexity |
-| 4 | **Game mode separation** — split into `SYSTEM_STORY` (linear campaign with narrative hooks) and `BOUNTY_BOARD` (daily rotating challenge with streak tracker) ([#2](https://github.com/eduardocornelsen/punksql/issues/2)) | Medium | High | Gives learners two distinct goals; bounty board drives daily retention |
-| 5 | **Native Android app via Capacitor** — wrap Next.js static export as a signed `.aab` for Google Play Store submission ([#3](https://github.com/eduardocornelsen/punksql/issues/3)) | High | High | Reaches users who won't open a browser app; depends on Firebase migration |
-| 6 | **SQL Odyssey rebrand + Story Mode** — full rebrand to minimalist terminal aesthetic; 3-campaign text-driven story mode (AI awakening, corporate forensics, deep-space recovery) ([#6](https://github.com/eduardocornelsen/punksql/issues/6)) | Very High | Very High | Major product evolution; replaces cyberpunk theme with a scalable narrative engine |
-| 7 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | High | Medium | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
-| 8 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | High | High | Addresses the #1 reason people stay on LeetCode |
-| 9 | **Premium tier** — gate skills radar and shareable certificate | High | High | Sustainability; mirrors DataLemur/StrataScratch monetization model |
+| 2 | **Firebase auth migration** — replace Supabase with Firebase; fixes localhost OAuth redirect loop and `file://` origin conflict for Android ([#4](https://github.com/eduardocornelsen/punksql/issues/4)) | Medium | High | Unblocks native Android build; removes SSR auth complexity |
+| 3 | **Game mode separation** — split into `SYSTEM_STORY` (linear campaign with narrative hooks) and `BOUNTY_BOARD` (daily rotating challenge with streak tracker) ([#2](https://github.com/eduardocornelsen/punksql/issues/2)) | Medium | High | Gives learners two distinct goals; bounty board drives daily retention |
+| 4 | **Native Android app via Capacitor** — wrap Next.js static export as a signed `.aab` for Google Play Store submission ([#3](https://github.com/eduardocornelsen/punksql/issues/3)) | High | High | Reaches users who won't open a browser app; depends on Firebase migration |
+| 5 | **SQL Odyssey rebrand + Story Mode** — full rebrand to minimalist terminal aesthetic; 3-campaign text-driven story mode (AI awakening, corporate forensics, deep-space recovery) ([#6](https://github.com/eduardocornelsen/punksql/issues/6)) | Very High | Very High | Major product evolution; replaces cyberpunk theme with a scalable narrative engine |
+| 6 | **PGlite migration** — swap sql.js for PGlite (PostgreSQL compiled to WASM) | High | Medium | Real-world dialect accuracy; PostgreSQL is the dominant production DB |
+| 7 | **Community solutions feed** — 2–3 curated alternative solutions per challenge | High | High | Addresses the #1 reason people stay on LeetCode |
+| 8 | **Premium tier** — gate shareable certificate and advanced analytics | High | High | Sustainability; mirrors DataLemur/StrataScratch monetization model |
 
 ### Also planned
 
