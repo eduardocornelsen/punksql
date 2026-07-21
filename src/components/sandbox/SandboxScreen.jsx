@@ -1,7 +1,11 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import useSandboxStore from "@/stores/useSandboxStore";
-import { getSandboxDB, execSQL, saveToIndexedDB, resetSandboxDB } from "@/lib/sqlEngine";
+import { getSandboxDB, execSQL, saveToIndexedDB, resetSandboxDB, listDatabases, attachMemoryDB, detachDatabase } from "@/lib/sqlEngine";
+import DbtWorkspace from "./DbtWorkspace";
+import ResultTable from "./ResultTable";
+import LineageGraph from "./LineageGraph";
+import { tokenizeSQL, tokenizeYAML, tokensToHtml } from "./highlight";
 
 // ── Visual tokens ──────────────────────────────────────────────
 const C = {
@@ -68,7 +72,7 @@ const SQL_PRAGMA = [
   "SAVEPOINT","RELEASE","ROLLBACK TO","ATTACH DATABASE","DETACH",
 ];
 const META_CMDS = [
-  "\\dt","\\dv","\\d","\\l","\\history","\\clear","\\reset","\\resetdb","\\h","\\?",
+  "\\dt","\\dv","\\d","\\l","\\attach","\\detach","\\history","\\clear","\\reset","\\resetdb","\\h","\\?",
 ];
 const SQL_SYMBOLS = [
   "(",")",",",";","*","=","!=","<",">","<=",">=","'","\"","--","/*","*/","%","_",
@@ -171,10 +175,11 @@ function ColumnIcon({ size = 12 }) {
 
 // ── Bottom tabs ───────────────────────────────────────────────
 const BOTTOM_TABS = [
-  { id: "repl",    label: "SHELL",  color: C.cyan,   icon: ">" },
-  { id: "editor",  label: "EDITOR", color: C.amber,  icon: "≡" },
-  { id: "files",   label: "VAULT",  color: C.green,  icon: null },
-  { id: "lineage", label: "DAG",    color: C.purple, icon: "⬡" },
+  { id: "repl",    label: "SHELL",  color: C.cyan,      icon: ">" },
+  { id: "editor",  label: "EDITOR", color: C.amber,     icon: "≡" },
+  { id: "files",   label: "VAULT",  color: C.green,     icon: null },
+  { id: "dbt",     label: "DBT",    color: "#FF9944",   icon: "▲" },
+  { id: "lineage", label: "DAG",    color: C.purple,    icon: "⬡" },
 ];
 
 // ── Smart-newline helpers (SQL + YAML) ───────────────────────
@@ -241,14 +246,17 @@ function fileExt(name) {
 function isYaml(name) { const e = fileExt(name); return e === "yaml" || e === "yml"; }
 
 // ── Autocomplete helpers ───────────────────────────────────────
+// Dotted words (db.table / alias.column) are matched whole so qualified
+// names from attached databases complete correctly.
+const WORD_RE = /[\\][\w]*$|[\w]+\.[\w]*$|[\w]+$/;
 function getWordAtCursor(text, pos) {
   const before = text.slice(0, pos);
-  const m = before.match(/[\\][\w]*$|[\w]+$/);
+  const m = before.match(WORD_RE);
   return m ? m[0] : "";
 }
 function replaceWordAtCursor(text, pos, replacement) {
   const before = text.slice(0, pos);
-  const m = before.match(/[\\][\w]*$|[\w]+$/);
+  const m = before.match(WORD_RE);
   if (!m) return { text: text.slice(0, pos) + replacement + text.slice(pos), newPos: pos + replacement.length };
   const wordStart = pos - m[0].length;
   return { text: text.slice(0, wordStart) + replacement + text.slice(pos), newPos: wordStart + replacement.length };
@@ -257,6 +265,15 @@ function computeSuggestions(word, tableNames, columnNames) {
   if (!word) return [];
   const lower = word.toLowerCase();
   const isMeta = lower.startsWith("\\");
+  if (!isMeta && lower.includes(".")) {
+    // "analytics.fct" → qualified tables; "o.cust" → alias.column completions
+    const [prefix, suffix] = lower.split(".");
+    const qualified = tableNames.filter((t) => t.toLowerCase().startsWith(lower) && t.toLowerCase() !== lower);
+    const aliased = columnNames
+      .filter((c) => c.toLowerCase().startsWith(suffix) && c.toLowerCase() !== suffix)
+      .map((c) => `${prefix}.${c}`);
+    return [...new Set([...qualified, ...aliased])].slice(0, 10);
+  }
   const pool = isMeta ? META_CMDS : [...tableNames, ...columnNames, ...ALL_SQL];
   return pool.filter((s) => s.toLowerCase().startsWith(lower) && s.toLowerCase() !== lower).slice(0, 10);
 }
@@ -303,11 +320,22 @@ const HELP_TEXT = `AVAILABLE COMMANDS
 ══════════════════
 
 SCHEMA / INSPECTION
-  \\dt              list all tables
+  \\dt              list all tables (across every database)
   \\dv              list all views
   \\d               list all objects (tables + views)
   \\d <name>        describe columns of a table or view
+  \\d <db>.<name>   describe inside an attached database
   \\l               list attached databases
+
+MULTIPLE DATABASES (schemas via ATTACH)
+  \\attach analytics       attach in-memory DB 'analytics'
+  \\detach analytics       remove it (objects are lost)
+  CREATE TABLE analytics.events (id INTEGER, ...);
+  SELECT * FROM customers c
+  JOIN analytics.events e ON e.id = c.id;   -- cross-DB join
+  Attached DBs are in-memory, this session only — the
+  saved workspace covers the main database.
+  UI: VAULT tab → DATABASE SCHEMA → [+ attach database]
 
 USEFUL SQL PATTERNS
   SELECT * FROM <table> LIMIT 10;
@@ -362,14 +390,24 @@ TABS (bottom bar)
   >  SHELL   — interactive terminal (this tab)
   ≡  EDITOR  — .sql / .yaml file editor
   ⊓  VAULT   — file browser + schema explorer
+  ▲  DBT     — dbt lab: compile/run/test models
   ⬡  DAG     — data lineage (SRC→STG→INT→MRT)
+
+DBT LAB (▲ tab)
+  dbt run          materialize models (real views/tables)
+  dbt test         run schema.yml + singular tests
+  dbt build        run + test
+  dbt compile      render Jinja → SQL (see target/)
+  dbt run --select stg_orders+   run a model + descendants
+  Models use {{ ref('...') }} and {{ source('...','...') }}.
+  After a run, query them right here in the SHELL.
 
 TIP: Tap [?] in the header to reopen the onboarding tour.
 TIP: the folder button (header or EDITOR toolbar) opens the file browser with
      all your .sql / .yaml files AND a full schema explorer.`;
 
 // ── Onboarding ────────────────────────────────────────────────
-const ONBOARD_KEY = "punksql-sandbox-onboard-v2";
+const ONBOARD_KEY = "punksql-sandbox-onboard-v3";
 const ONBOARDING_STEPS = [
   {
     title: "FREE EXPLORE // SANDBOX",
@@ -377,9 +415,9 @@ const ONBOARDING_STEPS = [
     body: "A fully in-browser SQLite REPL.\nNo server. No signup. Works offline.\n\nYour schema and data are saved in\nyour browser via IndexedDB and\npersist across refreshes.",
   },
   {
-    title: "FOUR MODES — BOTTOM TABS",
+    title: "FIVE MODES — BOTTOM TABS",
     icon: "≡", color: C.cyan,
-    body: "Four tabs at the bottom of the screen:\n\n  >  SHELL   — interactive terminal\n  ≡  EDITOR  — .sql / .yaml file editor\n  ⊓  VAULT   — file browser + schema explorer\n  ⬡  DAG     — data lineage graph\n\nSwitch freely between them.",
+    body: "Five tabs at the bottom of the screen:\n\n  >  SHELL   — interactive terminal\n  ≡  EDITOR  — .sql / .yaml file editor\n  ⊓  VAULT   — file browser + schema explorer\n  ▲  DBT     — dbt lab (compile + run + test)\n  ⬡  DAG     — data lineage graph\n\nSwitch freely between them.",
   },
   {
     title: "REPL — TERMINAL MODE",
@@ -395,6 +433,11 @@ const ONBOARDING_STEPS = [
     title: "FILES — DBT PROJECT",
     icon: "◈", color: C.green,
     body: "A virtual dbt project tree showing\nyour models organized by layer:\n\n  models/\n    staging/      stg_* views\n    intermediate/ int_* views\n    mart/         fct_*/dim_*\n  seeds/          raw tables\n\nTap any file → see DDL\n\"Open in Editor\" → load into editor",
+  },
+  {
+    title: "DBT — ANALYTICS LAB",
+    icon: "▲", color: "#FF9944",
+    body: "A real dbt workflow, in the browser:\n\nWrite models with {{ ref() }} and\n{{ source() }}, then:\n\n  run    → materialize views/tables\n  test   → schema.yml tests (real\n           pass/fail on your data)\n  build  → run + test\n\nModels land in the DB — query them\nin SHELL, see them in VAULT + DAG.",
   },
   {
     title: "LINEAGE — DATA FLOW",
@@ -500,24 +543,7 @@ function SandboxAuxKeyboard({ onInsert, tableNames, columnNames, onSwipeDown }) 
   );
 }
 
-// ── Result Table ──────────────────────────────────────────────
-function ResultTable({ columns, rows }) {
-  if (!columns.length) return null;
-  const widths = columns.map((c, i) => Math.min(36, Math.max(String(c).length, ...rows.map((r) => String(r[i] ?? "NULL").length), 4)));
-  const trunc = (v, w) => { const s = String(v ?? "NULL"); return s.length > w ? s.slice(0, w - 1) + "…" : s.padEnd(w); };
-  const sep = "+" + widths.map((w) => "-".repeat(w + 2)).join("+") + "+";
-  const hdr = "| " + columns.map((c, i) => trunc(c, widths[i])).join(" | ") + " |";
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <pre style={{ fontFamily: F.mono, fontSize: 11, color: C.text, margin: 0, lineHeight: 1.6, whiteSpace: "pre" }}>
-        {sep}{"\n"}{hdr}{"\n"}{sep}
-        {rows.map((row) => "\n| " + row.map((v, ci) => trunc(v, widths[ci])).join(" | ") + " |")}
-        {"\n"}{sep}
-      </pre>
-      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginTop: 2 }}>{rows.length} {rows.length === 1 ? "row" : "rows"}</div>
-    </div>
-  );
-}
+// ResultTable extracted to ./ResultTable (shared with the dbt lab)
 
 // ── Scrollback block ──────────────────────────────────────────
 function ReplBlock({ block }) {
@@ -540,7 +566,19 @@ function ReplBlock({ block }) {
 }
 
 // ── Meta-command handler ──────────────────────────────────────
-function handleMeta(cmd, db, pushBlock, clearScrollback, replHistory) {
+// Catalog listings union across every attached database (TDD §2.1); the
+// db column appears once more than `main` is attached.
+function catalogQuery(db, typeFilter) {
+  const names = listDatabases(db).map((d) => d.name);
+  const where = typeFilter ? `type='${typeFilter}'` : `type IN ('table','view')`;
+  if (names.length === 1) {
+    return execSQL(db, `SELECT name, type FROM sqlite_master WHERE ${where} ORDER BY type, name`);
+  }
+  const union = names.map((n) => `SELECT '${n}' AS db, name, type FROM "${n}".sqlite_master WHERE ${where}`).join(" UNION ALL ");
+  return execSQL(db, `${union} ORDER BY db, type, name`);
+}
+
+function handleMeta(cmd, db, pushBlock, clearScrollback, replHistory, onCatalogChange) {
   const parts = cmd.trim().split(/\s+/);
   const verb = parts[0].toLowerCase();
   const arg = parts.slice(1).join(" ");
@@ -550,16 +588,39 @@ function handleMeta(cmd, db, pushBlock, clearScrollback, replHistory) {
     const lines = replHistory.length ? replHistory.map((h, i) => `  ${String(replHistory.length - i).padStart(3)}  ${h}`).join("\n") : "  (empty)";
     pushBlock({ type: "info", text: lines }); return;
   }
-  if (verb === "\\dt") { pushBlock({ type: "sql", cmd, result: execSQL(db, "SELECT name, 'table' AS type FROM sqlite_master WHERE type='table' ORDER BY name") }); return; }
-  if (verb === "\\dv") { pushBlock({ type: "sql", cmd, result: execSQL(db, "SELECT name, 'view' AS type FROM sqlite_master WHERE type='view' ORDER BY name") }); return; }
+  if (verb === "\\dt") { pushBlock({ type: "sql", cmd, result: catalogQuery(db, "table") }); return; }
+  if (verb === "\\dv") { pushBlock({ type: "sql", cmd, result: catalogQuery(db, "view") }); return; }
   if (verb === "\\d") {
-    if (!arg) { pushBlock({ type: "sql", cmd, result: execSQL(db, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name") }); return; }
-    const r = execSQL(db, `PRAGMA table_info("${arg}")`);
-    if (r.ok && r.rows.length === 0) pushBlock({ type: "error", text: `relation "${arg}" does not exist` });
-    else pushBlock({ type: "sql", cmd, result: r });
+    if (!arg) { pushBlock({ type: "sql", cmd, result: catalogQuery(db, null) }); return; }
+    // "\d analytics.events" → describe inside that database; bare names
+    // search main first, then every attached database.
+    let dbName = null, relName = arg;
+    if (arg.includes(".")) [dbName, relName] = arg.split(".", 2);
+    const candidates = dbName ? [dbName] : listDatabases(db).map((d) => d.name);
+    for (const n of candidates) {
+      const r = execSQL(db, `PRAGMA "${n}".table_info("${relName}")`);
+      if (r.ok && r.rows.length > 0) { pushBlock({ type: "sql", cmd, result: r }); return; }
+    }
+    pushBlock({ type: "error", text: `relation "${arg}" does not exist` });
     return;
   }
   if (verb === "\\l") { pushBlock({ type: "sql", cmd, result: execSQL(db, "PRAGMA database_list") }); return; }
+  if (verb === "\\attach") {
+    if (!arg) { pushBlock({ type: "error", text: "usage: \\attach <name>   e.g. \\attach analytics" }); return; }
+    const r = attachMemoryDB(db, arg);
+    if (!r.ok) { pushBlock({ type: "error", text: r.msg }); return; }
+    pushBlock({ type: "info", text: `ATTACHED '${arg}' (in-memory · this session only)\n\n  CREATE TABLE ${arg}.events (id INTEGER, name TEXT);\n  SELECT * FROM customers c\n  JOIN ${arg}.events e ON e.id = c.id;   -- cross-database join\n\n  \\dt            list tables across all databases\n  \\detach ${arg}   remove it` });
+    onCatalogChange?.();
+    return;
+  }
+  if (verb === "\\detach") {
+    if (!arg) { pushBlock({ type: "error", text: "usage: \\detach <name>" }); return; }
+    const r = detachDatabase(db, arg);
+    if (!r.ok) { pushBlock({ type: "error", text: r.msg }); return; }
+    pushBlock({ type: "info", text: `DETACHED '${arg}' — its in-memory objects are gone` });
+    onCatalogChange?.();
+    return;
+  }
   pushBlock({ type: "error", text: `unrecognized command: ${verb}  (try \\? for help)` });
 }
 
@@ -956,9 +1017,30 @@ function LineageStack({ db, lang }) {
 
   const hasLayers = byLayer.staging.length + byLayer.intermediate.length + byLayer.mart.length > 0;
 
+  // Real dependency graph: view/CTAS DDL parsed from sqlite_master (§2.3).
+  // Only views get edges; source tables appear when something depends on them.
+  const adjacency = useMemo(() => {
+    const known = new Set(objects.map((o) => o.name.toLowerCase()));
+    const adj = {};
+    objects.forEach((o) => {
+      if (o.type === "view") adj[o.name] = o.upstreams.filter((u) => known.has(u) && u !== o.name.toLowerCase());
+    });
+    return adj;
+  }, [objects]);
+  const nodeMeta = useMemo(() => Object.fromEntries(
+    objects.map((o) => [o.name, { color: o.type === "view" ? LAYER_META[o.layer].color : C.dim, badge: o.type }])
+  ), [objects]);
+
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
       <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, letterSpacing: 1.5, marginBottom: 10 }}>DATA LINEAGE</div>
+
+      {/* Dependency graph — shared <LineageGraph>, edges parsed from DDL */}
+      {Object.keys(adjacency).length > 0 && (
+        <div style={{ border: `1px solid ${C.border}`, background: C.panel, marginBottom: 14, maxHeight: 260, overflow: "auto" }}>
+          <LineageGraph adjacency={adjacency} nodeMeta={nodeMeta} />
+        </div>
+      )}
 
       {/* Flow legend */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 14, overflowX: "auto" }}>
@@ -1022,215 +1104,182 @@ function LineageStack({ db, lang }) {
   );
 }
 
-// ── Syntax tokenizers ─────────────────────────────────────────
-const SQL_KW_SET = new Set([
-  "SELECT","DISTINCT","FROM","WHERE","JOIN","ON","LEFT","RIGHT","INNER","FULL","CROSS",
-  "GROUP","ORDER","HAVING","LIMIT","OFFSET","AS","WITH","UNION","ALL","EXCEPT","INTERSECT",
-  "AND","OR","NOT","IN","LIKE","ILIKE","BETWEEN","IS","NULL","EXISTS","CASE","WHEN","THEN",
-  "ELSE","END","ASC","DESC","PARTITION","OVER","ROWS","PRECEDING","CURRENT","ROW","BY",
-  "CREATE","DROP","ALTER","INSERT","INTO","VALUES","UPDATE","SET","DELETE","TABLE","VIEW",
-  "INDEX","UNIQUE","IF","ADD","COLUMN","RENAME","PRIMARY","KEY","REFERENCES","DEFAULT",
-  "AUTOINCREMENT","SAVEPOINT","RELEASE","ROLLBACK","ATTACH","DETACH","PRAGMA",
-  "OUTER","NATURAL","USING","RETURNING","EXPLAIN","QUERY","PLAN",
-]);
-const SQL_FUNC_SET = new Set([
-  "COUNT","SUM","AVG","MIN","MAX","ROUND","COALESCE","NULLIF","CAST","TYPEOF",
-  "LENGTH","UPPER","LOWER","SUBSTR","TRIM","REPLACE","INSTR","DATE","STRFTIME",
-  "JULIANDAY","ROW_NUMBER","RANK","DENSE_RANK","LAG","LEAD","FIRST_VALUE",
-  "LAST_VALUE","NTILE","PERCENT_RANK","ABS","RANDOM","IFNULL","PRINTF","IIF",
-]);
-const SQL_TYPE_SET = new Set(["INTEGER","TEXT","REAL","BLOB","NUMERIC","BOOLEAN"]);
+// Syntax tokenizers extracted to ./highlight (shared with the dbt lab)
 
-function tokenizeSQL(code, tableSet, colSet) {
-  const tokens = [];
-  let i = 0;
-  while (i < code.length) {
-    // line comment
-    if (code[i] === "-" && code[i+1] === "-") {
-      let j = i; while (j < code.length && code[j] !== "\n") j++;
-      tokens.push({ color: "#3d5a45", text: code.slice(i, j) }); // dim green
-      i = j; continue;
-    }
-    // block comment
-    if (code[i] === "/" && code[i+1] === "*") {
-      let j = i + 2; while (j < code.length - 1 && !(code[j] === "*" && code[j+1] === "/")) j++;
-      tokens.push({ color: "#3d5a45", text: code.slice(i, j + 2) });
-      i = j + 2; continue;
-    }
-    // string literal
-    if (code[i] === "'" || code[i] === '"') {
-      const q = code[i]; let j = i + 1;
-      while (j < code.length && code[j] !== q) { if (code[j] === "\\") j++; j++; }
-      tokens.push({ color: "#b5946a", text: code.slice(i, j + 1) }); // amber-ish
-      i = j + 1; continue;
-    }
-    // number
-    if (/[0-9]/.test(code[i])) {
-      let j = i; while (j < code.length && /[0-9.]/.test(code[j])) j++;
-      tokens.push({ color: "#7ec8a0", text: code.slice(i, j) }); // soft green
-      i = j; continue;
-    }
-    // word
-    if (/[A-Za-z_]/.test(code[i])) {
-      let j = i; while (j < code.length && /[A-Za-z0-9_]/.test(code[j])) j++;
-      const word = code.slice(i, j);
-      const up = word.toUpperCase();
-      let color = C.text;
-      if (SQL_KW_SET.has(up))              color = "#00FFFF"; // cyan
-      else if (SQL_FUNC_SET.has(up))       color = "#CC88FF"; // purple
-      else if (SQL_TYPE_SET.has(up))       color = "#FF9944"; // orange
-      else if (tableSet.has(word.toLowerCase())) color = "#00FF88"; // green
-      else if (colSet.has(word.toLowerCase()))   color = "#AADDFF"; // light blue
-      tokens.push({ color, text: word });
-      i = j; continue;
-    }
-    // punctuation: (, ), ,, ;
-    if ("(),;".includes(code[i])) {
-      tokens.push({ color: "#777777", text: code[i] }); i++; continue;
-    }
-    // operators
-    if ("=<>!".includes(code[i])) {
-      let j = i; while (j < code.length && "=<>!".includes(code[j])) j++;
-      tokens.push({ color: "#88BBDD", text: code.slice(i, j) }); // pale blue
-      i = j; continue;
-    }
-    // everything else (whitespace, symbols)
-    tokens.push({ color: C.dim, text: code[i] }); i++;
-  }
-  return tokens;
-}
+// ── Schema explorer — DBeaver-style: databases → tables/views → columns ──
+// Multi-DB UX for TDD §2.1: attach/detach in-memory databases without
+// typing SQL; attached DBs are session-only (db.export() saves main alone).
+function SchemaExplorer({ db, onCatalogChange }) {
+  const [dbs, setDbs] = useState([]);           // [{ name, file }]
+  const [objects, setObjects] = useState({});   // dbName -> [{ name, type }]
+  const [openDbs, setOpenDbs] = useState({ main: true });
+  const [openTable, setOpenTable] = useState(null); // "db.table"
+  const [columns, setColumns] = useState({});       // "db.table" -> cols
+  const [attaching, setAttaching] = useState(false);
+  const [attachName, setAttachName] = useState("");
+  const [attachError, setAttachError] = useState(null);
+  const [confirmDetach, setConfirmDetach] = useState(null);
 
-function tokenizeYAML(code) {
-  const tokens = [];
-  for (const rawLine of code.split("\n")) {
-    const line = rawLine;
-    // comment
-    if (/^\s*#/.test(line)) {
-      tokens.push({ color: "#3d5a45", text: line }); tokens.push({ color: C.dim, text: "\n" }); continue;
-    }
-    // key: value
-    const kv = line.match(/^(\s*)([\w-]+)(\s*:\s*)(.*)$/);
-    if (kv) {
-      const [, indent, key, colon, val] = kv;
-      tokens.push({ color: C.dim, text: indent });
-      tokens.push({ color: "#00FFFF", text: key });     // key = cyan
-      tokens.push({ color: "#555555", text: colon });   // colon = dim
-      // value
-      if (/^["']/.test(val.trim())) {
-        tokens.push({ color: "#b5946a", text: val });   // string = amber
-      } else if (/^(true|false|null|~)$/i.test(val.trim())) {
-        tokens.push({ color: "#CC88FF", text: val });   // special = purple
-      } else if (/^-?\d/.test(val.trim())) {
-        tokens.push({ color: "#7ec8a0", text: val });   // number = green
-      } else {
-        tokens.push({ color: C.text, text: val });
-      }
-      tokens.push({ color: C.dim, text: "\n" }); continue;
-    }
-    // list item
-    const li = line.match(/^(\s*-\s+)(.*)$/);
-    if (li) {
-      tokens.push({ color: "#555555", text: li[1] });
-      tokens.push({ color: C.text, text: li[2] });
-      tokens.push({ color: C.dim, text: "\n" }); continue;
-    }
-    // section header (word ending with :)
-    if (/^\s*[\w-]+:\s*$/.test(line)) {
-      const m = line.match(/^(\s*)([\w-]+)(:\s*)$/);
-      if (m) {
-        tokens.push({ color: C.dim, text: m[1] });
-        tokens.push({ color: "#FFBB00", text: m[2] }); // amber for section keys
-        tokens.push({ color: "#555555", text: m[3] });
-        tokens.push({ color: C.dim, text: "\n" }); continue;
-      }
-    }
-    tokens.push({ color: C.text, text: line });
-    tokens.push({ color: C.dim, text: "\n" });
-  }
-  return tokens;
-}
-
-// Build HTML string from token array for use as innerHTML
-function tokensToHtml(tokens) {
-  return tokens.map(({ color, text }) => {
-    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return `<span style="color:${color}">${escaped}</span>`;
-  }).join("");
-}
-
-// ── Schema explorer (tables + columns) — VSCode SQLite Explorer style ──
-function SchemaExplorer({ db }) {
-  const [tables, setTables] = useState([]);
-  const [openTable, setOpenTable] = useState(null);
-  const [columns, setColumns] = useState({});
-
-  useEffect(() => {
+  const reload = useCallback(() => {
     if (!db) return;
-    const r = execSQL(db, "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name");
-    if (r.ok) setTables(r.rows.map(([name, type]) => ({ name, type })));
+    const list = listDatabases(db);
+    setDbs(list);
+    const objs = {};
+    list.forEach(({ name }) => {
+      const r = execSQL(db, `SELECT name, type FROM "${name}".sqlite_master WHERE type IN ('table','view') ORDER BY type, name`);
+      objs[name] = r.ok ? r.rows.map(([n, t]) => ({ name: n, type: t })) : [];
+    });
+    setObjects(objs);
+    setOpenDbs((prev) => {
+      const next = { ...prev };
+      list.forEach(({ name }) => { if (!(name in next)) next[name] = true; });
+      return next;
+    });
   }, [db]);
 
-  const toggleTable = (tableName) => {
-    if (!columns[tableName]) {
-      const r = execSQL(db, `PRAGMA table_info("${tableName}")`);
-      if (r.ok) setColumns((prev) => ({ ...prev, [tableName]: r.rows.map((row) => ({ cid: row[0], name: row[1], type: row[2], notnull: row[3], pk: row[5] })) }));
+  useEffect(() => { reload(); }, [reload]);
+
+  const toggleTable = (dbName, tableName) => {
+    const key = `${dbName}.${tableName}`;
+    if (!columns[key]) {
+      const r = execSQL(db, `PRAGMA "${dbName}".table_info("${tableName}")`);
+      if (r.ok) setColumns((prev) => ({ ...prev, [key]: r.rows.map((row) => ({ cid: row[0], name: row[1], type: row[2], notnull: row[3], pk: row[5] })) }));
     }
-    setOpenTable((t) => t === tableName ? null : tableName);
+    setOpenTable((t) => t === key ? null : key);
   };
 
-  if (!tables.length) return (
-    <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, padding: "6px 14px 10px", lineHeight: 2 }}>
-      no tables yet — try:<br />
-      <span style={{ color: C.dim, opacity: 0.75 }}>
-        CREATE TABLE orders (id INT, ...)<br />
-        INSERT INTO orders VALUES (...)<br />
-        CREATE VIEW stg_orders AS SELECT ...
-      </span>
-    </div>
-  );
+  const handleAttach = () => {
+    const name = attachName.trim();
+    const r = attachMemoryDB(db, name);
+    if (!r.ok) { setAttachError(r.msg); return; }
+    setAttachName(""); setAttachError(null); setAttaching(false);
+    reload();
+    onCatalogChange?.();
+  };
+
+  const handleDetach = (name) => {
+    detachDatabase(db, name);
+    setConfirmDetach(null);
+    reload();
+    onCatalogChange?.();
+  };
 
   return (
     <div>
-      {tables.map(({ name, type }) => {
-        const isOpen = openTable === name;
-        const isView = type === "view";
-        const iconColor = isView ? C.purple : C.cyan;
-        const cols = columns[name] || [];
+      {dbs.map(({ name: dbName }) => {
+        const isMain = dbName === "main";
+        const dbOpen = !!openDbs[dbName];
+        const objs = objects[dbName] || [];
+        const dbColor = isMain ? C.cyan : C.amber;
         return (
-          <div key={name}>
-            {/* Table / view row */}
-            <button
-              onClick={() => toggleTable(name)}
-              style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: isOpen ? `${iconColor}12` : "none", border: "none", cursor: "pointer", padding: "3px 8px 3px 12px", textAlign: "left", minHeight: 22 }}
-            >
-              <ChevronIcon open={isOpen} size={10} color={C.muted} />
-              <span style={{ display: "flex", flexShrink: 0 }}>
-                {isView ? <ViewIcon size={14} color={iconColor} /> : <TableIcon size={14} color={iconColor} />}
-              </span>
-              <span style={{ fontFamily: F.mono, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto", paddingLeft: 6, flexShrink: 0 }}>{isView ? "view" : "table"}</span>
-            </button>
-            {/* Columns */}
-            {isOpen && (
-              <div style={{ paddingLeft: 26, borderLeft: `1px solid ${C.border}`, marginLeft: 18 }}>
-                {cols.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "2px 0 2px 4px" }}>loading…</div>}
-                {cols.map((c) => (
-                  <div key={c.cid} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 8px 2px 2px", minHeight: 20 }}>
-                    <ColumnIcon size={10} />
-                    <span style={{ fontFamily: F.mono, fontSize: 11, color: c.pk ? C.amber : C.text }}>{c.name}</span>
-                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{(c.type || "").toLowerCase()}</span>
-                    {c.pk && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.amber, background: `${C.amber}18`, padding: "0 3px", borderRadius: 2 }}>PK</span>}
-                  </div>
-                ))}
+          <div key={dbName}>
+            {/* Database row */}
+            <div style={{ display: "flex", alignItems: "center", background: `${dbColor}06` }}>
+              <button
+                onClick={() => setOpenDbs((p) => ({ ...p, [dbName]: !p[dbName] }))}
+                style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: "4px 6px 4px 10px", textAlign: "left", minHeight: 24, minWidth: 0 }}
+              >
+                <ChevronIcon open={dbOpen} size={10} color={C.muted} />
+                <span style={{ fontFamily: F.mono, fontSize: 11, color: dbColor }}>⛁</span>
+                <span style={{ fontFamily: F.mono, fontSize: 11, color: dbColor, fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dbName}</span>
+                <span style={{ fontFamily: F.mono, fontSize: 8, color: C.muted, flexShrink: 0, letterSpacing: 0.5 }}>
+                  {isMain ? "· saved to device" : "· memory · session only"}
+                </span>
+                {!dbOpen && objs.length > 0 && <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto", paddingRight: 4 }}>{objs.length}</span>}
+              </button>
+              {!isMain && (confirmDetach === dbName ? (
+                <button onClick={() => handleDetach(dbName)}
+                  style={{ fontFamily: F.mono, fontSize: 9, color: C.red, background: `${C.red}18`, border: `1px solid ${C.red}40`, cursor: "pointer", padding: "2px 6px", margin: "0 8px 0 0", flexShrink: 0 }}>detach?</button>
+              ) : (
+                <button onClick={() => setConfirmDetach(dbName)} title={`DETACH DATABASE ${dbName}`}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 10, color: C.muted, padding: "2px 10px", flexShrink: 0 }}>⏏</button>
+              ))}
+            </div>
+
+            {/* Objects inside this database */}
+            {dbOpen && objs.length === 0 && (
+              <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, padding: "4px 14px 8px 30px", lineHeight: 1.9, opacity: 0.85 }}>
+                empty — try:<br />
+                <span style={{ color: C.dim, opacity: 0.85 }}>
+                  CREATE TABLE {isMain ? "" : `${dbName}.`}events (id INTEGER, name TEXT);
+                </span>
               </div>
             )}
+            {dbOpen && objs.map(({ name, type }) => {
+              const key = `${dbName}.${name}`;
+              const isOpen = openTable === key;
+              const isView = type === "view";
+              const iconColor = isView ? C.purple : C.cyan;
+              const cols = columns[key] || [];
+              return (
+                <div key={key}>
+                  <button
+                    onClick={() => toggleTable(dbName, name)}
+                    style={{ display: "flex", alignItems: "center", gap: 4, width: "100%", background: isOpen ? `${iconColor}12` : "none", border: "none", cursor: "pointer", padding: "3px 8px 3px 24px", textAlign: "left", minHeight: 22 }}
+                  >
+                    <ChevronIcon open={isOpen} size={10} color={C.muted} />
+                    <span style={{ display: "flex", flexShrink: 0 }}>
+                      {isView ? <ViewIcon size={14} color={iconColor} /> : <TableIcon size={14} color={iconColor} />}
+                    </span>
+                    <span style={{ fontFamily: F.mono, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto", paddingLeft: 6, flexShrink: 0 }}>{isView ? "view" : "table"}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ paddingLeft: 26, borderLeft: `1px solid ${C.border}`, marginLeft: 30 }}>
+                      {cols.length === 0 && <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, padding: "2px 0 2px 4px" }}>loading…</div>}
+                      {cols.map((c) => (
+                        <div key={c.cid} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 8px 2px 2px", minHeight: 20 }}>
+                          <ColumnIcon size={10} />
+                          <span style={{ fontFamily: F.mono, fontSize: 11, color: c.pk ? C.amber : C.text }}>{c.name}</span>
+                          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>{(c.type || "").toLowerCase()}</span>
+                          {c.pk && <span style={{ fontFamily: F.mono, fontSize: 8, color: C.amber, background: `${C.amber}18`, padding: "0 3px", borderRadius: 2 }}>PK</span>}
+                        </div>
+                      ))}
+                      {!isMain && (
+                        <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, padding: "3px 0 4px 2px", opacity: 0.8 }}>
+                          query as: {dbName}.{name}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}
-      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.dim, padding: "6px 14px 8px", lineHeight: 2, borderTop: `1px solid ${C.border}`, marginTop: 4, opacity: 0.7 }}>
+
+      {/* Attach new database */}
+      {attaching ? (
+        <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, marginTop: 4 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, color: C.muted, marginBottom: 4 }}>DATABASE NAME (in-memory · session only)</div>
+          <input
+            autoFocus
+            value={attachName}
+            onChange={(e) => { setAttachName(e.target.value); setAttachError(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAttach(); if (e.key === "Escape") { setAttaching(false); setAttachError(null); } }}
+            placeholder="analytics"
+            spellCheck={false} autoComplete="off" autoCorrect="off" autoCapitalize="off"
+            style={{ width: "100%", boxSizing: "border-box", fontFamily: F.mono, fontSize: 11, background: C.black, color: C.white, border: `1px solid ${attachError ? C.red : C.amber}`, outline: "none", padding: "4px 6px", marginBottom: 6 }}
+          />
+          {attachError && <div style={{ fontFamily: F.mono, fontSize: 9, color: C.red, marginBottom: 6 }}>{attachError}</div>}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={handleAttach} style={{ fontFamily: F.mono, fontSize: 10, color: C.green, background: `${C.green}14`, border: `1px solid ${C.green}`, cursor: "pointer", padding: "4px 10px", flex: 1 }}>✓ attach</button>
+            <button onClick={() => { setAttaching(false); setAttachError(null); }} style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "4px 10px" }}>cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAttaching(true)}
+          style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "6px 12px", textAlign: "left" }}>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: C.green }}>+ attach database</span>
+          <span style={{ fontFamily: F.mono, fontSize: 8, color: C.muted }}>ATTACH DATABASE … AS name</span>
+        </button>
+      )}
+
+      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.dim, padding: "6px 14px 8px", lineHeight: 2, borderTop: `1px solid ${C.border}`, marginTop: 2, opacity: 0.7 }}>
         + CREATE TABLE name (col TYPE, ...)<br />
-        + INSERT INTO name VALUES (...)<br />
-        + CREATE VIEW stg_name AS SELECT ...
+        + CREATE TABLE db.name AS SELECT ...   -- into attached DB<br />
+        + JOIN across databases: main tables ⨝ db.tables
       </div>
     </div>
   );
@@ -1301,7 +1350,7 @@ function FileDetailPanel({ path, files, dbObjects, indentLeft }) {
 }
 
 // ── File Explorer Content (shared by VAULT tab and hamburger) ─
-function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
+function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose, onCatalogChange }) {
   const [schemaOpen, setSchemaOpen] = useState(true);
   const [newName, setNewName] = useState("");
   const [newFolder, setNewFolder] = useState("queries");
@@ -1477,7 +1526,7 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
               <ChevronIcon open={schemaOpen} size={10} color={C.muted} />
               <span style={{ fontFamily: F.mono, fontSize: 10, color: C.cyan, letterSpacing: 1, fontWeight: "bold" }}>DATABASE SCHEMA</span>
             </button>
-            {schemaOpen && <SchemaExplorer db={db} />}
+            {schemaOpen && <SchemaExplorer db={db} onCatalogChange={onCatalogChange} />}
           </div>
         </div>
 
@@ -1493,7 +1542,7 @@ function FileExplorerContent({ files, currentFile, db, onOpen, onNewFile, onDele
 }
 
 // ── File Manager Panel (overlay wrapper around FileExplorerContent) ──
-function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose }) {
+function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteFile, onClose, onCatalogChange }) {
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 150, display: "flex" }}>
       <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
@@ -1501,7 +1550,7 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
         <FileExplorerContent
           files={files} currentFile={currentFile} db={db}
           onOpen={onOpen} onNewFile={onNewFile} onDeleteFile={onDeleteFile}
-          onClose={onClose}
+          onClose={onClose} onCatalogChange={onCatalogChange}
         />
       </div>
     </div>
@@ -1509,7 +1558,7 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
 }
 
 // ── SandboxScreen ─────────────────────────────────────────────
-export default function SandboxScreen({ onBack, lang = "en" }) {
+export default function SandboxScreen({ onBack, lang = "en", dbtMissionsSolved, onDbtMissionSolved }) {
   const { scrollback, replHistory, pushBlock, clearScrollback, pushHistory, navigateHistory, resetHistoryIndex } = useSandboxStore();
 
   const [db, setDb] = useState(null);
@@ -1581,11 +1630,20 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
   const refreshCatalog = useCallback((dbInst) => {
     const d = dbInst || db;
     if (!d) return;
-    const tr = execSQL(d, "SELECT name FROM sqlite_master WHERE type IN ('table','view') ORDER BY name");
-    const tNames = tr.ok ? tr.rows.map((r) => r[0]) : [];
-    setTableNames(tNames);
+    // Catalog spans every attached database: main objects stay unqualified,
+    // attached ones surface as db.table (autocomplete + keyboard TABLES tab).
+    const tNames = [];
     const cols = new Set();
-    tNames.forEach((t) => { const pr = execSQL(d, `PRAGMA table_info("${t}")`); if (pr.ok) pr.rows.forEach((r) => cols.add(r[1])); });
+    listDatabases(d).forEach(({ name: dbn }) => {
+      const tr = execSQL(d, `SELECT name FROM "${dbn}".sqlite_master WHERE type IN ('table','view') ORDER BY name`);
+      if (!tr.ok) return;
+      tr.rows.forEach(([t]) => {
+        tNames.push(dbn === "main" ? t : `${dbn}.${t}`);
+        const pr = execSQL(d, `PRAGMA "${dbn}".table_info("${t}")`);
+        if (pr.ok) pr.rows.forEach((r) => cols.add(r[1]));
+      });
+    });
+    setTableNames(tNames);
     setColumnNames([...cols]);
   }, [db]);
 
@@ -1642,8 +1700,8 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
   const pushWelcome = useCallback((dbInst) => {
     pushBlock({ type: "info", text: ispt
-      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
-      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.\nTabs: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
+      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: > SHELL · ≡ EDITOR · ⊓ VAULT · ▲ DBT · ⬡ DAG`
+      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.\nTabs: > SHELL · ≡ EDITOR · ⊓ VAULT · ▲ DBT · ⬡ DAG`
     });
     const d = dbInst || db;
     if (d) {
@@ -1676,12 +1734,12 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
         pushBlock({ type: "info", text: ispt ? "⚠ Banco reiniciado com dados originais" : "⚠ Database wiped and restored to original dataset" });
         return;
       }
-      handleMeta(trimmed, db, pushBlock, clearScrollback, replHistory);
+      handleMeta(trimmed, db, pushBlock, clearScrollback, replHistory, refreshCatalog);
       return;
     }
     const result = execSQL(db, trimmed);
     pushBlock({ type: "sql", cmd: trimmed, result });
-    if (/^\s*(CREATE|DROP|ALTER)\b/i.test(trimmed)) refreshCatalog();
+    if (/^\s*(CREATE|DROP|ALTER|ATTACH|DETACH)\b/i.test(trimmed)) refreshCatalog();
     // Auto-save DB after any statement that can change data or schema
     if (/^\s*(CREATE|DROP|ALTER|INSERT|UPDATE|DELETE|REPLACE|TRUNCATE)\b/i.test(trimmed)) {
       saveToIndexedDB();
@@ -1725,6 +1783,7 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
           onNewFile={handleNewFile}
           onDeleteFile={handleDeleteFile}
           onClose={() => setShowFileManager(false)}
+          onCatalogChange={refreshCatalog}
         />
       )}
 
@@ -1831,6 +1890,18 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
             onNewFile={handleNewFile}
             onDeleteFile={handleDeleteFile}
             onClose={null}
+            onCatalogChange={refreshCatalog}
+          />
+        )}
+
+        {/* DBT lab view */}
+        {activeView === "dbt" && (
+          <DbtWorkspace
+            db={db}
+            lang={lang}
+            onModelsChanged={() => { refreshCatalog(); saveToIndexedDB(); }}
+            missionsSolved={dbtMissionsSolved}
+            onMissionSolved={onDbtMissionSolved}
           />
         )}
 

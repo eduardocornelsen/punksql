@@ -24,12 +24,20 @@ function loadProgress() {
   } catch(e) {}
   return null;
 }
-function saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext) {
+function saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext, dbtMissions) {
   try {
-    const data = JSON.stringify({ xp, solved: [...solved], lang, lastCodeId, lastLearnId, lastContext, ts: Date.now() });
+    const data = JSON.stringify({ xp, solved: [...solved], lang, lastCodeId, lastLearnId, lastContext, dbtMissions: [...(dbtMissions || [])], ts: Date.now() });
     localStorage.setItem(STORAGE_KEY, data);
   } catch(e) {}
 }
+
+// dbt Missions solved-count for achievement checks (mirrors the
+// hero_champion localStorage pattern — the checks only get (solved, xp)).
+function dbtMissionCount() {
+  if (typeof window !== "undefined" && window.__qq_dbt_missions) return window.__qq_dbt_missions.size;
+  try { return (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").dbtMissions || []).length; } catch { return 0; }
+}
+const DBT_TRACK_SIZE = 8; // tutorial + 7 graded missions (src/data/dbtChallenges.js)
 function loadCardStats() {
   try { return JSON.parse(localStorage.getItem(CARD_STATS_KEY) || "{}"); } catch { return {}; }
 }
@@ -505,6 +513,9 @@ const ACHIEVEMENTS = [
   { id: "century", i: "⍟", n_en: "Century", n_pt: "Século", d_en: "Solve 100 challenges", d_pt: "Resolva 100 desafios", c: C.cyanHot, check: (s) => s.size >= 100 },
   { id: "dbt_done", i: "⬟", n_en: "dbt Operator", n_pt: "Operador dbt", d_en: "Complete the dbt module", d_pt: "Complete o módulo dbt", c: C.purple, check: (s) => CHALLENGES_DB.filter(c => c.mod === 11).every(c => s.has(c.id)) },
   { id: "all_done", i: "Ω", n_en: "SQL Master", n_pt: "SQL Mestre", d_en: "Solve all 122 challenges", d_pt: "Resolva todos os 122 desafios", c: C.cyanHot, check: (s) => s.size >= 122 },
+  { id: "dbt_first_mission", i: "▲", n_en: "Pipeline Initiate", n_pt: "Iniciado no Pipeline", d_en: "Complete your first dbt mission (FREE_EXPLORE → DBT → ⚑)", d_pt: "Complete sua primeira missão dbt (FREE_EXPLORE → DBT → ⚑)", c: C.orange, check: () => dbtMissionCount() >= 1 },
+  { id: "dbt_half_track", i: "⧉", n_en: "Analytics Engineer", n_pt: "Engenheiro de Analytics", d_en: "Complete 4 dbt missions", d_pt: "Complete 4 missões dbt", c: C.orange, check: () => dbtMissionCount() >= 4 },
+  { id: "dbt_track_done", i: "◮", n_en: "dbt Architect", n_pt: "Arquiteto dbt", d_en: "Complete the whole dbt mission track", d_pt: "Complete toda a trilha de missões dbt", c: C.cyanHot, check: () => dbtMissionCount() >= DBT_TRACK_SIZE },
   { id: "hero_champion", i: "☠", n_en: "Hero Champion", n_pt: "Campeão Hero", d_en: "Complete Hero mode: 10 correct cards in a row", d_pt: "Complete o modo Hero: 10 cards corretos seguidos", c: C.red, check: () => { try { return (JSON.parse(localStorage.getItem(CARD_STATS_KEY) || "{}").hero?.wins || 0) >= 1; } catch { return false; } } },
 ];
 
@@ -4407,16 +4418,24 @@ export default function PunkSQLCLI() {
   // Persistent XP (loads from storage on mount)
   const [xp, setXp] = useState(0);
   const [solved, setSolved] = useState(new Set());
+  const [dbtMissions, setDbtMissions] = useState(new Set());
   const [storageLoaded, setStorageLoaded] = useState(false);
 
   // Supabase Sync
   const { syncing, logAttempt } = useProgress(
-    { xp, solved_ids: Array.from(solved), lang },
+    { xp, solved_ids: Array.from(solved), dbt_mission_ids: Array.from(dbtMissions), lang },
     (serverData) => {
       // Merge logic: take highest XP and union of solved IDs
       if (serverData.xp > xp) setXp(serverData.xp);
       if (serverData.solved_ids?.length > (solved.size || 0)) {
         setSolved(prev => new Set([...Array.from(prev), ...serverData.solved_ids]));
+      }
+      if (serverData.dbt_mission_ids?.length) {
+        setDbtMissions(prev => {
+          const next = new Set([...Array.from(prev), ...serverData.dbt_mission_ids]);
+          window.__qq_dbt_missions = next;
+          return next;
+        });
       }
       if (serverData.lang) setLang(serverData.lang);
     }
@@ -4434,6 +4453,9 @@ export default function PunkSQLCLI() {
       if (data.lastCodeId) setLastCodeId(data.lastCodeId);
       if (data.lastLearnId) setLastLearnId(data.lastLearnId);
       if (data.lastContext) setLastContext(data.lastContext);
+      const dm = new Set(data.dbtMissions || []);
+      setDbtMissions(dm);
+      window.__qq_dbt_missions = dm;
       // Pre-populate so existing achievements don't fire as "new" on first render
       prevEarned.current = new Set(ACHIEVEMENTS.filter(a => a.check(s, loadedXp)).map(a => a.id));
     }
@@ -4442,8 +4464,8 @@ export default function PunkSQLCLI() {
 
   // Save progress whenever xp/solved/lang/resume state changes (after initial load)
   useEffect(() => {
-    if (storageLoaded) saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext);
-  }, [xp, solved, lang, lastCodeId, lastLearnId, lastContext, storageLoaded]);
+    if (storageLoaded) saveProgress(xp, solved, lang, lastCodeId, lastLearnId, lastContext, dbtMissions);
+  }, [xp, solved, lang, lastCodeId, lastLearnId, lastContext, dbtMissions, storageLoaded]);
   // Level up, badge, and XP breakdown overlays
   const [levelUpShow, setLevelUpShow] = useState(null);
   const [badgeShow, setBadgeShow] = useState(null);
@@ -4477,6 +4499,17 @@ export default function PunkSQLCLI() {
     });
     if (challengeId && pts > 0) markSolved(challengeId);
   }, [markSolved]);
+
+  const handleDbtMissionSolved = useCallback((missionId, pts) => {
+    setDbtMissions(prev => {
+      if (prev.has(missionId)) return prev;
+      addXP(pts, null); // XP + level-up handling; missions track their own solved set
+      const next = new Set(prev);
+      next.add(missionId);
+      window.__qq_dbt_missions = next;
+      return next;
+    });
+  }, [addXP]);
 
   const handleXP = useCallback((pts, challengeId, details) => {
     addXP(pts, challengeId);
@@ -4536,7 +4569,7 @@ export default function PunkSQLCLI() {
     }
 
     const freshUnlock = newIds.find(id => !prevEarned.current.has(id));
-    if (freshUnlock && solved.size > 0) {
+    if (freshUnlock && (solved.size > 0 || dbtMissions.size > 0)) {
       const badge = ACHIEVEMENTS.find(a => a.id === freshUnlock);
       if (badge) {
         if (levelUpActive.current) {
@@ -4547,7 +4580,7 @@ export default function PunkSQLCLI() {
       }
     }
     prevEarned.current = new Set(newIds);
-  }, [solved, xp, storageLoaded]);
+  }, [solved, xp, dbtMissions, storageLoaded]);
 
   const t = useCallback(k => i18n[lang][k] || k, [lang]);
 
@@ -4704,7 +4737,9 @@ export default function PunkSQLCLI() {
 
   if (screen === "explore") return (
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
-      <SandboxScreen onBack={() => setScreen("main")} lang={lang} />
+      <SandboxScreen onBack={() => setScreen("main")} lang={lang} dbtMissionsSolved={dbtMissions} onDbtMissionSolved={handleDbtMissionSolved} />
+      {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
+      {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={dismissBadge} />}
     </div></LangContext.Provider></ThemeContext.Provider>
   );
 
