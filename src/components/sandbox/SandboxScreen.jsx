@@ -1558,7 +1558,7 @@ function FileManagerPanel({ files, currentFile, db, onOpen, onNewFile, onDeleteF
 }
 
 // ── SandboxScreen ─────────────────────────────────────────────
-export default function SandboxScreen({ onBack, lang = "en" }) {
+export default function SandboxScreen({ onBack, lang = "en", dbtMissionsSolved, onDbtMissionSolved }) {
   const { scrollback, replHistory, pushBlock, clearScrollback, pushHistory, navigateHistory, resetHistoryIndex } = useSandboxStore();
 
   const [db, setDb] = useState(null);
@@ -1900,6 +1900,8 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
             db={db}
             lang={lang}
             onModelsChanged={() => { refreshCatalog(); saveToIndexedDB(); }}
+            missionsSolved={dbtMissionsSolved}
+            onMissionSolved={onDbtMissionSolved}
           />
         )}
 

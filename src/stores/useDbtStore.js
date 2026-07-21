@@ -128,7 +128,14 @@ function loadVfs() {
     const raw = localStorage.getItem(VFS_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      if (saved && typeof saved.vfs === "object" && Object.keys(saved.vfs).length) return saved;
+      if (saved && typeof saved.vfs === "object" && Object.keys(saved.vfs).length) {
+        return {
+          vfs: saved.vfs,
+          activeFile: saved.activeFile,
+          activeMissionId: saved.activeMissionId || null,
+          freeVfsBackup: saved.freeVfsBackup || null,
+        };
+      }
     }
   } catch {}
   return { vfs: { ...DBT_SEED_PROJECT }, activeFile: "models/staging/stg_orders.sql" };
@@ -140,8 +147,8 @@ function persist(get) {
   clearTimeout(_persistTimer);
   _persistTimer = setTimeout(() => {
     try {
-      const { vfs, activeFile } = get();
-      localStorage.setItem(VFS_KEY, JSON.stringify({ vfs, activeFile }));
+      const { vfs, activeFile, activeMissionId, freeVfsBackup } = get();
+      localStorage.setItem(VFS_KEY, JSON.stringify({ vfs, activeFile, activeMissionId, freeVfsBackup }));
     } catch {}
   }, 300);
 }
@@ -149,6 +156,10 @@ function persist(get) {
 let _logId = 1;
 
 const useDbtStore = create((set, get) => ({
+  activeMissionId: null,      // dbt mission in progress (vfs holds its seed)
+  freeVfsBackup: null,        // free-play project stashed while a mission is active
+
+  // hydrate last (may override the mission fields above)
   ...(typeof window === "undefined"
     ? { vfs: { ...DBT_SEED_PROJECT }, activeFile: "models/staging/stg_orders.sql" }
     : loadVfs()),
@@ -198,6 +209,30 @@ const useDbtStore = create((set, get) => ({
 
   resetProject: () => {
     set({ vfs: { ...DBT_SEED_PROJECT }, activeFile: "models/staging/stg_orders.sql", dirty: {}, artifacts: null, runResults: [], testResults: [] });
+    persist(get);
+  },
+
+  // ── Mission mode: swap the workspace to a mission's seed project, ──
+  // stashing the free-play VFS so exiting restores it untouched.
+  startMission: (missionId, seedVfs) => {
+    set((s) => ({
+      freeVfsBackup: s.activeMissionId ? s.freeVfsBackup : { vfs: s.vfs, activeFile: s.activeFile },
+      activeMissionId: missionId,
+      vfs: { ...seedVfs },
+      activeFile: Object.keys(seedVfs).find((p) => p.startsWith("models/") && p.endsWith(".sql")) || Object.keys(seedVfs)[0],
+      dirty: {}, artifacts: null, runResults: [], testResults: [],
+    }));
+    persist(get);
+  },
+
+  exitMission: () => {
+    set((s) => ({
+      activeMissionId: null,
+      vfs: s.freeVfsBackup ? { ...s.freeVfsBackup.vfs } : { ...DBT_SEED_PROJECT },
+      activeFile: s.freeVfsBackup?.activeFile || "models/staging/stg_orders.sql",
+      freeVfsBackup: null,
+      dirty: {}, artifacts: null, runResults: [], testResults: [],
+    }));
     persist(get);
   },
 }));

@@ -8,9 +8,12 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import useDbtStore from "@/stores/useDbtStore";
 import { execSQL } from "@/lib/sqlEngine";
 import { runDbtCommand, compileProject, withEphemeralCtes, compileGenericTest } from "@/lib/dbtEngine";
+import { gradeDbtChallenge } from "@/lib/dbtGrader";
+import { DBT_MISSIONS } from "@/data/dbtChallenges";
 import { tokenizeJinjaSQL, tokenizeYAML, tokenizeSQL, tokensToHtml } from "./highlight";
 import ResultTable from "./ResultTable";
 import LineageGraph from "./LineageGraph";
+import DbtMissionList, { MissionBrief, MissionResult, TutorialOverlay } from "./DbtMissions";
 
 const C = {
   black: "#000000", panel: "#0D0D0D", surface: "#111111",
@@ -79,11 +82,13 @@ function baseName(path) {
 }
 const isYamlPath = (p) => /\.(yml|yaml)$/i.test(p || "");
 
-export default function DbtWorkspace({ db, lang = "en", onModelsChanged }) {
+export default function DbtWorkspace({ db, lang = "en", onModelsChanged, missionsSolved = new Set(), onMissionSolved }) {
   const {
     vfs, activeFile, dirty, logs, runStatus, artifacts, runResults, testResults,
+    activeMissionId,
     writeFile, newFile, deleteFile, setActive, appendLog, clearLogs,
     setRunStatus, setArtifacts, setRunResults, setTestResults, resetProject,
+    startMission, exitMission,
   } = useDbtStore();
 
   const [panelTab, setPanelTab] = useState("log");
@@ -97,6 +102,11 @@ export default function DbtWorkspace({ db, lang = "en", onModelsChanged }) {
   const [preview, setPreview] = useState(null);        // { name, result }
   const [expandedTest, setExpandedTest] = useState(null);
   const [shownCount, setShownCount] = useState(0);     // staggered stdout cursor
+  const [missionsOpen, setMissionsOpen] = useState(false);
+  const [briefMission, setBriefMission] = useState(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [gradeResult, setGradeResult] = useState(null); // { mission, result, firstSolve }
+  const [grading, setGrading] = useState(false);
   const logRef = useRef(null);
   const taRef = useRef(null);
   const hlRef = useRef(null);
@@ -227,6 +237,31 @@ export default function DbtWorkspace({ db, lang = "en", onModelsChanged }) {
     if (m?.path) setActive(m.path);
   }, [project, setActive]);
 
+  const activeMission = useMemo(() => DBT_MISSIONS.find((m) => m.id === activeMissionId) || null, [activeMissionId]);
+
+  const submitMission = useCallback(() => {
+    if (!db || !activeMission || grading) return;
+    setGrading(true);
+    setTimeout(() => {
+      try {
+        const result = gradeDbtChallenge(activeMission, vfs, (sql) => execSQL(db, sql));
+        const firstSolve = result.pass && !missionsSolved.has(activeMission.id);
+        if (firstSolve) onMissionSolved?.(activeMission.id, activeMission.xp);
+        setGradeResult({ mission: activeMission, result, firstSolve });
+      } catch (e) {
+        setGradeResult({ mission: activeMission, result: { pass: false, checks: [{ id: "internal", label: "grader error", ok: false, detail: e.message }] }, firstSolve: false });
+      } finally {
+        setGrading(false);
+      }
+    }, 30);
+  }, [db, activeMission, vfs, grading, missionsSolved, onMissionSolved]);
+
+  const finishTutorial = useCallback(() => {
+    if (!missionsSolved.has("tut")) onMissionSolved?.("tut", 20);
+    setTutorialOpen(false);
+    setMissionsOpen(true);
+  }, [missionsSolved, onMissionSolved]);
+
   const fileLabel = activeFile ? activeFile.slice(activeFile.lastIndexOf("/") + 1) : "—";
   const statusColor = runStatus === "success" ? C.green : runStatus === "error" ? C.red : runStatus === "running" ? C.amber : C.muted;
   const modelCount = project ? Object.keys(project.compiled).length : 0;
@@ -270,9 +305,26 @@ export default function DbtWorkspace({ db, lang = "en", onModelsChanged }) {
         <span style={{ fontFamily: F.mono, fontSize: 9, color: statusColor, flexShrink: 0, letterSpacing: 1 }}>
           {runStatus === "running" ? "RUNNING…" : runStatus === "success" ? "OK" : runStatus === "error" ? "FAIL" : `${modelCount} models`}
         </span>
+        <button onClick={() => setMissionsOpen(true)} title="dbt missions — graded challenges"
+          style={{ background: activeMission ? `${C.orange}14` : "none", border: `1px solid ${activeMission ? C.orange : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.orange, padding: "3px 6px", flexShrink: 0, letterSpacing: 1 }}>⚑</button>
         <button onClick={() => setSimOpen((v) => !v)} title="What the simulator supports"
           style={{ background: simOpen ? `${C.purple}14` : "none", border: `1px solid ${simOpen ? C.purple : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: C.purple, padding: "3px 6px", flexShrink: 0, letterSpacing: 1 }}>[ sim ]</button>
       </div>
+
+      {/* ── Mission banner ── */}
+      {activeMission && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderBottom: `1px solid ${C.orange}30`, background: `${C.orange}0A`, flexShrink: 0 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.orange, letterSpacing: 1, flexShrink: 0 }}>MISSION</span>
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{activeMission.title}</span>
+          <button onClick={() => setBriefMission(activeMission)}
+            style={{ fontFamily: F.mono, fontSize: 9, color: C.dim, background: "none", border: `1px solid ${C.border}`, cursor: "pointer", padding: "3px 8px", flexShrink: 0 }}>{ispt ? "briefing" : "brief"}</button>
+          <button onClick={submitMission} disabled={grading || !db}
+            style={{ fontFamily: F.mono, fontSize: 9, color: C.green, background: `${C.green}14`, border: `1px solid ${C.green}`, cursor: "pointer", padding: "3px 10px", flexShrink: 0, letterSpacing: 1 }}>
+            {grading ? "…" : ispt ? "▶ ENVIAR" : "▶ SUBMIT"}</button>
+          <button onClick={() => { exitMission(); setMissionsOpen(true); }} title={ispt ? "Sair da missão (restaura seu projeto livre)" : "Exit mission (restores your free-play project)"}
+            style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, background: "none", border: "none", cursor: "pointer", padding: "3px 6px", flexShrink: 0 }}>✕</button>
+        </div>
+      )}
 
       {/* ── [sim] honesty panel ── */}
       {simOpen && (
@@ -550,6 +602,44 @@ DATA · SQL · GRAPH · TESTS · DOCS panels below.`}
           )}
         </div>
       </div>
+
+      {/* ── Missions overlays ── */}
+      {missionsOpen && (
+        <DbtMissionList
+          lang={lang}
+          solvedIds={missionsSolved}
+          onOpenMission={(m) => { setBriefMission(m); }}
+          onOpenTutorial={() => { setMissionsOpen(false); setTutorialOpen(true); }}
+          onClose={() => setMissionsOpen(false)}
+        />
+      )}
+      {briefMission && (
+        <MissionBrief
+          mission={briefMission}
+          lang={lang}
+          solved={missionsSolved.has(briefMission.id)}
+          onStart={() => { startMission(briefMission.id, briefMission.seed); setBriefMission(null); setMissionsOpen(false); setPanelTab("log"); setPreview(null); }}
+          onClose={() => setBriefMission(null)}
+        />
+      )}
+      {gradeResult && (
+        <MissionResult
+          mission={gradeResult.mission}
+          result={gradeResult.result}
+          firstSolve={gradeResult.firstSolve}
+          lang={lang}
+          onClose={() => setGradeResult(null)}
+          onExit={() => { setGradeResult(null); exitMission(); setMissionsOpen(true); }}
+        />
+      )}
+      {tutorialOpen && (
+        <TutorialOverlay
+          lang={lang}
+          solved={missionsSolved.has("tut")}
+          onFinish={finishTutorial}
+          onClose={() => setTutorialOpen(false)}
+        />
+      )}
 
       {/* ── File tree drawer with per-model actions ── */}
       {treeOpen && (
