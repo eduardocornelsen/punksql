@@ -3,6 +3,9 @@ import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "rea
 import useSandboxStore from "@/stores/useSandboxStore";
 import { getSandboxDB, execSQL, saveToIndexedDB, resetSandboxDB } from "@/lib/sqlEngine";
 import DbtWorkspace from "./DbtWorkspace";
+import ResultTable from "./ResultTable";
+import LineageGraph from "./LineageGraph";
+import { tokenizeSQL, tokenizeYAML, tokensToHtml } from "./highlight";
 
 // ── Visual tokens ──────────────────────────────────────────────
 const C = {
@@ -517,24 +520,7 @@ function SandboxAuxKeyboard({ onInsert, tableNames, columnNames, onSwipeDown }) 
   );
 }
 
-// ── Result Table ──────────────────────────────────────────────
-function ResultTable({ columns, rows }) {
-  if (!columns.length) return null;
-  const widths = columns.map((c, i) => Math.min(36, Math.max(String(c).length, ...rows.map((r) => String(r[i] ?? "NULL").length), 4)));
-  const trunc = (v, w) => { const s = String(v ?? "NULL"); return s.length > w ? s.slice(0, w - 1) + "…" : s.padEnd(w); };
-  const sep = "+" + widths.map((w) => "-".repeat(w + 2)).join("+") + "+";
-  const hdr = "| " + columns.map((c, i) => trunc(c, widths[i])).join(" | ") + " |";
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <pre style={{ fontFamily: F.mono, fontSize: 11, color: C.text, margin: 0, lineHeight: 1.6, whiteSpace: "pre" }}>
-        {sep}{"\n"}{hdr}{"\n"}{sep}
-        {rows.map((row) => "\n| " + row.map((v, ci) => trunc(v, widths[ci])).join(" | ") + " |")}
-        {"\n"}{sep}
-      </pre>
-      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, marginTop: 2 }}>{rows.length} {rows.length === 1 ? "row" : "rows"}</div>
-    </div>
-  );
-}
+// ResultTable extracted to ./ResultTable (shared with the dbt lab)
 
 // ── Scrollback block ──────────────────────────────────────────
 function ReplBlock({ block }) {
@@ -973,9 +959,30 @@ function LineageStack({ db, lang }) {
 
   const hasLayers = byLayer.staging.length + byLayer.intermediate.length + byLayer.mart.length > 0;
 
+  // Real dependency graph: view/CTAS DDL parsed from sqlite_master (§2.3).
+  // Only views get edges; source tables appear when something depends on them.
+  const adjacency = useMemo(() => {
+    const known = new Set(objects.map((o) => o.name.toLowerCase()));
+    const adj = {};
+    objects.forEach((o) => {
+      if (o.type === "view") adj[o.name] = o.upstreams.filter((u) => known.has(u) && u !== o.name.toLowerCase());
+    });
+    return adj;
+  }, [objects]);
+  const nodeMeta = useMemo(() => Object.fromEntries(
+    objects.map((o) => [o.name, { color: o.type === "view" ? LAYER_META[o.layer].color : C.dim, badge: o.type }])
+  ), [objects]);
+
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
       <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, letterSpacing: 1.5, marginBottom: 10 }}>DATA LINEAGE</div>
+
+      {/* Dependency graph — shared <LineageGraph>, edges parsed from DDL */}
+      {Object.keys(adjacency).length > 0 && (
+        <div style={{ border: `1px solid ${C.border}`, background: C.panel, marginBottom: 14, maxHeight: 260, overflow: "auto" }}>
+          <LineageGraph adjacency={adjacency} nodeMeta={nodeMeta} />
+        </div>
+      )}
 
       {/* Flow legend */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 14, overflowX: "auto" }}>
@@ -1039,141 +1046,7 @@ function LineageStack({ db, lang }) {
   );
 }
 
-// ── Syntax tokenizers ─────────────────────────────────────────
-const SQL_KW_SET = new Set([
-  "SELECT","DISTINCT","FROM","WHERE","JOIN","ON","LEFT","RIGHT","INNER","FULL","CROSS",
-  "GROUP","ORDER","HAVING","LIMIT","OFFSET","AS","WITH","UNION","ALL","EXCEPT","INTERSECT",
-  "AND","OR","NOT","IN","LIKE","ILIKE","BETWEEN","IS","NULL","EXISTS","CASE","WHEN","THEN",
-  "ELSE","END","ASC","DESC","PARTITION","OVER","ROWS","PRECEDING","CURRENT","ROW","BY",
-  "CREATE","DROP","ALTER","INSERT","INTO","VALUES","UPDATE","SET","DELETE","TABLE","VIEW",
-  "INDEX","UNIQUE","IF","ADD","COLUMN","RENAME","PRIMARY","KEY","REFERENCES","DEFAULT",
-  "AUTOINCREMENT","SAVEPOINT","RELEASE","ROLLBACK","ATTACH","DETACH","PRAGMA",
-  "OUTER","NATURAL","USING","RETURNING","EXPLAIN","QUERY","PLAN",
-]);
-const SQL_FUNC_SET = new Set([
-  "COUNT","SUM","AVG","MIN","MAX","ROUND","COALESCE","NULLIF","CAST","TYPEOF",
-  "LENGTH","UPPER","LOWER","SUBSTR","TRIM","REPLACE","INSTR","DATE","STRFTIME",
-  "JULIANDAY","ROW_NUMBER","RANK","DENSE_RANK","LAG","LEAD","FIRST_VALUE",
-  "LAST_VALUE","NTILE","PERCENT_RANK","ABS","RANDOM","IFNULL","PRINTF","IIF",
-]);
-const SQL_TYPE_SET = new Set(["INTEGER","TEXT","REAL","BLOB","NUMERIC","BOOLEAN"]);
-
-function tokenizeSQL(code, tableSet, colSet) {
-  const tokens = [];
-  let i = 0;
-  while (i < code.length) {
-    // line comment
-    if (code[i] === "-" && code[i+1] === "-") {
-      let j = i; while (j < code.length && code[j] !== "\n") j++;
-      tokens.push({ color: "#3d5a45", text: code.slice(i, j) }); // dim green
-      i = j; continue;
-    }
-    // block comment
-    if (code[i] === "/" && code[i+1] === "*") {
-      let j = i + 2; while (j < code.length - 1 && !(code[j] === "*" && code[j+1] === "/")) j++;
-      tokens.push({ color: "#3d5a45", text: code.slice(i, j + 2) });
-      i = j + 2; continue;
-    }
-    // string literal
-    if (code[i] === "'" || code[i] === '"') {
-      const q = code[i]; let j = i + 1;
-      while (j < code.length && code[j] !== q) { if (code[j] === "\\") j++; j++; }
-      tokens.push({ color: "#b5946a", text: code.slice(i, j + 1) }); // amber-ish
-      i = j + 1; continue;
-    }
-    // number
-    if (/[0-9]/.test(code[i])) {
-      let j = i; while (j < code.length && /[0-9.]/.test(code[j])) j++;
-      tokens.push({ color: "#7ec8a0", text: code.slice(i, j) }); // soft green
-      i = j; continue;
-    }
-    // word
-    if (/[A-Za-z_]/.test(code[i])) {
-      let j = i; while (j < code.length && /[A-Za-z0-9_]/.test(code[j])) j++;
-      const word = code.slice(i, j);
-      const up = word.toUpperCase();
-      let color = C.text;
-      if (SQL_KW_SET.has(up))              color = "#00FFFF"; // cyan
-      else if (SQL_FUNC_SET.has(up))       color = "#CC88FF"; // purple
-      else if (SQL_TYPE_SET.has(up))       color = "#FF9944"; // orange
-      else if (tableSet.has(word.toLowerCase())) color = "#00FF88"; // green
-      else if (colSet.has(word.toLowerCase()))   color = "#AADDFF"; // light blue
-      tokens.push({ color, text: word });
-      i = j; continue;
-    }
-    // punctuation: (, ), ,, ;
-    if ("(),;".includes(code[i])) {
-      tokens.push({ color: "#777777", text: code[i] }); i++; continue;
-    }
-    // operators
-    if ("=<>!".includes(code[i])) {
-      let j = i; while (j < code.length && "=<>!".includes(code[j])) j++;
-      tokens.push({ color: "#88BBDD", text: code.slice(i, j) }); // pale blue
-      i = j; continue;
-    }
-    // everything else (whitespace, symbols)
-    tokens.push({ color: C.dim, text: code[i] }); i++;
-  }
-  return tokens;
-}
-
-function tokenizeYAML(code) {
-  const tokens = [];
-  for (const rawLine of code.split("\n")) {
-    const line = rawLine;
-    // comment
-    if (/^\s*#/.test(line)) {
-      tokens.push({ color: "#3d5a45", text: line }); tokens.push({ color: C.dim, text: "\n" }); continue;
-    }
-    // key: value
-    const kv = line.match(/^(\s*)([\w-]+)(\s*:\s*)(.*)$/);
-    if (kv) {
-      const [, indent, key, colon, val] = kv;
-      tokens.push({ color: C.dim, text: indent });
-      tokens.push({ color: "#00FFFF", text: key });     // key = cyan
-      tokens.push({ color: "#555555", text: colon });   // colon = dim
-      // value
-      if (/^["']/.test(val.trim())) {
-        tokens.push({ color: "#b5946a", text: val });   // string = amber
-      } else if (/^(true|false|null|~)$/i.test(val.trim())) {
-        tokens.push({ color: "#CC88FF", text: val });   // special = purple
-      } else if (/^-?\d/.test(val.trim())) {
-        tokens.push({ color: "#7ec8a0", text: val });   // number = green
-      } else {
-        tokens.push({ color: C.text, text: val });
-      }
-      tokens.push({ color: C.dim, text: "\n" }); continue;
-    }
-    // list item
-    const li = line.match(/^(\s*-\s+)(.*)$/);
-    if (li) {
-      tokens.push({ color: "#555555", text: li[1] });
-      tokens.push({ color: C.text, text: li[2] });
-      tokens.push({ color: C.dim, text: "\n" }); continue;
-    }
-    // section header (word ending with :)
-    if (/^\s*[\w-]+:\s*$/.test(line)) {
-      const m = line.match(/^(\s*)([\w-]+)(:\s*)$/);
-      if (m) {
-        tokens.push({ color: C.dim, text: m[1] });
-        tokens.push({ color: "#FFBB00", text: m[2] }); // amber for section keys
-        tokens.push({ color: "#555555", text: m[3] });
-        tokens.push({ color: C.dim, text: "\n" }); continue;
-      }
-    }
-    tokens.push({ color: C.text, text: line });
-    tokens.push({ color: C.dim, text: "\n" });
-  }
-  return tokens;
-}
-
-// Build HTML string from token array for use as innerHTML
-function tokensToHtml(tokens) {
-  return tokens.map(({ color, text }) => {
-    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return `<span style="color:${color}">${escaped}</span>`;
-  }).join("");
-}
+// Syntax tokenizers extracted to ./highlight (shared with the dbt lab)
 
 // ── Schema explorer (tables + columns) — VSCode SQLite Explorer style ──
 function SchemaExplorer({ db }) {

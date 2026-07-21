@@ -157,6 +157,8 @@ const useDbtStore = create((set, get) => ({
   logs: [],                   // { id, level: info|ok|warn|error, text }
   runStatus: "idle",          // idle | running | success | error
   artifacts: null,            // { compiled, dag, order } from last compile/run
+  runResults: [],             // last dbt run: { name, status, materialized, detail }
+  testResults: [],            // last dbt test: { name, status, failures, detail }
 
   writeFile: (path, content) => {
     set((s) => ({ vfs: { ...s.vfs, [path]: content }, dirty: { ...s.dirty, [path]: true } }));
@@ -191,9 +193,11 @@ const useDbtStore = create((set, get) => ({
   clearLogs: () => set({ logs: [] }),
   setRunStatus: (runStatus) => set({ runStatus }),
   setArtifacts: (artifacts) => set({ artifacts, dirty: {} }),
+  setRunResults: (runResults) => set({ runResults }),
+  setTestResults: (testResults) => set({ testResults }),
 
   resetProject: () => {
-    set({ vfs: { ...DBT_SEED_PROJECT }, activeFile: "models/staging/stg_orders.sql", dirty: {}, artifacts: null });
+    set({ vfs: { ...DBT_SEED_PROJECT }, activeFile: "models/staging/stg_orders.sql", dirty: {}, artifacts: null, runResults: [], testResults: [] });
     persist(get);
   },
 }));
