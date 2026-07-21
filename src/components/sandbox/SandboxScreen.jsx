@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import useSandboxStore from "@/stores/useSandboxStore";
 import { getSandboxDB, execSQL, saveToIndexedDB, resetSandboxDB } from "@/lib/sqlEngine";
+import DbtWorkspace from "./DbtWorkspace";
 
 // ── Visual tokens ──────────────────────────────────────────────
 const C = {
@@ -171,10 +172,11 @@ function ColumnIcon({ size = 12 }) {
 
 // ── Bottom tabs ───────────────────────────────────────────────
 const BOTTOM_TABS = [
-  { id: "repl",    label: "SHELL",  color: C.cyan,   icon: ">" },
-  { id: "editor",  label: "EDITOR", color: C.amber,  icon: "≡" },
-  { id: "files",   label: "VAULT",  color: C.green,  icon: null },
-  { id: "lineage", label: "DAG",    color: C.purple, icon: "⬡" },
+  { id: "repl",    label: "SHELL",  color: C.cyan,      icon: ">" },
+  { id: "editor",  label: "EDITOR", color: C.amber,     icon: "≡" },
+  { id: "files",   label: "VAULT",  color: C.green,     icon: null },
+  { id: "dbt",     label: "DBT",    color: "#FF9944",   icon: "▲" },
+  { id: "lineage", label: "DAG",    color: C.purple,    icon: "⬡" },
 ];
 
 // ── Smart-newline helpers (SQL + YAML) ───────────────────────
@@ -362,14 +364,24 @@ TABS (bottom bar)
   >  SHELL   — interactive terminal (this tab)
   ≡  EDITOR  — .sql / .yaml file editor
   ⊓  VAULT   — file browser + schema explorer
+  ▲  DBT     — dbt lab: compile/run/test models
   ⬡  DAG     — data lineage (SRC→STG→INT→MRT)
+
+DBT LAB (▲ tab)
+  dbt run          materialize models (real views/tables)
+  dbt test         run schema.yml + singular tests
+  dbt build        run + test
+  dbt compile      render Jinja → SQL (see target/)
+  dbt run --select stg_orders+   run a model + descendants
+  Models use {{ ref('...') }} and {{ source('...','...') }}.
+  After a run, query them right here in the SHELL.
 
 TIP: Tap [?] in the header to reopen the onboarding tour.
 TIP: the folder button (header or EDITOR toolbar) opens the file browser with
      all your .sql / .yaml files AND a full schema explorer.`;
 
 // ── Onboarding ────────────────────────────────────────────────
-const ONBOARD_KEY = "punksql-sandbox-onboard-v2";
+const ONBOARD_KEY = "punksql-sandbox-onboard-v3";
 const ONBOARDING_STEPS = [
   {
     title: "FREE EXPLORE // SANDBOX",
@@ -377,9 +389,9 @@ const ONBOARDING_STEPS = [
     body: "A fully in-browser SQLite REPL.\nNo server. No signup. Works offline.\n\nYour schema and data are saved in\nyour browser via IndexedDB and\npersist across refreshes.",
   },
   {
-    title: "FOUR MODES — BOTTOM TABS",
+    title: "FIVE MODES — BOTTOM TABS",
     icon: "≡", color: C.cyan,
-    body: "Four tabs at the bottom of the screen:\n\n  >  SHELL   — interactive terminal\n  ≡  EDITOR  — .sql / .yaml file editor\n  ⊓  VAULT   — file browser + schema explorer\n  ⬡  DAG     — data lineage graph\n\nSwitch freely between them.",
+    body: "Five tabs at the bottom of the screen:\n\n  >  SHELL   — interactive terminal\n  ≡  EDITOR  — .sql / .yaml file editor\n  ⊓  VAULT   — file browser + schema explorer\n  ▲  DBT     — dbt lab (compile + run + test)\n  ⬡  DAG     — data lineage graph\n\nSwitch freely between them.",
   },
   {
     title: "REPL — TERMINAL MODE",
@@ -395,6 +407,11 @@ const ONBOARDING_STEPS = [
     title: "FILES — DBT PROJECT",
     icon: "◈", color: C.green,
     body: "A virtual dbt project tree showing\nyour models organized by layer:\n\n  models/\n    staging/      stg_* views\n    intermediate/ int_* views\n    mart/         fct_*/dim_*\n  seeds/          raw tables\n\nTap any file → see DDL\n\"Open in Editor\" → load into editor",
+  },
+  {
+    title: "DBT — ANALYTICS LAB",
+    icon: "▲", color: "#FF9944",
+    body: "A real dbt workflow, in the browser:\n\nWrite models with {{ ref() }} and\n{{ source() }}, then:\n\n  run    → materialize views/tables\n  test   → schema.yml tests (real\n           pass/fail on your data)\n  build  → run + test\n\nModels land in the DB — query them\nin SHELL, see them in VAULT + DAG.",
   },
   {
     title: "LINEAGE — DATA FLOW",
@@ -1642,8 +1659,8 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
 
   const pushWelcome = useCallback((dbInst) => {
     pushBlock({ type: "info", text: ispt
-      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
-      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.\nTabs: > SHELL · ≡ EDITOR · ⊓ VAULT · ⬡ DAG`
+      ? `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nDigite SQL ou \\? para ajuda.\nAbas: > SHELL · ≡ EDITOR · ⊓ VAULT · ▲ DBT · ⬡ DAG`
+      : `PunkSQL FREE EXPLORE — sql.js ${new Date().toLocaleTimeString()}\nType SQL or \\? for help.\nTabs: > SHELL · ≡ EDITOR · ⊓ VAULT · ▲ DBT · ⬡ DAG`
     });
     const d = dbInst || db;
     if (d) {
@@ -1831,6 +1848,15 @@ export default function SandboxScreen({ onBack, lang = "en" }) {
             onNewFile={handleNewFile}
             onDeleteFile={handleDeleteFile}
             onClose={null}
+          />
+        )}
+
+        {/* DBT lab view */}
+        {activeView === "dbt" && (
+          <DbtWorkspace
+            db={db}
+            lang={lang}
+            onModelsChanged={() => { refreshCatalog(); saveToIndexedDB(); }}
           />
         )}
 
