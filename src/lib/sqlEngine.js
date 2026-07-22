@@ -1,7 +1,7 @@
 // SqlEngine — shared abstraction over the sql.js WASM engine.
 // Manages an isolated sandbox DB instance (separate from the challenge globalDB).
 
-const CDNJS = "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3";
+const CDNJS = "/sqljs"; // self-hosted (public/sqljs) — works offline, no CDN dependency
 const IDB_NAME = "punksql-sandbox";
 const IDB_STORE = "workspace";
 const IDB_KEY = "db";

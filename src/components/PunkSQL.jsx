@@ -4,6 +4,7 @@ import { useProgress } from "@/hooks/useProgress";
 import useGameStore from "@/stores/useGameStore";
 import { useShallow } from "zustand/react/shallow";
 import SandboxScreen from "@/components/sandbox/SandboxScreen";
+import { MODULE_INTROS } from "@/data/moduleIntros";
 
 // ═══════════════════════════════════════════════════════════
 //  PUNKSQL // CYBERPUNK CLI — XL MOBILE
@@ -16,6 +17,18 @@ const CODE_ONBOARDING_KEY = "punksql-code-tour-v1";
 const CARD_STATS_KEY = "punksql-card-stats";
 const QUIZ_STATE_KEY = "punksql-quiz-state";
 const HERO_STREAK_WIN = 10;
+
+// Daily challenge: beginners (level < 5) draw from EASY/MED SQL challenges
+// only; the full pool (incl. HARD/EXPERT and dbt text) unlocks with level.
+function getDailyChallenge(xp) {
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const beginner = getLevel(xp).level < 5;
+  const pool = beginner
+    ? CHALLENGES_DB.filter(c => (c.diff === "EASY" || c.diff === "MED") && c.type !== "text")
+    : CHALLENGES_DB;
+  return pool[dayOfYear % pool.length];
+}
 
 function loadProgress() {
   try {
@@ -169,6 +182,7 @@ const i18n = {
     ch_4: "avg_order_region", ch_5: "retention_cohorts",
     review_title: "SPACED_REVIEW",
     answer: "[ ANSWER ]", tap_reveal: "[ tap to reveal ]",
+    recommended: "recommended",
     again: "AGAIN", hard: "HARD", good: "GOOD", easy: "EASY",
     session_stats: "session", due: "DUE", done: "DONE",
     flash_1_front: "What does GROUP BY do?",
@@ -222,6 +236,7 @@ const i18n = {
     ch_4: "ticket_regiao", ch_5: "coortes_retencao",
     review_title: "REVISÃO_ESPAÇADA",
     answer: "[ RESPOSTA ]", tap_reveal: "[ toque p/ revelar ]",
+    recommended: "recomendado",
     again: "DENOVO", hard: "DIFÍCIL", good: "BOM", easy: "FÁCIL",
     session_stats: "sessão", due: "PEND", done: "FEITO",
     flash_1_front: "O que faz o GROUP BY?",
@@ -740,6 +755,8 @@ function StatusBar({ xp = 0, solved = new Set() }) {
 // ═══════════════════════════════════════════════════════════
 function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
   const { t, lang } = useLang();
+  const { user } = useAuth();
+  const userLabel = user?.user_metadata?.name?.split(" ")[0]?.toLowerCase() || user?.email?.split("@")[0] || (lang === "pt" ? "convidado" : "guest");
   const [cmd, setCmd] = useState("");
   const cmdRef = useRef(null);
   const lv = getLevel(xp);
@@ -761,14 +778,12 @@ function HomeScreen({ onNavigate, solved = new Set(), xp = 0 }) {
     }
   };
 
-  const now = new Date();
-  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
-  const dc = CHALLENGES_DB[dayOfYear % CHALLENGES_DB.length];
+  const dc = getDailyChallenge(xp);
 
   return (
     <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
       {/* Boot lines */}
-      {[t("boot_1"), t("boot_2"), lang === "pt" ? `[USR] eduardo // nvl ${lv.level}` : `[USR] eduardo // lvl ${lv.level}`].map((line, i) => (
+      {[t("boot_1"), t("boot_2"), lang === "pt" ? `[USR] ${userLabel} // nvl ${lv.level}` : `[USR] ${userLabel} // lvl ${lv.level}`].map((line, i) => (
         <div key={i} style={{ fontSize: 12, color: C.dim, lineHeight: 1.9, animation: `bootLine 0.25s ease ${i * 0.1}s both` }}>
           {line}
         </div>
@@ -884,8 +899,11 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
     const xpEarned = modChallenges.filter(c => solved.has(c.id)).reduce((sum, c) => {
       return sum + (c.diff === "EASY" ? 25 : c.diff === "MED" ? 50 : c.diff === "HARD" ? 75 : 100);
     }, 0);
-    return { ...m, s, p, l: total, c: total, xp: xpEarned, solvedCount };
+    return { ...m, s, p, l: total, c: total, xp: xpEarned, solvedCount, prevDone };
   });
+  // Guided path without hard locks: highlight the first unfinished module
+  // whose predecessor is complete (falls back to the first unfinished one).
+  const recId = (mods.find(m => m.s !== "done" && m.prevDone) || mods.find(m => m.s !== "done"))?.id;
   return (
     <div style={{ padding: "12px 16px 20px", fontFamily: F.mono, animation: "langSwitch 0.2s ease" }}>
       <div style={{ fontSize: 12, color: C.dim, marginBottom: 4 }}>
@@ -899,6 +917,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
         delay={50}
         renderItem={(m) => {
           const done = m.s === "done", act = m.s === "active", lock = m.s === "lock";
+          const rec = m.id === recId;
           const clickable = !lock;
           const nc = done ? C.green : act ? C.cyan : C.muted;
           return (
@@ -908,7 +927,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
               disabled={lock}
               style={{
                 display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
-                background: act ? C.panel : "none", border: `1px solid ${act ? C.border : "transparent"}`,
+                background: rec ? C.cyanGhost : act ? C.panel : "none", border: `1px solid ${rec ? `${C.cyan}60` : act ? C.border : "transparent"}`,
                 cursor: clickable ? "pointer" : "default",
                 textAlign: "left", width: "100%",
                 opacity: lock ? 0.35 : 1,
@@ -921,6 +940,7 @@ function LearnScreen({ onNavigate, solved = new Set() }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 12, color: C.dim }}>mod_{String(m.id).padStart(2,"0")}/</span>
                   <span style={{ fontSize: 13, color: nc }}>{m.n}</span>
+                  {rec && <span style={{ fontSize: 10, color: C.cyan, marginLeft: "auto", letterSpacing: 1 }}>▶ {t("recommended")}</span>}
                   {done && <span style={{ fontSize: 11, color: C.green, marginLeft: "auto" }}>+{m.xp}xp</span>}
                   {lock && <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>[LOCKED]</span>}
                 </div>
@@ -996,7 +1016,7 @@ const CHALLENGES_DB = [
   // ── MODULE 6: subqueries (5 challenges) ──
   { id:27, mod:6, title:"above_avg_price", diff:"HARD", desc_en:"Find products priced above the average price.", desc_pt:"Produtos com preço acima da média.", hint:"WHERE price > (SELECT AVG(price) FROM ...)", validate:"SELECT * FROM products WHERE price > (SELECT AVG(price) FROM products)", schema:"products: id, name, category, price, stock" },
   { id:28, mod:6, title:"products_never_ordered", diff:"HARD", desc_en:"Find products that have never been ordered.", desc_pt:"Produtos que nunca foram pedidos.", hint:"WHERE id NOT IN (SELECT product_id FROM ...)", validate:"SELECT * FROM products WHERE id NOT IN (SELECT DISTINCT product_id FROM order_items)", schema:"products: id, name\norder_items: product_id" },
-  { id:29, mod:6, title:"customers_no_orders", diff:"HARD", desc_en:"Customers who never placed an order.", desc_pt:"Clientes que nunca fizeram pedido.", hint:"LEFT JOIN orders WHERE o.id IS NULL", validate:"SELECT c.* FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL", schema:"customers: id, name\norders: customer_id" },
+  { id:29, mod:6, title:"products_never_ordered", diff:"HARD", desc_en:"Products that have never been ordered (appear in no order_items row).", desc_pt:"Produtos que nunca foram pedidos (não aparecem em order_items).", hint:"LEFT JOIN order_items ... WHERE oi.id IS NULL", validate:"SELECT p.* FROM products p LEFT JOIN order_items oi ON p.id = oi.product_id WHERE oi.id IS NULL", schema:"products: id, name, category, price, stock\norder_items: id, order_id, product_id, quantity, unit_price" },
   { id:30, mod:6, title:"most_expensive_per_cat", diff:"HARD", desc_en:"Find the most expensive product in each category.", desc_pt:"Produto mais caro de cada categoria.", hint:"WHERE price = (SELECT MAX(price) FROM products p2 WHERE p2.category = p1.category)", validate:"SELECT * FROM products p1 WHERE price = (SELECT MAX(price) FROM products p2 WHERE p2.category = p1.category)", schema:"products: id, name, category, price" },
   { id:31, mod:6, title:"orders_above_avg", diff:"HARD", desc_en:"Find orders with total above the average order value.", desc_pt:"Pedidos com valor acima da média.", hint:"WHERE total_amount > (SELECT AVG(total_amount) FROM orders)", validate:"SELECT * FROM orders WHERE total_amount > (SELECT AVG(total_amount) FROM orders)", schema:"orders: id, customer_id, order_date, total_amount, status" },
   // ── MODULE 7: window_fn (5 challenges) ──
@@ -1021,8 +1041,8 @@ const CHALLENGES_DB = [
   { id:47, mod:2, title:"cheap_products", diff:"EASY", desc_en:"Find products cheaper than $20.", desc_pt:"Produtos mais baratos que $20.", hint:"WHERE price < 20", validate:"SELECT * FROM products WHERE price < 20", schema:"products: id, name, category, price, stock" },
   { id:48, mod:2, title:"completed_orders", diff:"EASY", desc_en:"Find all completed orders.", desc_pt:"Encontre todos os pedidos completos.", hint:"WHERE status = 'completed'", validate:"SELECT * FROM orders WHERE status = 'completed'", schema:"orders: id, customer_id, order_date, total_amount, status" },
   { id:49, mod:2, title:"high_value_orders", diff:"MED", desc_en:"Find orders with total above $200.", desc_pt:"Pedidos com valor acima de $200.", hint:"WHERE total_amount > 200", validate:"SELECT * FROM orders WHERE total_amount > 200", schema:"orders: id, customer_id, order_date, total_amount, status" },
-  { id:50, mod:2, title:"customers_gmail", diff:"MED", desc_en:"Find customers with Gmail addresses.", desc_pt:"Clientes com email Gmail.", hint:"WHERE email LIKE '%gmail%'", validate:"SELECT * FROM customers WHERE email LIKE '%gmail%'", schema:"customers: id, name, email, city, country, signup_date" },
-  { id:51, mod:2, title:"low_stock_alert", diff:"MED", desc_en:"Products with stock below 30 and price above $40.", desc_pt:"Produtos com estoque abaixo de 30 e preço acima de $40.", hint:"WHERE stock < 30 AND price > 40", validate:"SELECT * FROM products WHERE stock < 30 AND price > 40", schema:"products: id, name, category, price, stock" },
+  { id:50, mod:2, title:"name_pattern_search", diff:"MED", desc_en:"Find customers whose name contains 'an' (anywhere, case-insensitive).", desc_pt:"Clientes cujo nome contém 'an' (em qualquer posição).", hint:"WHERE name LIKE '%an%'", validate:"SELECT * FROM customers WHERE name LIKE '%an%'", schema:"customers: id, name, email, city, country, signup_date" },
+  { id:51, mod:2, title:"low_stock_alert", diff:"MED", desc_en:"Products with stock below 100 and price above $40.", desc_pt:"Produtos com estoque abaixo de 100 e preço acima de $40.", hint:"WHERE stock < 100 AND price > 40", validate:"SELECT * FROM products WHERE stock < 100 AND price > 40", schema:"products: id, name, category, price, stock" },
   // ── EXPANDED: MODULE 3 extras ──
   { id:52, mod:3, title:"alpha_customers", diff:"EASY", desc_en:"List customers sorted alphabetically by name.", desc_pt:"Clientes em ordem alfabética por nome.", hint:"ORDER BY name ASC", validate:"SELECT * FROM customers ORDER BY name ASC", schema:"customers: id, name, email, city, country, signup_date" },
   { id:53, mod:3, title:"oldest_orders", diff:"EASY", desc_en:"Show the 5 oldest orders.", desc_pt:"Os 5 pedidos mais antigos.", hint:"ORDER BY order_date ASC LIMIT 5", validate:"SELECT * FROM orders ORDER BY order_date ASC LIMIT 5", schema:"orders: id, customer_id, order_date, total_amount, status" },
@@ -1219,7 +1239,7 @@ const SOLUTION_EXPLANATIONS = {
   // Module 6 — subqueries
   27: { en: "The scalar subquery runs first and returns one value (the average price). The outer WHERE then uses it like a literal number. More flexible than hardcoding the average.", pt: "A subquery escalar executa primeiro e retorna um valor (o preço médio). O WHERE externo usa esse valor como um número literal. Mais flexível do que codificar a média manualmente." },
   28: { en: "NOT IN excludes rows whose id appears in the subquery result. DISTINCT in the subquery is optional but removes duplicates, making the comparison set smaller.", pt: "NOT IN exclui linhas cujo id aparece no resultado da subquery. DISTINCT na subquery é opcional, mas remove duplicatas, tornando o conjunto de comparação menor." },
-  29: { en: "LEFT JOIN preserves all left-table rows even with no match. When there's no matching order, all right-table columns are NULL — IS NULL on a right-table column identifies those unmatched customers.", pt: "LEFT JOIN preserva todas as linhas da tabela esquerda mesmo sem correspondência. Quando não há pedido correspondente, todas as colunas da tabela direita são NULL — IS NULL em uma coluna da tabela direita identifica esses clientes sem pedidos." },
+  29: { en: "LEFT JOIN keeps every product even without a matching order_items row — unmatched products get NULL in all right-table columns. WHERE oi.id IS NULL keeps exactly those: the anti-join pattern for 'has none' questions.", pt: "LEFT JOIN mantém todo produto mesmo sem linha correspondente em order_items — produtos sem match ficam com NULL nas colunas da direita. WHERE oi.id IS NULL mantém exatamente esses: o padrão anti-join para perguntas de 'não tem nenhum'." },
   30: { en: "A correlated subquery references the outer query's current row (p1.category). It runs once per outer row to find the max price in that category — powerful but can be slow on large tables.", pt: "Uma subquery correlacionada referencia a linha atual da query externa (p1.category). Ela executa uma vez por linha externa para encontrar o preço máximo naquela categoria — poderosa, mas pode ser lenta em tabelas grandes." },
   31: { en: "The subquery computes the global average once. The outer WHERE compares each order's total against that single value. Common mistake: don't filter orders inside the subquery or you'd get the average of a subset.", pt: "A subquery computa a média global uma vez. O WHERE externo compara o total de cada pedido contra esse valor. Erro comum: não filtre pedidos dentro da subquery ou você obteria a média de um subconjunto." },
   // Module 7 — window functions
@@ -1244,8 +1264,8 @@ const SOLUTION_EXPLANATIONS = {
   47: { en: "< 20 means strictly less than. The WHERE clause is evaluated row-by-row — only rows where price < 20 pass through.", pt: "< 20 significa estritamente menor que. A cláusula WHERE é avaliada linha por linha — apenas linhas onde price < 20 passam." },
   48: { en: "String equality with single quotes. If the status value were 'Completed' (capital C), this query would return 0 rows — case matters.", pt: "Igualdade de string com aspas simples. Se o valor de status fosse 'Completed' (C maiúsculo), esta query retornaria 0 linhas — maiúsculas importam." },
   49: { en: "> 200 excludes the boundary itself. Use >= 200 to include orders of exactly $200.", pt: "> 200 exclui o próprio limite. Use >= 200 para incluir pedidos de exatamente $200." },
-  50: { en: "LIKE '%gmail%' matches any string containing 'gmail' anywhere. The two % wildcards mean 'anything before' and 'anything after'.", pt: "LIKE '%gmail%' combina qualquer string que contenha 'gmail' em qualquer lugar. Os dois curingas % significam 'qualquer coisa antes' e 'qualquer coisa depois'." },
-  51: { en: "AND combines two numeric conditions. Both must be true: stock must be below 30 AND price must be above 40.", pt: "AND combina duas condições numéricas. Ambas devem ser verdadeiras: estoque deve ser abaixo de 30 E preço deve ser acima de 40." },
+  50: { en: "LIKE '%an%' matches 'an' anywhere in the name — the two % wildcards mean 'anything before' and 'anything after'. SQLite's LIKE is case-insensitive for ASCII, so 'Ana', 'Santos' and 'Tanaka' all match.", pt: "LIKE '%an%' encontra 'an' em qualquer posição do nome — os dois % significam 'qualquer coisa antes' e 'qualquer coisa depois'. O LIKE do SQLite ignora maiúsculas em ASCII, então 'Ana', 'Santos' e 'Tanaka' casam." },
+  51: { en: "AND combines two numeric conditions. Both must be true: stock must be below 100 AND price must be above 40 — rows failing either test are filtered out.", pt: "AND combina duas condições numéricas. Ambas devem valer: estoque abaixo de 100 E preço acima de 40 — linhas que falham em qualquer uma são filtradas." },
   // Module 3 extras
   52: { en: "ORDER BY name ASC sorts alphabetically (A → Z). ASC is the default and can be omitted, but writing it explicitly is clearer.", pt: "ORDER BY name ASC ordena alfabeticamente (A → Z). ASC é o padrão e pode ser omitido, mas escrevê-lo explicitamente é mais claro." },
   53: { en: "ASC on a date brings the oldest dates first. LIMIT 5 then takes the first 5 from that sorted list — the 5 oldest orders.", pt: "ASC em uma data traz as datas mais antigas primeiro. LIMIT 5 então pega as primeiras 5 dessa lista ordenada — os 5 pedidos mais antigos." },
@@ -1317,6 +1337,16 @@ const SOLUTION_EXPLANATIONS = {
   110: { en: "CREATE INDEX builds a B-tree on the status column, making WHERE status='...' queries much faster. Always name indexes descriptively (idx_table_column) so their purpose is clear.", pt: "CREATE INDEX constrói uma B-tree na coluna status, tornando queries WHERE status='...' muito mais rápidas. Sempre nomeie índices descritivamente (idx_tabela_coluna) para que seu propósito seja claro." },
   111: { en: "DROP TABLE removes both data and structure permanently. CREATE TABLE then DROP TABLE here verifies the table can be created and deleted safely — a common schema test pattern.", pt: "DROP TABLE remove dados e estrutura permanentemente. CREATE TABLE depois DROP TABLE aqui verifica que a tabela pode ser criada e excluída com segurança — um padrão de teste de schema comum." },
   112: { en: "SAVEPOINT schema_change ensures CREATE TABLE and INSERT INTO succeed together or fail together. RELEASE SAVEPOINT finalizes both. This is the atomic schema + data snapshot pattern.", pt: "SAVEPOINT schema_change garante que CREATE TABLE e INSERT INTO tenham sucesso juntos ou falhem juntos. RELEASE SAVEPOINT finaliza ambos. Este é o padrão atômico de schema + snapshot de dados." },
+  113: { en: "{{ ref('stg_orders') }} tells dbt this model depends on stg_orders. dbt resolves it to the real relation name AND uses it to build the DAG — upstream models always run first. Never hardcode model names in FROM clauses.", pt: "{{ ref('stg_orders') }} diz ao dbt que este model depende de stg_orders. O dbt resolve para o nome real da relação E usa isso para montar o DAG — models upstream sempre rodam primeiro. Nunca escreva nomes de models direto no FROM." },
+  114: { en: "{{ source('raw', 'orders') }} references a raw table declared in a .yml file. Sources mark the boundary between data you load and data you transform — and they give raw tables lineage, docs and freshness checks.", pt: "{{ source('raw', 'orders') }} referencia uma tabela bruta declarada em um .yml. Sources marcam a fronteira entre dados carregados e dados transformados — e dão linhagem, docs e checagens às tabelas brutas." },
+  115: { en: "{{ config(materialized='table') }} makes dbt run CREATE TABLE AS instead of CREATE VIEW. Tables are faster to query but stale until the next run; views are always fresh but recompute every query. Marts are usually tables, staging models views.", pt: "{{ config(materialized='table') }} faz o dbt executar CREATE TABLE AS em vez de CREATE VIEW. Tabelas são rápidas de consultar mas desatualizam; views são sempre frescas mas recalculam a cada query. Marts costumam ser tables, staging views." },
+  116: { en: "Jinja {% if %} blocks run at COMPILE time, not query time: the WHERE clause is either present or absent in the compiled SQL depending on the variable. Check compiled output in target/compiled to see what actually runs.", pt: "Blocos {% if %} do Jinja rodam na COMPILAÇÃO, não na query: o WHERE está presente ou ausente no SQL compilado conforme a variável. Veja o resultado em target/compiled para saber o que realmente executa." },
+  117: { en: "Generic tests are YAML, not SQL — dbt compiles not_null into 'SELECT count(*) WHERE customer_id IS NULL' and fails the build if it returns rows. Declaring tests next to the column documents the contract AND enforces it.", pt: "Testes genéricos são YAML, não SQL — o dbt compila not_null em 'SELECT count(*) WHERE customer_id IS NULL' e falha o build se retornar linhas. Declarar o teste junto da coluna documenta E garante o contrato." },
+  118: { en: "unique + not_null together assert a primary key: every row has a value and no value repeats. This pair on the key column is the minimum contract every staging model should carry.", pt: "unique + not_null juntos afirmam uma chave primária: toda linha tem valor e nenhum valor se repete. Esse par na coluna-chave é o contrato mínimo de todo staging model." },
+  119: { en: "is_incremental() is true only on warm runs of an incremental model. The WHERE filters to rows newer than max(updated_at) in {{ this }} (the already-built table), so dbt INSERTs only new data instead of rebuilding everything.", pt: "is_incremental() é true apenas em execuções seguintes de um model incremental. O WHERE filtra linhas mais novas que max(updated_at) em {{ this }} (a tabela já construída), então o dbt insere só dados novos em vez de reconstruir tudo." },
+  120: { en: "The {% for %} loop generates SQL at compile time — one SELECT per list item, glued with UNION ALL via loop.last. This is how dbt stays DRY: one template instead of three hand-written queries.", pt: "O loop {% for %} gera SQL na compilação — um SELECT por item da lista, unidos com UNION ALL via loop.last. É assim que o dbt evita repetição: um template em vez de três queries escritas à mão." },
+  121: { en: "config() accepts multiple settings at once: materialized picks the build strategy, schema routes the output to another schema, and unique_key lets incremental runs UPDATE existing rows instead of duplicating them.", pt: "config() aceita várias opções de uma vez: materialized escolhe a estratégia de build, schema direciona o output para outro schema, e unique_key permite que execuções incrementais atualizem linhas em vez de duplicá-las." },
+  122: { en: "accepted_values whitelists a column's domain: any row outside the list fails the build. It turns silent bad data ('completd') into a loud test failure — catching upstream changes before dashboards break.", pt: "accepted_values define a lista permitida de valores: qualquer linha fora dela falha o build. Transforma dado ruim silencioso ('completd') em falha explícita de teste — pegando mudanças upstream antes de quebrar dashboards." },
 };
 
 // ── Company Archetype Tags ────────────────────────────────
@@ -1380,18 +1410,18 @@ const ARCHETYPE_ORDER = ["ecomm", "fintech", "analytics", "social", "hr", "data-
 // ═══════════════════════════════════════════════════════════
 const QUIZ_DB = [
   // Module 1: basics
-  { id:1, mod:1, diff:"EASY", q_en:"Which keyword retrieves all columns?", q_pt:"Qual keyword retorna todas as colunas?", opts:["SELECT *","GET ALL","FETCH *","SHOW *"], ans:0 },
-  { id:2, mod:1, diff:"EASY", q_en:"What does LIMIT 10 do?", q_pt:"O que LIMIT 10 faz?", opts:["Returns first 10 rows","Deletes 10 rows","Creates 10 tables","Skips 10 rows"], ans:0 },
-  { id:3, mod:1, diff:"EASY", q_en:"Which clause removes duplicates?", q_pt:"Qual cláusula remove duplicatas?", opts:["DISTINCT","UNIQUE","NO_REPEAT","SINGLE"], ans:0 },
-  { id:4, mod:1, diff:"EASY", q_en:"SELECT name FROM users — what does this return?", q_pt:"SELECT name FROM users — o que retorna?", opts:["Only the name column","All columns","The table structure","An error"], ans:0 },
+  { id:1, mod:1, diff:"EASY", q_en:"Which keyword retrieves all columns?", q_pt:"Qual keyword retorna todas as colunas?", opts:["SELECT *","GET ALL","FETCH *","SHOW *"], ans:0, ex_en:"The * wildcard means 'every column'. SELECT * FROM t returns the whole table width — handy for exploring, but name columns explicitly in real code.", ex_pt:"O * significa 'todas as colunas'. SELECT * FROM t retorna a largura toda da tabela — bom para explorar, mas nomeie colunas em código de verdade." },
+  { id:2, mod:1, diff:"EASY", q_en:"What does LIMIT 10 do?", q_pt:"O que LIMIT 10 faz?", opts:["Returns first 10 rows","Deletes 10 rows","Creates 10 tables","Skips 10 rows"], ans:0, ex_en:"LIMIT caps how many ROWS come back (it doesn't delete or skip anything). LIMIT 10 = at most 10 rows.", ex_pt:"LIMIT limita quantas LINHAS voltam (não apaga nem pula nada). LIMIT 10 = no máximo 10 linhas." },
+  { id:3, mod:1, diff:"EASY", q_en:"Which clause removes duplicates?", q_pt:"Qual cláusula remove duplicatas?", opts:["DISTINCT","UNIQUE","NO_REPEAT","SINGLE"], ans:0, ex_en:"DISTINCT collapses repeated values: SELECT DISTINCT category shows each category once. UNIQUE is a constraint, not a query keyword.", ex_pt:"DISTINCT junta valores repetidos: SELECT DISTINCT category mostra cada categoria uma vez. UNIQUE é uma constraint, não keyword de consulta." },
+  { id:4, mod:1, diff:"EASY", q_en:"SELECT name FROM users — what does this return?", q_pt:"SELECT name FROM users — o que retorna?", opts:["Only the name column","All columns","The table structure","An error"], ans:0, ex_en:"Naming a column after SELECT restricts the output to just that column — every row, but only the name field.", ex_pt:"Nomear uma coluna após SELECT restringe o resultado àquela coluna — todas as linhas, mas só o campo name." },
   // Module 2: filtering
-  { id:5, mod:2, diff:"EASY", q_en:"Which clause filters rows?", q_pt:"Qual cláusula filtra linhas?", opts:["WHERE","FILTER","HAVING","WHEN"], ans:0 },
-  { id:6, mod:2, diff:"MED", q_en:"What operator checks for multiple values?", q_pt:"Qual operador verifica múltiplos valores?", opts:["IN","BETWEEN","LIKE","EACH"], ans:0 },
-  { id:7, mod:2, diff:"MED", q_en:"LIKE '%son' matches which name?", q_pt:"LIKE '%son' combina com qual nome?", opts:["Johnson","Sonny","Sony","Stone"], ans:0 },
-  { id:8, mod:2, diff:"MED", q_en:"BETWEEN 10 AND 20 includes which values?", q_pt:"BETWEEN 10 AND 20 inclui quais valores?", opts:["10, 15, 20","11, 15, 19","10, 15, 19","11, 15, 20"], ans:0 },
+  { id:5, mod:2, diff:"EASY", q_en:"Which clause filters rows?", q_pt:"Qual cláusula filtra linhas?", opts:["WHERE","FILTER","HAVING","WHEN"], ans:0, ex_en:"WHERE filters ROWS before anything else happens. HAVING looks similar but filters groups after GROUP BY.", ex_pt:"WHERE filtra LINHAS antes de tudo. HAVING parece igual mas filtra grupos depois do GROUP BY." },
+  { id:6, mod:2, diff:"MED", q_en:"What operator checks for multiple values?", q_pt:"Qual operador verifica múltiplos valores?", opts:["IN","BETWEEN","LIKE","EACH"], ans:0, ex_en:"IN ('a','b','c') is shorthand for col='a' OR col='b' OR col='c' — one membership test instead of chained ORs.", ex_pt:"IN ('a','b','c') é atalho para col='a' OR col='b' OR col='c' — um teste de pertencimento em vez de vários OR." },
+  { id:7, mod:2, diff:"MED", q_en:"LIKE '%son' matches which name?", q_pt:"LIKE '%son' combina com qual nome?", opts:["Johnson","Sonny","Sony","Stone"], ans:0, ex_en:"% matches any sequence of characters, so '%son' means 'ends with son'. Johnson ✓; Sonny starts with it, so it doesn't match.", ex_pt:"% casa com qualquer sequência, então '%son' significa 'termina com son'. Johnson ✓; Sonny começa com son, então não casa." },
+  { id:8, mod:2, diff:"MED", q_en:"BETWEEN 10 AND 20 includes which values?", q_pt:"BETWEEN 10 AND 20 inclui quais valores?", opts:["10, 15, 20","11, 15, 19","10, 15, 19","11, 15, 20"], ans:0, ex_en:"BETWEEN is INCLUSIVE on both ends: 10 and 20 themselves are inside the range.", ex_pt:"BETWEEN é INCLUSIVO nas duas pontas: 10 e 20 fazem parte do intervalo." },
   // Module 3: sorting
-  { id:9, mod:3, diff:"EASY", q_en:"ORDER BY price DESC means?", q_pt:"ORDER BY price DESC significa?", opts:["Highest price first","Lowest price first","Alphabetical","Random"], ans:0 },
-  { id:10, mod:3, diff:"MED", q_en:"What's the default sort order?", q_pt:"Qual a ordem de classificação padrão?", opts:["ASC (ascending)","DESC (descending)","Random","By ID"], ans:0 },
+  { id:9, mod:3, diff:"EASY", q_en:"ORDER BY price DESC means?", q_pt:"ORDER BY price DESC significa?", opts:["Highest price first","Lowest price first","Alphabetical","Random"], ans:0, ex_en:"DESC = descending = biggest first. For prices that means most expensive at the top.", ex_pt:"DESC = decrescente = maior primeiro. Para preços, o mais caro fica no topo." },
+  { id:10, mod:3, diff:"MED", q_en:"What's the default sort order?", q_pt:"Qual a ordem de classificação padrão?", opts:["ASC (ascending)","DESC (descending)","Random","By ID"], ans:0, ex_en:"If you don't write ASC or DESC, SQL sorts ascending (A→Z, 0→9). Write ASC explicitly when clarity matters.", ex_pt:"Se você não escreve ASC nem DESC, o SQL ordena crescente (A→Z, 0→9). Escreva ASC quando quiser clareza." },
   // Module 4: aggregations
   { id:11, mod:4, diff:"MED", q_en:"COUNT(*) vs COUNT(col) — what's the difference?", q_pt:"COUNT(*) vs COUNT(col) — qual a diferença?", opts:["COUNT(*) counts all rows, COUNT(col) ignores NULLs","They're the same","COUNT(col) is faster","COUNT(*) only counts NULLs"], ans:0 },
   { id:12, mod:4, diff:"MED", q_en:"Which clause groups results?", q_pt:"Qual cláusula agrupa resultados?", opts:["GROUP BY","ORDER BY","CLUSTER","PARTITION"], ans:0 },
@@ -1418,12 +1448,12 @@ const QUIZ_DB = [
   { id:29, mod:8, diff:"EXPERT", q_en:"A recursive CTE requires?", q_pt:"Um CTE recursivo requer?", opts:["UNION ALL between base and recursive case","A LOOP keyword","A FOR EACH clause","GROUP BY"], ans:0 },
   { id:30, mod:8, diff:"EXPERT", q_en:"Which is more readable for complex queries?", q_pt:"Qual é mais legível para queries complexas?", opts:["CTEs (WITH clause)","Nested subqueries","Temporary tables","Views"], ans:0 },
   // ── EXPANDED QUIZ QUESTIONS ──
-  { id:31, mod:1, diff:"EASY", q_en:"SELECT name, email FROM customers returns?", q_pt:"SELECT name, email FROM customers retorna?", opts:["Only name and email columns","All columns","Only rows with name","An error"], ans:0 },
-  { id:32, mod:1, diff:"EASY", q_en:"What does LIMIT 10 do?", q_pt:"O que LIMIT 10 faz?", opts:["Returns max 10 rows","Skips 10 rows","Returns 10 columns","Filters by value 10"], ans:0 },
-  { id:33, mod:2, diff:"MED", q_en:"WHERE price BETWEEN 10 AND 50 includes?", q_pt:"WHERE price BETWEEN 10 AND 50 inclui?", opts:["Both 10 and 50","Only values between, not 10 or 50","Only 10","Only 50"], ans:0 },
-  { id:34, mod:2, diff:"MED", q_en:"WHERE col IS NULL checks for?", q_pt:"WHERE col IS NULL verifica?", opts:["Missing/unknown values","Zero values","Empty strings","All values"], ans:0 },
-  { id:35, mod:3, diff:"MED", q_en:"ORDER BY col1 ASC, col2 DESC does what?", q_pt:"ORDER BY col1 ASC, col2 DESC faz o quê?", opts:["Sorts by col1 ascending, breaks ties with col2 descending","Sorts by col2 only","Sorts randomly","Returns an error"], ans:0 },
-  { id:36, mod:3, diff:"EASY", q_en:"Default ORDER BY direction is?", q_pt:"Direção padrão de ORDER BY é?", opts:["ASC (ascending)","DESC (descending)","Random","Alphabetical only"], ans:0 },
+  { id:31, mod:1, diff:"EASY", q_en:"SELECT name, email FROM customers returns?", q_pt:"SELECT name, email FROM customers retorna?", opts:["Only name and email columns","All columns","Only rows with name","An error"], ans:0, ex_en:"The SELECT list is exactly what you get back — two names means two columns, in that order.", ex_pt:"A lista do SELECT é exatamente o que volta — dois nomes, duas colunas, nessa ordem." },
+  { id:32, mod:1, diff:"EASY", q_en:"What does LIMIT 10 do?", q_pt:"O que LIMIT 10 faz?", opts:["Returns max 10 rows","Skips 10 rows","Returns 10 columns","Filters by value 10"], ans:0, ex_en:"LIMIT caps rows, not columns. 'Max 10 rows' — fewer if the table is smaller.", ex_pt:"LIMIT limita linhas, não colunas. 'No máximo 10 linhas' — menos se a tabela for menor." },
+  { id:33, mod:2, diff:"MED", q_en:"WHERE price BETWEEN 10 AND 50 includes?", q_pt:"WHERE price BETWEEN 10 AND 50 inclui?", opts:["Both 10 and 50","Only values between, not 10 or 50","Only 10","Only 50"], ans:0, ex_en:"BETWEEN includes its endpoints: price 10 and price 50 both pass the filter.", ex_pt:"BETWEEN inclui as pontas: preço 10 e preço 50 passam no filtro." },
+  { id:34, mod:2, diff:"MED", q_en:"WHERE col IS NULL checks for?", q_pt:"WHERE col IS NULL verifica?", opts:["Missing/unknown values","Zero values","Empty strings","All values"], ans:0, ex_en:"NULL is 'unknown', not zero and not empty text. Only IS NULL / IS NOT NULL can test it — col = NULL never matches.", ex_pt:"NULL é 'desconhecido', não é zero nem texto vazio. Só IS NULL / IS NOT NULL testam isso — col = NULL nunca casa." },
+  { id:35, mod:3, diff:"MED", q_en:"ORDER BY col1 ASC, col2 DESC does what?", q_pt:"ORDER BY col1 ASC, col2 DESC faz o quê?", opts:["Sorts by col1 ascending, breaks ties with col2 descending","Sorts by col2 only","Sorts randomly","Returns an error"], ans:0, ex_en:"Multi-column sorts work left to right: col1 orders everything, col2 only breaks ties inside equal col1 values.", ex_pt:"Ordenação multi-coluna vai da esquerda para a direita: col1 ordena tudo, col2 só desempata valores iguais de col1." },
+  { id:36, mod:3, diff:"EASY", q_en:"Default ORDER BY direction is?", q_pt:"Direção padrão de ORDER BY é?", opts:["ASC (ascending)","DESC (descending)","Random","Alphabetical only"], ans:0, ex_en:"ASC is the default — smallest/alphabetically-first values come first unless you say DESC.", ex_pt:"ASC é o padrão — valores menores/alfabeticamente primeiros vêm antes, a menos que você diga DESC." },
   { id:37, mod:4, diff:"MED", q_en:"SUM(NULL, 5, 10) returns?", q_pt:"SUM(NULL, 5, 10) retorna?", opts:["15 (NULLs are ignored)","NULL","0","Error"], ans:0 },
   { id:38, mod:4, diff:"HARD", q_en:"HAVING COUNT(*) > 3 filters?", q_pt:"HAVING COUNT(*) > 3 filtra?", opts:["Groups with more than 3 rows","Rows with value > 3","The first 3 groups","Nothing"], ans:0 },
   { id:39, mod:5, diff:"MED", q_en:"What does ON specify in a JOIN?", q_pt:"O que ON especifica num JOIN?", opts:["The matching condition between tables","The output columns","The sort order","The table to delete"], ans:0 },
@@ -1434,7 +1464,7 @@ const QUIZ_DB = [
   { id:44, mod:7, diff:"EXPERT", q_en:"DENSE_RANK() vs RANK() on ties?", q_pt:"DENSE_RANK() vs RANK() em empates?", opts:["DENSE_RANK doesn't skip numbers","They behave the same","RANK doesn't handle ties","DENSE_RANK skips numbers"], ans:0 },
   { id:45, mod:8, diff:"HARD", q_en:"A CTE is available for?", q_pt:"Um CTE está disponível para?", opts:["Only the immediately following query","All queries in the session","All database users","Permanent use"], ans:0 },
   { id:46, mod:8, diff:"EXPERT", q_en:"WITH a AS (...), b AS (SELECT * FROM a) — what is b?", q_pt:"WITH a AS (...), b AS (SELECT * FROM a) — o que é b?", opts:["A CTE that references another CTE","An error","A permanent table","A view"], ans:0 },
-  { id:47, mod:1, diff:"EASY", q_en:"How do you comment a single line in SQL?", q_pt:"Como comentar uma linha em SQL?", opts:["-- comment","// comment","# comment","/* comment"], ans:0 },
+  { id:47, mod:1, diff:"EASY", q_en:"How do you comment a single line in SQL?", q_pt:"Como comentar uma linha em SQL?", opts:["-- comment","// comment","# comment","/* comment"], ans:0, ex_en:"-- starts a comment that runs to the end of the line. /* */ works too, for multi-line blocks.", ex_pt:"-- inicia um comentário até o fim da linha. /* */ também funciona, para blocos de várias linhas." },
   { id:48, mod:4, diff:"MED", q_en:"What does ROUND(3.14159, 2) return?", q_pt:"O que ROUND(3.14159, 2) retorna?", opts:["3.14","3.15","3.1","3"], ans:0 },
   // ── MODULE 9: DML quiz ──
   { id:49, mod:9, diff:"EASY", q_en:"Which SQL command permanently removes rows from a table?", q_pt:"Qual comando SQL remove linhas permanentemente de uma tabela?", opts:["DELETE","REMOVE","DROP","ERASE"], ans:0 },
@@ -1479,13 +1509,13 @@ async function getDB() {
   if (!window.initSqlJs) {
     await new Promise((resolve, reject) => {
       const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js";
+      s.src = "/sqljs/sql-wasm.js"; // self-hosted (public/sqljs) — works offline, no CDN dependency
       s.onload = resolve;
       s.onerror = reject;
       document.head.appendChild(s);
     });
   }
-  const SQL = await window.initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` });
+  const SQL = await window.initSqlJs({ locateFile: f => `/sqljs/${f}` });
   globalDB = new SQL.Database();
   globalDB.run(DB_SCHEMA);
   return globalDB;
@@ -1495,6 +1525,68 @@ function runSQL(db, sql) {
   try { const r = db.exec(sql); const ms = (performance.now()-t0).toFixed(1); if(!r.length) return {ok:true,columns:[],rows:[],ms,msg:`0 rows (${ms}ms)`}; return {ok:true,columns:r[0].columns,rows:r[0].values,ms,msg:`${r[0].values.length} rows (${ms}ms)`}; }
   catch(e) { return {ok:false,columns:[],rows:[],ms:(performance.now()-t0).toFixed(1),msg:e.message}; }
 }
+// ── Beginner-friendly error translation ──────────────────────
+// Rewrites the most common SQLite errors into actionable EN/PT guidance,
+// with closest-name suggestions computed from the challenge's schema.
+const COMMON_SQL_KEYWORDS = ["SELECT","FROM","WHERE","GROUP","ORDER","BY","HAVING","LIMIT","OFFSET","JOIN","LEFT","RIGHT","INNER","OUTER","ON","AS","AND","OR","NOT","IN","LIKE","BETWEEN","IS","NULL","DISTINCT","INSERT","INTO","VALUES","UPDATE","SET","DELETE","CREATE","TABLE","VIEW","COUNT","SUM","AVG","MIN","MAX","UNION","CASE","WHEN","THEN","ELSE","END","WITH","OVER","PARTITION","ASC","DESC"];
+function levenshtein(a, b) {
+  if (Math.abs(a.length - b.length) > 3) return 99;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return dp[a.length][b.length];
+}
+function closestMatch(word, candidates, maxDist = 2) {
+  let best = null, bestD = maxDist + 1;
+  for (const c of candidates) {
+    const d = levenshtein(word.toLowerCase(), c.toLowerCase());
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return best && best.toLowerCase() !== word.toLowerCase() ? best : null;
+}
+function schemaNames(ch) {
+  const tables = [], columns = new Set();
+  for (const line of (ch?.schema || "").split("\n")) {
+    const idx = line.indexOf(":");
+    if (idx < 0) continue;
+    const t = line.slice(0, idx).trim();
+    if (t) tables.push(t);
+    line.slice(idx + 1).split(",").forEach(c => { const n = c.trim().split(/[\s(]/)[0]; if (n) columns.add(n); });
+  }
+  return { tables, columns: [...columns] };
+}
+function friendlyError(msg, ch, lang) {
+  if (!msg) return null;
+  const pt = lang === "pt";
+  let m;
+  if ((m = msg.match(/no such table:\s*([\w.]+)/i))) {
+    const s = closestMatch(m[1].split(".").pop(), schemaNames(ch).tables, 3);
+    if (s) return pt ? `A tabela '${m[1]}' não existe — você quis dizer '${s}'?` : `Table '${m[1]}' doesn't exist — did you mean '${s}'?`;
+    return pt ? `A tabela '${m[1]}' não existe. Toque em [schema] para ver as tabelas disponíveis.` : `Table '${m[1]}' doesn't exist. Tap [schema] to see the available tables.`;
+  }
+  if ((m = msg.match(/no such column:\s*([\w.]+)/i))) {
+    const bare = m[1].split(".").pop();
+    const s = closestMatch(bare, schemaNames(ch).columns, 3);
+    if (s) return pt ? `A coluna '${m[1]}' não existe — você quis dizer '${s}'?` : `Column '${m[1]}' doesn't exist — did you mean '${s}'?`;
+    return pt ? `A coluna '${m[1]}' não existe. Toque em [schema] para ver as colunas de cada tabela.` : `Column '${m[1]}' doesn't exist. Tap [schema] to see each table's columns.`;
+  }
+  if ((m = msg.match(/ambiguous column name:\s*([\w.]+)/i))) {
+    const bare = m[1].split(".").pop();
+    return pt ? `A coluna '${bare}' existe em mais de uma tabela — prefixe com o alias da tabela (ex: c.${bare}).` : `Column '${bare}' exists in more than one table — prefix it with the table alias (e.g. c.${bare}).`;
+  }
+  if ((m = msg.match(/near "([^"]+)": syntax error/i))) {
+    const kw = /^[A-Za-z_]+$/.test(m[1]) ? closestMatch(m[1], COMMON_SQL_KEYWORDS, 2) : null;
+    if (kw) return pt ? `Erro de sintaxe perto de '${m[1]}' — você quis dizer ${kw}?` : `Syntax error near '${m[1]}' — did you mean ${kw}?`;
+    return pt ? `Erro de sintaxe perto de '${m[1]}' — verifique vírgulas, parênteses e a ordem das cláusulas.` : `Syntax error near '${m[1]}' — check commas, parentheses and clause order.`;
+  }
+  if (/incomplete input/i.test(msg)) {
+    return pt ? "A query parece incompleta — falta fechar um parêntese ou terminar uma cláusula." : "Your query looks unfinished — a parenthesis or clause may be missing.";
+  }
+  return null;
+}
+
 function validateSQL(db, userSQL, expectedSQL, verify) {
   if (verify) {
     try {
@@ -1511,8 +1603,8 @@ function validateSQL(db, userSQL, expectedSQL, verify) {
       const er = runSQL(db, verify);
       db.exec("ROLLBACK TO SAVEPOINT sp_exp"); db.exec("RELEASE SAVEPOINT sp_exp");
       const vs = vr.rows.map(r=>JSON.stringify(r)).sort(), es = er.rows.map(r=>JSON.stringify(r)).sort();
-      if(vs.length !== es.length) return {pass:false, msg:`Expected ${es.length} rows, got ${vs.length}`, result:vr};
-      if(!vs.every((r,i)=>r===es[i])) return {pass:false, msg:"Result doesn't match expected output", result:vr};
+      if(vs.length !== es.length) return {pass:false, code:"rowcount", expected:es.length, got:vs.length, msg:`Expected ${es.length} rows, got ${vs.length}`, result:vr};
+      if(!vs.every((r,i)=>r===es[i])) return {pass:false, code:"mismatch", msg:"Result doesn't match expected output", result:vr};
       return {pass:true, msg:`Correct! ${vr.rows.length} rows (${vr.ms}ms)`, result:vr};
     } catch(e) {
       try { db.exec("ROLLBACK TO SAVEPOINT sp_user"); db.exec("RELEASE SAVEPOINT sp_user"); } catch(_) {}
@@ -1523,8 +1615,8 @@ function validateSQL(db, userSQL, expectedSQL, verify) {
   const ur = runSQL(db, userSQL); if(!ur.ok) return {pass:false, msg:ur.msg, result:ur};
   const er = runSQL(db, expectedSQL);
   const us = ur.rows.map(r=>JSON.stringify(r)).sort(), es = er.rows.map(r=>JSON.stringify(r)).sort();
-  if(us.length !== es.length) return {pass:false, msg:`Expected ${es.length} rows, got ${us.length}`, result:ur};
-  if(!us.every((r,i)=>r===es[i])) return {pass:false, msg:"Row values don't match expected output", result:ur};
+  if(us.length !== es.length) return {pass:false, code:"rowcount", expected:es.length, got:us.length, msg:`Expected ${es.length} rows, got ${us.length}`, result:ur};
+  if(!us.every((r,i)=>r===es[i])) return {pass:false, code:"mismatch", msg:"Row values don't match expected output", result:ur};
   return {pass:true, msg:`Correct! ${ur.rows.length} rows (${ur.ms}ms)`, result:ur};
 }
 function getExpectedResult(db, ch) {
@@ -2077,6 +2169,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
   const [verdict, setVerdict] = useState(null);
   const [resOpen, setResOpen] = useState(true);
   const [showSchema, setShowSchema] = useState(true);
+  const [peekTable, setPeekTable] = useState(null);
   const [showHint, setShowHint] = useState(false);
   const [hintLevel, setHintLevel] = useState(0);
   const [showExplain, setShowExplain] = useState(false);
@@ -2448,6 +2541,9 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         SFX.play("wrong");
         setHadWrongRun(true);
         setWrongRunCount(c => c + 1);
+        // Result mismatch (not a SQL error): open the expected output so the
+        // learner can compare it against their own result immediately.
+        if (v.code === "mismatch" || v.code === "rowcount") setShowExpected(true);
         if (onXP) onXP(0, ch.id, { submitted_sql: trimmed, is_correct: false, xp_earned: 0 });
       }
     };
@@ -2698,7 +2794,7 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
         <div style={{ padding: "8px 12px 10px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0, animation: "fadeSlide 0.15s ease" }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <button ref={schemaBtnRef} onClick={e => { e.stopPropagation(); setShowSchema(!showSchema); }} style={{ background: "none", border: `1px solid ${showSchema ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showSchema ? C.cyan : C.dim, padding: "4px 8px" }}>{showSchema ? "hide_schema" : ".schema"}</button>
-            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); if (hintLevel === 0) { setHintLevel(1); setShowHint(true); } else { setShowHint(!showHint); } }} style={{ background: "none", border: `1px solid ${showHint && hintLevel > 0 ? C.dim : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showHint && hintLevel > 0 ? C.dim : C.muted, padding: "4px 8px" }}>{showHint && hintLevel > 0 ? "hide_hint" : hintLevel > 1 ? `hints(-${HINT_XP_PENALTIES[hintLevel]}xp)` : "hint"}</button>
+            <button ref={hintBtnRef} onClick={e => { e.stopPropagation(); if (hintLevel === 0) { setHintLevel(1); setShowHint(true); } else { setShowHint(!showHint); } }} style={{ background: "none", border: `1px solid ${showHint && hintLevel > 0 ? C.dim : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showHint && hintLevel > 0 ? C.dim : C.muted, padding: "4px 8px" }}>{showHint && hintLevel > 0 ? "hide_hint" : hintLevel > 1 ? `hints(-${HINT_XP_PENALTIES[hintLevel]}xp)` : hintLevel === 0 ? (lang === "pt" ? "dica (grátis)" : "hint (free)") : "hint"}</button>
             <button ref={expectedBtnRef} onClick={e => { e.stopPropagation(); setShowExpected(!showExpected); }} style={{ background: "none", border: `1px solid ${showExpected ? C.dim : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 11, color: showExpected ? C.dim : C.muted, padding: "4px 8px" }}>{showExpected ? "hide_expected" : "expected"}</button>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
               {TAG_META[ch.tag] && (
@@ -2714,7 +2810,31 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
               {ch.schema.split("\n").map((l, i) => {
                 const ci = l.indexOf(':');
                 if (ci === -1) return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.dim }}>{l.trim()}</span></div>;
-                return <div key={i} style={{ marginBottom: 3 }}><span style={{ color: C.text }}>{l.slice(0, ci).trim()}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.dim }}>{l.slice(ci + 1).trim()}</span></div>;
+                const tbl = l.slice(0, ci).trim();
+                const peeking = peekTable === tbl;
+                return (
+                  <div key={i} style={{ marginBottom: 3 }}>
+                    <span style={{ color: C.text }}>{tbl}</span><span style={{ color: C.dim }}>: </span><span style={{ color: C.dim }}>{l.slice(ci + 1).trim()}</span>
+                    {db && /^\w+$/.test(tbl) && (
+                      <button onClick={() => setPeekTable(peeking ? null : tbl)} style={{ marginLeft: 8, background: "none", border: `1px solid ${peeking ? C.cyan : C.border}`, cursor: "pointer", fontFamily: F.mono, fontSize: 9, color: peeking ? C.cyan : C.muted, padding: "1px 6px" }}>
+                        {peeking ? "✕" : lang === "pt" ? "espiar" : "peek"}
+                      </button>
+                    )}
+                    {peeking && (() => {
+                      const pr = runSQL(db, `SELECT * FROM ${tbl} LIMIT 3`);
+                      if (!pr.ok) return null;
+                      return (
+                        <div style={{ margin: "4px 0 6px", overflowX: "auto" }}>
+                          <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 10 }}>
+                            <thead><tr>{pr.columns.map(c => <th key={c} style={{ padding: "2px 7px", borderBottom: `1px solid ${C.border}`, color: C.cyan, textAlign: "left", fontWeight: 400, whiteSpace: "nowrap" }}>{c}</th>)}</tr></thead>
+                            <tbody>{pr.rows.map((row, ri) => <tr key={ri}>{row.map((v, vi) => <td key={vi} style={{ padding: "2px 7px", color: v === null ? C.dim : C.text, fontStyle: v === null ? "italic" : "normal", whiteSpace: "nowrap" }}>{v === null ? "NULL" : String(v)}</td>)}</tr>)}</tbody>
+                          </table>
+                          <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>{lang === "pt" ? "primeiras 3 linhas" : "first 3 rows"}</div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
               })}
             </div>
           )}
@@ -2891,7 +3011,16 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
           <div style={{ background: C.black, borderTop: `2px solid ${result.ok ? (verdict?.pass ? C.green : C.cyan) : C.red}`, flexShrink: 0 }}>
             {verdict && <div style={{ padding: "8px 16px", fontFamily: F.mono, fontSize: 15, color: verdict.pass ? C.green : C.red, background: C.panel, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: 20 }}>{verdict.pass ? "✓" : "✗"}</span>
-              <span style={{ flex: 1 }}>{verdict.msg}</span>
+              <span style={{ flex: 1 }}>{(() => {
+                if (verdict.pass) return lang === "pt" ? `Correto! ${verdict.result?.rows?.length ?? 0} linhas` : verdict.msg;
+                if (verdict.code === "rowcount") return lang === "pt"
+                  ? `Esperado ${verdict.expected} linha${verdict.expected === 1 ? "" : "s"} — sua query retornou ${verdict.got}. Compare com o resultado esperado acima.`
+                  : `Expected ${verdict.expected} row${verdict.expected === 1 ? "" : "s"} — your query returned ${verdict.got}. Compare with the expected result above.`;
+                if (verdict.code === "mismatch") return lang === "pt"
+                  ? "Os valores não batem — compare sua tabela com o resultado esperado acima."
+                  : "The values don't match — compare your table with the expected result above.";
+                return friendlyError(verdict.msg, ch, lang) || verdict.msg;
+              })()}</span>
               {verdict.pass && SOLUTION_EXPLANATIONS[ch.id] && (
                 <button onClick={() => setShowExplain(v => !v)} style={{ fontFamily: F.mono, fontSize: 11, color: C.dim, background: "none", border: `1px solid ${C.border}`, padding: "6px 10px", cursor: "pointer", letterSpacing: 1 }}>
                   {showExplain ? (lang === "pt" ? "ocultar" : "hide") : (lang === "pt" ? "explicar" : "explain")}
@@ -2924,10 +3053,13 @@ function ChallengeScreen({ onBack, challengeId = 1, onNext, onXP, onXPBreakdown,
             <div style={{ display: "flex", alignItems: "center" }}>
               <button onClick={() => setResOpen(!resOpen)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "8px 16px", display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red, transition: "transform 0.25s", transform: resOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>
-                <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red }}>{result.ok ? `✓ ${result.msg}` : `✗ ${result.msg}`}</span>
+                <span style={{ fontFamily: F.mono, fontSize: 14, color: result.ok ? C.green : C.red }}>{result.ok ? `✓ ${result.msg}` : `✗ ${friendlyError(result.msg, ch, lang) || result.msg}`}</span>
               </button>
               {!result.ok && <button onPointerDown={e => { e.preventDefault(); e.stopPropagation(); clearResult(); }} style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 12px", fontFamily: F.mono, fontSize: 16, color: C.dim, flexShrink: 0 }}>✕</button>}
             </div>
+            {resOpen && !result.ok && friendlyError(result.msg, ch, lang) && (
+              <div style={{ padding: "0 16px 10px", fontFamily: F.mono, fontSize: 10, color: C.muted }}>sqlite: {result.msg}</div>
+            )}
             {resOpen && result.ok && result.rows.length > 0 && (
               <div style={{ padding: "0 16px 10px", maxHeight: 180, overflowY: "auto", overflowX: "auto" }}>
                 <table style={{ borderCollapse: "collapse", fontFamily: F.mono, fontSize: 13 }}>
@@ -3724,6 +3856,14 @@ function QuizScreen({ onXP }) {
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [timer, setTimer] = useState(20);
+  // Learn mode: no timer pressure, no time multiplier — for beginners
+  const [learnMode, setLearnMode] = useState(() => {
+    try { return localStorage.getItem("punksql-quiz-learn") === "1"; } catch { return false; }
+  });
+  const toggleLearnMode = () => setLearnMode(v => {
+    try { localStorage.setItem("punksql-quiz-learn", v ? "0" : "1"); } catch {}
+    return !v;
+  });
   const timerRef = useRef(null);
   const handleTimeoutRef = useRef(null);
   const optCacheRef = useRef({});
@@ -3806,7 +3946,7 @@ function QuizScreen({ onXP }) {
   // Timer resets when tab or position changes. Stops immediately when answered (selected ≠ null) or reviewing.
   useEffect(() => {
     clearInterval(timerRef.current);
-    if (isReviewing || selected !== null || !q) return;
+    if (learnMode || isReviewing || selected !== null || !q) return;
     setTimer(20);
     timerRef.current = setInterval(() => {
       setTimer(prev => {
@@ -3815,7 +3955,7 @@ function QuizScreen({ onXP }) {
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [tabKey, pos, isReviewing, selected]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tabKey, pos, isReviewing, selected, learnMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getStreakMult = (s) => s >= 10 ? 2.0 : s >= 5 ? 1.5 : s >= 3 ? 1.25 : 1.0;
   const getTimeMult = (t) => t > 13 ? 1.5 : t > 7 ? 1.25 : 1.0;
@@ -3828,7 +3968,7 @@ function QuizScreen({ onXP }) {
     setSelected(optIdx);
     if (correct) {
       const nextStreak = streak + 1;
-      const earned = Math.round(pts * Math.min(3.0, getStreakMult(nextStreak) * getTimeMult(timer)));
+      const earned = Math.round(pts * Math.min(3.0, getStreakMult(nextStreak) * (learnMode ? 1.0 : getTimeMult(timer))));
       setScore(s => s + earned);
       setStreak(nextStreak);
       if (onXP) onXP(earned);
@@ -3935,9 +4075,16 @@ function QuizScreen({ onXP }) {
       {/* Progress + Timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <ProgressBar progress={progressPct} />
-        {!isReviewing && (
-          <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={toggleLearnMode}
+            title={lang === "pt" ? "Modo aprender: sem timer, com explicações" : "Learn mode: no timer, with explanations"}
+            style={{ background: learnMode ? C.greenGhost : "none", border: `1px solid ${learnMode ? C.green : C.border}`, cursor: "pointer", padding: "4px 8px", fontFamily: F.mono, fontSize: 10, color: learnMode ? C.green : C.muted, letterSpacing: 1 }}>
+            {learnMode ? "◉ LEARN" : "○ LEARN"}
+          </button>
+          {!isReviewing && !learnMode && (
+            <div style={{ fontFamily: F.mono, fontSize: 22, color: timerColor, minWidth: 40, textAlign: "right" }}>{timer}s</div>
+          )}
+        </div>
       </div>
 
       {/* Status banners */}
@@ -3994,6 +4141,14 @@ function QuizScreen({ onXP }) {
           );
         }}
       />
+
+      {/* Post-answer explanation (learn-friendly feedback) */}
+      {displayShowResult && (lang === "pt" ? q.ex_pt : q.ex_en) && (
+        <div style={{ background: C.panel, borderLeft: `2px solid ${displaySelected === q.ans ? C.green : C.amber}`, padding: "10px 14px", marginBottom: 14, animation: "fadeSlide 0.2s ease" }}>
+          <div style={{ fontFamily: F.mono, fontSize: 10, color: C.dim, letterSpacing: 1, marginBottom: 4 }}>// {lang === "pt" ? "por_que" : "why"}</div>
+          <div style={{ fontFamily: F.mono, fontSize: 13, color: C.text, lineHeight: 1.7 }}>{lang === "pt" ? q.ex_pt : q.ex_en}</div>
+        </div>
+      )}
 
       {/* Navigation buttons */}
       <div style={{ display: "flex", gap: 8 }}>
@@ -4307,7 +4462,46 @@ function ProfileScreen({ xp = 0, solved = new Set(), syncing = false }) {
 // ═══════════════════════════════════════════════════════════
 //  ONBOARDING
 // ═══════════════════════════════════════════════════════════
-function OnboardingScreen({ onComplete, lang }) {
+// ── Module intro cards — the teaching layer (concept before practice) ──
+function ModuleIntroOverlay({ moduleId, lang, onDone }) {
+  const [step, setStep] = useState(0);
+  const cards = MODULE_INTROS[moduleId] || [];
+  const ispt = lang === "pt";
+  if (!cards.length) return null;
+  const cur = cards[step];
+  const isLast = step === cards.length - 1;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9998, background: `${C.void}F2`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "24px 20px" }}>
+      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, letterSpacing: 2, marginBottom: 14 }}>
+        MOD_{String(moduleId).padStart(2, "0")} // {ispt ? "CONCEITO" : "CONCEPT"} {step + 1}/{cards.length}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+        {cards.map((_, i) => (
+          <div key={i} style={{ width: i === step ? 22 : 7, height: 2, background: i === step ? C.cyan : C.border, transition: "all 0.25s ease" }} />
+        ))}
+      </div>
+      <div style={{ fontFamily: F.mono, fontSize: 14, color: C.cyan, letterSpacing: 1.5, marginBottom: 16, textAlign: "center" }}>
+        {ispt ? cur.t_pt : cur.t_en}
+      </div>
+      <pre style={{ fontFamily: F.mono, fontSize: 12.5, color: C.text, lineHeight: 1.75, whiteSpace: "pre", overflowX: "auto", maxWidth: "100%", margin: "0 0 28px", padding: "14px 16px", background: C.panel, border: `1px solid ${C.border}` }}>
+        {ispt ? cur.b_pt : cur.b_en}
+      </pre>
+      <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 360 }}>
+        {step > 0 && (
+          <button onClick={() => setStep(step - 1)} style={{ flex: 1, padding: "12px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.dim, background: "none", border: `1px solid ${C.border}`, minHeight: 46 }}>←</button>
+        )}
+        <button onClick={() => isLast ? onDone() : setStep(step + 1)} style={{ flex: 3, padding: "12px 0", cursor: "pointer", fontFamily: F.mono, fontSize: 13, color: C.cyan, fontWeight: 700, background: "none", border: `1px solid ${C.cyan}`, minHeight: 46, letterSpacing: 1.5 }}>
+          {isLast ? (ispt ? "PRATICAR ▶" : "PRACTICE ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}
+        </button>
+      </div>
+      <button onClick={onDone} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.mono, fontSize: 12, color: C.muted, marginTop: 14, letterSpacing: 1 }}>
+        {ispt ? "PULAR >" : "SKIP >"}
+      </button>
+    </div>
+  );
+}
+
+function OnboardingScreen({ onComplete, onStartFirst, lang }) {
   const [step, setStep] = useState(0);
   const ispt = lang === "pt";
   const slides = [
@@ -4365,12 +4559,12 @@ function OnboardingScreen({ onComplete, lang }) {
             background: "none", border: `1px solid ${C.border}`, minHeight: 50,
           }}>← BACK</button>
         )}
-        <button onClick={() => isLast ? onComplete() : setStep(step + 1)} style={{
+        <button onClick={() => isLast ? (onStartFirst ? onStartFirst() : onComplete()) : setStep(step + 1)} style={{
           flex: 2, padding: "14px 0", cursor: "pointer",
           fontFamily: F.mono, fontSize: 15, color: C.cyan, fontWeight: 700,
           background: "none", border: `1px solid ${C.cyan}`, minHeight: 50,
           letterSpacing: 2,
-        }}>{isLast ? (ispt ? "COMEÇAR ▶" : "START ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
+        }}>{isLast ? (ispt ? "DESAFIO #1 ▶" : "START CHALLENGE #1 ▶") : (ispt ? "PRÓXIMO ▶" : "NEXT ▶")}</button>
       </div>
 
       {/* Skip */}
@@ -4419,6 +4613,16 @@ export default function PunkSQLCLI() {
   const [xp, setXp] = useState(0);
   const [solved, setSolved] = useState(new Set());
   const [dbtMissions, setDbtMissions] = useState(new Set());
+  // Module intro cards: shown once per module, before its first challenge.
+  // Users who already practiced a module never see its intro (seeded on load).
+  const [introsSeen, setIntrosSeen] = useState(new Set());
+  const markIntroSeen = useCallback((modId) => {
+    setIntrosSeen(prev => {
+      const next = new Set(prev); next.add(modId);
+      try { localStorage.setItem("punksql-module-intros-v1", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, []);
   const [storageLoaded, setStorageLoaded] = useState(false);
 
   // Supabase Sync
@@ -4456,6 +4660,11 @@ export default function PunkSQLCLI() {
       const dm = new Set(data.dbtMissions || []);
       setDbtMissions(dm);
       window.__qq_dbt_missions = dm;
+      try {
+        const seen = new Set(JSON.parse(localStorage.getItem("punksql-module-intros-v1") || "[]"));
+        CHALLENGES_DB.forEach(c => { if (s.has(c.id)) seen.add(c.mod); });
+        setIntrosSeen(seen);
+      } catch {}
       // Pre-populate so existing achievements don't fire as "new" on first render
       prevEarned.current = new Set(ACHIEVEMENTS.filter(a => a.check(s, loadedXp)).map(a => a.id));
     }
@@ -4697,16 +4906,11 @@ export default function PunkSQLCLI() {
   const focusTitle = appFocusMode && focusCh ? `#${focusCh.id} ${focusCh.title}` : null;
 
   if (showOnboarding) return (
-    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} /></div></LangContext.Provider></ThemeContext.Provider>
+    <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines /><OnboardingScreen lang={lang} onComplete={() => setShowOnboarding(false)} onStartFirst={() => { setShowOnboarding(false); setLastLearnId(1); setLastContext("learn"); setScreen("lesson"); }} /></div></LangContext.Provider></ThemeContext.Provider>
   );
 
   // Daily challenge rotates by date
-  const dailyChallengeId = (() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const dayOfYear = Math.floor((now - start) / 86400000);
-    return CHALLENGES_DB[dayOfYear % CHALLENGES_DB.length].id;
-  })();
+  const dailyChallengeId = getDailyChallenge(xp).id;
 
   if (screen === "daily") return (
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
@@ -4729,6 +4933,9 @@ export default function PunkSQLCLI() {
   if (screen === "lesson") return (
     <ThemeContext.Provider value={themeCtx}><LangContext.Provider value={ctx}><div style={shell}><style>{globalCSS}</style><Scanlines />
       <ChallengeScreen key={`lesson-${lessonChId}`} onBack={() => setScreen("main")} challengeId={lessonChId} onXP={handleXP} onXPBreakdown={handleXPBreakdown} exercises={lessonExercises} onExNav={handleLessonNav} onNext={handleLessonNav} solved={solved} />
+      {(() => { const m = CHALLENGES_DB.find(c => c.id === lessonChId)?.mod; return m && MODULE_INTROS[m] && !introsSeen.has(m)
+        ? <ModuleIntroOverlay moduleId={m} lang={lang} onDone={() => markIntroSeen(m)} />
+        : null; })()}
       {levelUpShow && <LevelUpOverlay level={levelUpShow} onDone={dismissLevelUp} />}
       {badgeShow && <BadgeUnlockOverlay badge={badgeShow} lang={lang} onDone={dismissBadge} />}
       {xpBreakdownShow && <XPBreakdownOverlay breakdown={xpBreakdownShow} lang={lang} onDone={() => setXpBreakdownShow(null)} />}

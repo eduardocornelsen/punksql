@@ -413,53 +413,74 @@ const ONBOARDING_STEPS = [
     title: "FREE EXPLORE // SANDBOX",
     icon: "⬡", color: C.cyan,
     body: "A fully in-browser SQLite REPL.\nNo server. No signup. Works offline.\n\nYour schema and data are saved in\nyour browser via IndexedDB and\npersist across refreshes.",
+    title_pt: "FREE EXPLORE // SANDBOX",
+    body_pt: "Um REPL SQLite 100% no navegador.\nSem servidor. Sem cadastro. Funciona offline.\n\nSeu schema e seus dados ficam salvos\nno navegador via IndexedDB e\nsobrevivem a atualizações da página.",
   },
   {
     title: "FIVE MODES — BOTTOM TABS",
     icon: "≡", color: C.cyan,
     body: "Five tabs at the bottom of the screen:\n\n  >  SHELL   — interactive terminal\n  ≡  EDITOR  — .sql / .yaml file editor\n  ⊓  VAULT   — file browser + schema explorer\n  ▲  DBT     — dbt lab (compile + run + test)\n  ⬡  DAG     — data lineage graph\n\nSwitch freely between them.",
+    title_pt: "CINCO MODOS — ABAS INFERIORES",
+    body_pt: "Cinco abas na parte de baixo da tela:\n\n  >  SHELL   — terminal interativo\n  ≡  EDITOR  — editor de .sql / .yaml\n  ⊓  VAULT   — arquivos + schema explorer\n  ▲  DBT     — dbt lab (compile + run + test)\n  ⬡  DAG     — grafo de linhagem de dados\n\nAlterne livremente entre elas.",
   },
   {
     title: "REPL — TERMINAL MODE",
     icon: ">", color: C.cyan,
     body: "Type SQL and press ENTER to run.\nShift+Enter adds a new line.\n\nExample:\n  SELECT * FROM customers LIMIT 5;\n\nMeta-commands start with backslash:\n  \\dt       list tables\n  \\d name   describe table\n  \\?        show all commands",
+    title_pt: "REPL — MODO TERMINAL",
+    body_pt: "Digite SQL e pressione ENTER.\nShift+Enter adiciona nova linha.\n\nExemplo:\n  SELECT * FROM customers LIMIT 5;\n\nMeta-comandos começam com barra invertida:\n  \\dt       listar tabelas\n  \\d nome   descrever tabela\n  \\?        todos os comandos",
   },
   {
     title: "EDITOR — .SQL FILE MODE",
     icon: "≡", color: C.amber,
     body: "Write multi-line SQL like a .sql file.\nEnter = new line (no auto-execute).\n\nTo run:\n  Ctrl+Enter  (or Cmd+Enter)\n  ▶ RUN button\n\nResults appear below the editor.\nGreat for complex queries and CTEs.",
+    title_pt: "EDITOR — MODO ARQUIVO .SQL",
+    body_pt: "Escreva SQL multi-linha como um .sql.\nEnter = nova linha (não executa).\n\nPara executar:\n  Ctrl+Enter  (ou Cmd+Enter)\n  botão ▶ RUN\n\nResultados aparecem abaixo do editor.\nÓtimo para queries complexas e CTEs.",
   },
   {
     title: "FILES — DBT PROJECT",
     icon: "◈", color: C.green,
     body: "A virtual dbt project tree showing\nyour models organized by layer:\n\n  models/\n    staging/      stg_* views\n    intermediate/ int_* views\n    mart/         fct_*/dim_*\n  seeds/          raw tables\n\nTap any file → see DDL\n\"Open in Editor\" → load into editor",
+    title_pt: "ARQUIVOS — PROJETO DBT",
+    body_pt: "Uma árvore de projeto dbt virtual\ncom seus models organizados por camada:\n\n  models/\n    staging/      views stg_*\n    intermediate/ views int_*\n    mart/         fct_*/dim_*\n  seeds/          tabelas brutas\n\nToque em um arquivo → veja o DDL\n\"Abrir no editor\" → carrega no editor",
   },
   {
     title: "DBT — ANALYTICS LAB",
     icon: "▲", color: "#FF9944",
     body: "A real dbt workflow, in the browser:\n\nWrite models with {{ ref() }} and\n{{ source() }}, then:\n\n  run    → materialize views/tables\n  test   → schema.yml tests (real\n           pass/fail on your data)\n  build  → run + test\n\nModels land in the DB — query them\nin SHELL, see them in VAULT + DAG.",
+    title_pt: "DBT — LABORATÓRIO ANALYTICS",
+    body_pt: "Um fluxo dbt de verdade, no navegador:\n\nEscreva models com {{ ref() }} e\n{{ source() }}, depois:\n\n  run    → materializa views/tables\n  test   → testes do schema.yml (pass/\n           fail reais nos seus dados)\n  build  → run + test\n\nModels vão para o banco — consulte no\nSHELL, veja no VAULT + DAG.",
   },
   {
     title: "LINEAGE — DATA FLOW",
     icon: "⬡", color: C.purple,
     body: "The LINEAGE tab shows your data\npipeline as a layer stack:\n\n  SRC → STG → INT → MRT\n\nObjects are grouped by naming:\n  stg_*  → STAGING\n  int_*  → INTERMEDIATE\n  fct_*  → MART fact tables\n  dim_*  → MART dimensions\n\nViews show upstream deps.",
+    title_pt: "LINHAGEM — FLUXO DE DADOS",
+    body_pt: "A aba LINEAGE mostra seu pipeline\nde dados como uma pilha de camadas:\n\n  SRC → STG → INT → MRT\n\nObjetos agrupados por nome:\n  stg_*  → STAGING\n  int_*  → INTERMEDIATE\n  fct_*  → fatos do MART\n  dim_*  → dimensões do MART\n\nViews mostram dependências upstream.",
   },
   {
     title: "SQL KEYBOARD",
     icon: "⌨", color: C.purple,
     body: "Swipe UP from the chip bar to open\na floating SQL keyword keyboard.\nSwipe DOWN on the handle to close it.\nOr tap [⌨] in the input area.\n\nTabs: SQL · DDL · FUNC · DBT\n      TABLES · COLS · {}",
+    title_pt: "TECLADO SQL",
+    body_pt: "Deslize para CIMA na barra de chips\npara abrir o teclado SQL flutuante.\nDeslize para BAIXO no puxador para fechar.\nOu toque em [⌨] na área de input.\n\nAbas: SQL · DDL · FUNC · DBT\n      TABLES · COLS · {}",
   },
   {
     title: "SAVING YOUR WORK",
     icon: "▪", color: C.green,
     body: "Query history and files auto-save locally.\n\nThe database auto-saves after any INSERT,\nCREATE, DROP, UPDATE, or DELETE.\n\nTo restore original dataset:\n  Type: \\resetdb\n\nTap [?] anytime to reopen this guide.",
+    title_pt: "SALVANDO SEU TRABALHO",
+    body_pt: "Histórico e arquivos salvam sozinhos.\n\nO banco salva automaticamente após\nINSERT, CREATE, DROP, UPDATE, DELETE.\n\nPara restaurar o dataset original:\n  Digite: \\resetdb\n\nToque em [?] para reabrir este guia.",
   },
 ];
 
 // ── Onboarding Modal ──────────────────────────────────────────
-function OnboardingModal({ onClose }) {
+function OnboardingModal({ onClose, lang = "en" }) {
   const [step, setStep] = useState(0);
-  const cur = ONBOARDING_STEPS[step];
+  const raw = ONBOARDING_STEPS[step];
+  const cur = lang === "pt"
+    ? { ...raw, title: raw.title_pt || raw.title, body: raw.body_pt || raw.body }
+    : raw;
   const isLast = step === ONBOARDING_STEPS.length - 1;
   return (
     <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
@@ -1773,7 +1794,7 @@ export default function SandboxScreen({ onBack, lang = "en", dbtMissionsSolved, 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.void, fontFamily: F.mono, position: "relative" }}>
 
-      {showOnboard && <OnboardingModal onClose={closeOnboard} />}
+      {showOnboard && <OnboardingModal onClose={closeOnboard} lang={lang} />}
       {showFileManager && (
         <FileManagerPanel
           files={files}
